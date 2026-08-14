@@ -28,6 +28,47 @@ test_that("a continuous exposure is labelled by its name, with no unit invented"
   expect_equal(as.character(named$label), "NO2, ug/m3 (per 10)")
 })
 
+test_that("`contrast = \"iqr\"` takes the increment from the data and says which", {
+  fit <- fy_test_logistic()
+  iqr <- stats::IQR(foresty_cohort$no2, na.rm = TRUE)
+
+  est <- fy_est(foresty_main(list(fit), exposure = "no2", contrast = "iqr"))
+  explicit <- fy_est(foresty_main(list(fit), exposure = "no2", contrast = iqr))
+  expect_equal(est$estimate, explicit$estimate, tolerance = 1e-12)
+
+  # The range that was used is written beside the exposure: an effect per
+  # interquartile range cannot be compared with anything without it.
+  expect_equal(as.character(est$label),
+               paste0("no2 (per IQR, ",
+                      format(iqr, digits = 3, trim = TRUE,
+                             drop0trailing = TRUE), ")"))
+
+  # It reaches a subgroup analysis the same way.
+  by_sex <- fy_est(foresty_interaction(fit, exposure = "no2",
+                                       interaction = "sex", contrast = "iqr"))
+  expect_match(as.character(by_sex$variable_label[1L]), "per IQR", fixed = TRUE)
+  expect_equal(by_sex$estimate[1L],
+               fy_est(foresty_interaction(fit, exposure = "no2",
+                                          interaction = "sex",
+                                          contrast = iqr))$estimate[1L],
+               tolerance = 1e-12)
+})
+
+test_that("an interquartile range is refused where there is none to take", {
+  fit <- fy_test_logistic()
+
+  # A categorical exposure has levels rather than a range, and the remedy is
+  # the one that names two of them.
+  expect_error(foresty_main(list(fit), exposure = "sex", contrast = "iqr"),
+               "does not have")
+  expect_error(foresty_main(list(fit), exposure = "no2", contrast = "sd"),
+               "must be a number")
+  expect_error(
+    foresty_main(list(fit), exposure = "no2", contrast = "iqr", at = c(10, 20)),
+    "only one of them can be given"
+  )
+})
+
 test_that("`at` and `contrast` are two ways of saying the same thing", {
   fit <- fy_test_logistic()
   expect_error(

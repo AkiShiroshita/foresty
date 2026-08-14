@@ -39,7 +39,37 @@
 #' @param family Font family, as `"serif"` or `"Times New Roman"`. `NULL`
 #'   leaves the device's default.
 #' @param colour One colour for the estimates and their intervals, which is the
-#'   usual thing to change. `palette` changes them apart.
+#'   usual thing to change. `palette` changes them apart, and `colour_by` draws
+#'   the rows in colours of their own instead. [foresty_colours()] names a
+#'   colour of a ColorBrewer palette without pasting a hex code, as
+#'   `colour = foresty_colours("Dark2")[3]`.
+#' @param colour_by What the colours change with, for a figure drawn in more
+#'   than one. `"none"`, the default, draws the whole figure in `colour`.
+#'   `"category"` gives every category of the rows a colour of its own: the
+#'   levels of a categorical exposure -- "Yes" and "No" -- where the rows are
+#'   levels, and the subgroups of the modifier where they are subgroups, which
+#'   is what an interaction figure draws. A category keeps its colour wherever
+#'   it appears, so a combined figure reads across its blocks. `"row"` gives
+#'   every row a colour, whatever it is of. The reference level of a
+#'   categorical exposure is drawn hollow either way, being a definition rather
+#'   than an estimate. No legend is drawn: every row is labelled already, and a
+#'   legend repeating the labels is a second copy of them to keep in step.
+#' @param colours The colours `colour_by` draws the categories in, in order,
+#'   and cycled where there are more categories than colours. The name of a
+#'   ColorBrewer palette -- `"Dark2"`, the default, `"Set1"` or `"Set2"` -- or
+#'   the colours themselves, as `c("#1B9E77", "#D95F02")`. [foresty_colours()]
+#'   builds one starting from a chosen place in a palette, as
+#'   `colours = foresty_colours("Dark2", start = 3)`.
+#' @param theme The `ggplot2` theme the plot itself is drawn on: `"void"`, the
+#'   default, which is the plain panel a forest plot is usually drawn as, or
+#'   the name of one of `ggplot2`'s own -- `"minimal"`, `"bw"`, `"classic"`,
+#'   `"light"`, `"linedraw"`, `"grey"` or `"dark"` -- for its background, its
+#'   border and its grid. A theme object or a theme function is also accepted.
+#'   It is the plot's theme, not the figure's: the columns of numbers beside it
+#'   are a table rather than a plot and keep their own. Everything the layout
+#'   sets -- the sizes, the colours of the text, whether the axis line and the
+#'   grid are drawn -- is applied over it, so `grid = TRUE` and `theme = "bw"`
+#'   are not two answers to the same question.
 #' @param palette Named character vector overriding single colours, as
 #'   `c(estimate = "#B24745", null = "grey60")`. The names are `estimate`,
 #'   `border` (the outline of the marks), `reference` (the fill of the
@@ -161,6 +191,9 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
                            base_size = NULL,
                            family = NULL,
                            colour = NULL,
+                           colour_by = NULL,
+                           colours = NULL,
+                           theme = NULL,
                            palette = NULL,
                            point_shape = NULL,
                            point_size = NULL,
@@ -211,7 +244,8 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
 
   # Everything else is a single value replaced as it stands.
   given <- list(
-    base_size = base_size, family = family, point_shape = point_shape,
+    base_size = base_size, family = family, colour_by = colour_by,
+    colours = colours, theme = theme, point_shape = point_shape,
     point_size = point_size, emphasis_shape = emphasis_shape,
     emphasis_height = emphasis_height, emphasis_size = emphasis_size,
     emphasis_face = emphasis_face,
@@ -243,6 +277,12 @@ print.foresty_layout <- function(x, ...) {
   cat("  colours   ",
       paste0(names(x$palette), " ", unlist(x$palette), collapse = ", "),
       "\n", sep = "")
+  if (fy_colours_rows(x)) {
+    colours <- fy_layout_colours(x$colours)
+    cat("  one per   ", x$colour_by, ", from ",
+        paste(utils::head(colours, 3), collapse = ", "),
+        if (length(colours) > 3L) ", ...", "\n", sep = "")
+  }
   cat("  numbers   ", x$digits, " digits, p-values ", x$p_format,
       ", intervals ", fy_ci_example(x), "\n", sep = "")
   cat("  columns   ", x$table_side, ", subgroups by ", x$group_position,
@@ -294,6 +334,14 @@ fy_layout_defaults <- function() {
       group = "black",
       axis = "grey25"
     ),
+    # One colour for the whole figure, which is what a forest plot is usually
+    # drawn in. `colour_by` is what makes `colours` mean anything.
+    colour_by = "none",
+    colours = NULL,
+    # The panel a forest plot is drawn on carries nothing of its own: the rules,
+    # the shading and the line at the null are drawn by the figure, at heights
+    # it worked out, so a theme under them would be a second set of lines.
+    theme = "void",
     point_shape = 22,
     point_size = 2.3,
     # A row singled out for emphasis is the overall estimate on a combined
@@ -497,6 +545,28 @@ fy_check_layout <- function(layout) {
   } else {
     checkmate::assert_number(layout$emphasis_shape)
   }
+  layout$colour_by <- match.arg(layout$colour_by %||% "none",
+                                c("none", "category", "row"))
+  if (!is.null(layout$colours)) {
+    checkmate::assert_character(layout$colours, min.len = 1L,
+                                any.missing = FALSE)
+    unknown <- length(layout$colours) == 1L &&
+      !layout$colours %in% names(fy_brewer_palettes) &&
+      !fy_is_colour(layout$colours)
+    if (unknown) {
+      stop(
+        "`colours` is the name of a palette -- ",
+        paste0("\"", names(fy_brewer_palettes), "\"", collapse = ", "),
+        " -- or the colours themselves, as `c(\"#1B9E77\", \"#D95F02\")`. ",
+        "foresty_colours(\"Dark2\", start = 3) builds one starting where you ",
+        "want it to.",
+        call. = FALSE
+      )
+    }
+  }
+  # Resolved here rather than when the figure is drawn, so that a theme that
+  # does not exist is refused where it was named.
+  fy_base_theme(layout)
   layout$rules <- match.arg(layout$rules, c("header", "full", "none"))
   layout$group_position <- match.arg(layout$group_position, c("row", "column"))
   layout$table_side <- match.arg(layout$table_side, c("right", "left"))
@@ -512,6 +582,51 @@ fy_check_layout <- function(layout) {
   }
   checkmate::assert_character(layout$ci_brackets, len = 2L)
   layout
+}
+
+fy_is_colour <- function(x) {
+  grepl("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", x) || x %in% grDevices::colours()
+}
+
+# The themes ------------------------------------------------------------------
+
+# The ggplot2 themes a figure can be drawn on, by the name the layout takes.
+fy_themes <- function() {
+  list(
+    void = ggplot2::theme_void,
+    minimal = ggplot2::theme_minimal,
+    bw = ggplot2::theme_bw,
+    classic = ggplot2::theme_classic,
+    light = ggplot2::theme_light,
+    linedraw = ggplot2::theme_linedraw,
+    grey = ggplot2::theme_grey,
+    gray = ggplot2::theme_grey,
+    dark = ggplot2::theme_dark
+  )
+}
+
+# The theme the plot is drawn on, at the size and in the family the layout asks
+# for. A theme object is taken as it stands, since it carries its own sizes.
+fy_base_theme <- function(layout) {
+  theme <- layout$theme %||% "void"
+  if (inherits(theme, "theme")) {
+    return(theme)
+  }
+  if (is.function(theme)) {
+    return(theme(base_size = layout$base_size,
+                 base_family = layout$family %||% ""))
+  }
+  themes <- fy_themes()
+  if (!is.character(theme) || length(theme) != 1L || !theme %in% names(themes)) {
+    stop(
+      "`theme` is the name of a ggplot2 theme -- ",
+      paste0("\"", setdiff(names(themes), "gray"), "\"", collapse = ", "),
+      " -- or a theme object, as `theme = ggplot2::theme_bw()`",
+      call. = FALSE
+    )
+  }
+  themes[[theme]](base_size = layout$base_size,
+                  base_family = layout$family %||% "")
 }
 
 # A mark drawn for emphasis is larger than the rest, so that it is found

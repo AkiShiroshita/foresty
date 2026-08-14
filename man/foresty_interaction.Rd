@@ -13,7 +13,7 @@ foresty_interaction(
   labels = NULL,
   level_labels = NULL,
   ci_level = 0.95,
-  contrast = 1,
+  contrast = NULL,
   at = NULL,
   vcov = NULL,
   cluster = NULL,
@@ -36,10 +36,17 @@ figure, which saves repeating it in \code{labels}.}
 
 \item{interaction}{Name of the effect modifier, as a character string, and
 named as \code{interaction = c(Sex = "sex")} where the figure is to call it
-something other than what the column is called. It must be a factor with
-at least two levels. A continuous modifier is rejected: categorize it with
-\code{\link[=cut]{cut()}} first, so that the subgroups being compared are the ones you
-intend.}
+something other than what the column is called. It must have at least two
+levels. A numeric column taking exactly two values counts as having them,
+so a flag coded 0 and 1 is read as those two subgroups without being
+wrapped in \code{\link[=factor]{factor()}} and fitted again: it entered the model through the
+one coefficient a two-level factor would have given, and the estimates and
+the test are the same either way. Its rows are labelled with the values
+themselves, \code{0} and \code{1}, which is rarely what a figure should say, so name
+them through \code{level_labels}. A modifier taking three or more numeric values
+is rejected: categorize it with \code{\link[=cut]{cut()}} and refit, so that the subgroups
+being compared are the ones you intend and the test has the degrees of
+freedom the figure implies.}
 
 \item{measure}{Effect measure, one of \code{"OR"}, \code{"RR"}, \code{"HR"}, \code{"IRR"},
 \code{"MD"} or \code{"Coefficient"}. The default reads it from the model: a logistic
@@ -60,17 +67,26 @@ variable, as \code{c(no2 = "Nitrogen dioxide")}. Names not matched are left as
 they are.}
 
 \item{level_labels}{Named character vector giving the label to draw for a
-level of the modifier, as \code{c(F = "Female", M = "Male")}.}
+level of the modifier, as \code{c(F = "Female", M = "Male")}, or
+\code{c("0" = "No", "1" = "Yes")} for a modifier coded as a flag.}
 
 \item{ci_level}{Confidence level of the intervals. Defaults to \code{0.95}.}
 
 \item{contrast}{For a continuous exposure, the increment the effect is
-reported per. Defaults to \code{1}. The increment is written beside the
-variable, so \code{contrast = 10} draws the row as \code{"NO2 (per 10)"}, but no
-unit is invented, since the package cannot know what a column's numbers
+reported per. \code{NULL}, the default, is one unit and is not written on the
+figure. An increment you name is: \code{contrast = 10} draws the row as
+\code{"NO2 (per 10)"} and \code{contrast = 1} draws it as \code{"NO2 (per 1)"}, the same
+estimate as the default said out loud. No unit is invented, since the
+package cannot know what a column's numbers
 mean; name the unit in \code{labels}, as \code{c(no2 = "NO2, ug/m3")}, and the row
-reads \code{"NO2, ug/m3 (per 10)"}. It says nothing about a categorical
-exposure, whose comparisons are its levels.}
+reads \code{"NO2, ug/m3 (per 10)"}. \code{contrast = "iqr"} takes the increment from
+the data instead: the interquartile range of the exposure as the model saw
+it, which is what an exposure with no natural unit is usually reported per.
+The range it came to is written beside the variable, as
+\code{"NO2 (per IQR, 8.44)"}, because an effect per interquartile range cannot
+be compared with anything unless the figure says which range that was.
+\code{contrast} says nothing about a categorical exposure, whose comparisons are
+its levels.}
 
 \item{at}{The two values of the exposure to contrast, as \code{c(from, to)}.
 Which two they were is written beside the exposure, as \code{"NO2 (20 vs 10)"},

@@ -10,3 +10,4 @@
 ^\.quarto$
 ^Rplots\.pdf$
 ^[^/]*\.html$
+^\.claude$

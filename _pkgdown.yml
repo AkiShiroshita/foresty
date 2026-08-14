@@ -12,9 +12,13 @@ reference:
   - title: Layout
     contents:
       - foresty_layout
+      - foresty_colours
   - title: Reporting
     contents:
       - foresty_report
+  - title: Interactive
+    contents:
+      - foresty_app
   - title: Working with the result
     contents:
       - summary.foresty

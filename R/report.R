@@ -160,7 +160,10 @@ fy_section <- function(heading, body) {
 
 fy_model_table <- function(info, result, exposure) {
   rows <- list()
-  rows[["Model"]] <- paste(class(info$fit), collapse = ", ")
+  # What the model is, in the words a methods section uses, rather than the
+  # classes of the object it is held in: a reader checking the page against a
+  # paper is looking for "logistic regression", not "glm, lm".
+  rows[["Model"]] <- fy_model_name(info$fit)
   formula <- try(stats::formula(info$fit), silent = TRUE)
   if (!inherits(formula, "try-error")) {
     rows[["Formula"]] <- paste(deparse(formula), collapse = " ")
@@ -178,7 +181,9 @@ fy_model_table <- function(info, result, exposure) {
   }
   rows[["Effect measure"]] <- result$measure_label
   rows[["Standard errors"]] <- if (isTRUE(result$robust)) "Robust" else "Model-based"
-  rows[["Confidence level"]] <- paste0(round(result$ci_level * 100), "%")
+  # The confidence level is not among them: every column of numbers on the page
+  # is headed with it -- "Odds ratio (95% CI)" -- so a row of its own says it
+  # again in a place nobody reads it.
 
   fy_gt(
     data.frame(
@@ -324,13 +329,7 @@ fy_coefficient_table <- function(info, result) {
 # The plot is embedded as a data URI rather than written beside the page, so
 # that the report stays a single file that can be sent on.
 fy_plot_html <- function(x, width = 10, height = NULL) {
-  # The rows are the whole of the panel, so the height is what sets them apart
-  # from one another: a little under half an inch apiece, and enough beside it
-  # for the column headings and the axis.
-  if (is.null(height)) {
-    rows <- nrow(fy_result(x)$estimates)
-    height <- max(2.5, 1.2 + 0.4 * rows)
-  }
+  height <- fy_plot_height(x, height)
   path <- tempfile(fileext = ".png")
   on.exit(unlink(path), add = TRUE)
 
@@ -340,9 +339,11 @@ fy_plot_html <- function(x, width = 10, height = NULL) {
   class(plain) <- setdiff(class(plain), "foresty")
   attr(plain, "foresty") <- NULL
 
+  # 200 dpi rather than 150: the page is read on screens that draw two device
+  # pixels to the CSS pixel, and a forest plot is read from its numbers.
   ok <- try(
     ggplot2::ggsave(path, plot = plain, width = width, height = height,
-                    dpi = 150, units = "in"),
+                    dpi = 200, units = "in"),
     silent = TRUE
   )
   if (inherits(ok, "try-error") || !file.exists(path)) {
@@ -357,6 +358,26 @@ fy_plot_html <- function(x, width = 10, height = NULL) {
     ))
   }
   paste0("<img alt=\"Forest plot\" src=\"data:image/png;base64,", encoded, "\">")
+}
+
+# How tall the figure on the page is drawn, in inches.
+#
+# The rows are the whole of the panel, so the height is what sets them apart
+# from one another: two fifths of an inch apiece. What stands above and below
+# them does not grow with them -- a title of two lines, a column heading of
+# three and an axis -- and that is an inch and a half whatever the figure
+# reports, so it is added rather than shared out.
+#
+# The floor is three inches for the same reason. A figure of two rows given two
+# and a half is mostly title: the rows are pressed into the little the headings
+# and the axis leave, which is what a squashed forest plot is. The whitespace
+# an over-tall figure leaves costs nothing beside that.
+fy_plot_height <- function(x, height = NULL) {
+  if (!is.null(height)) {
+    return(height)
+  }
+  rows <- tryCatch(nrow(fy_result(x)$estimates), error = function(e) 0L)
+  max(3, 1.6 + 0.4 * rows)
 }
 
 fy_base64 <- function(path) {
@@ -397,7 +418,7 @@ fy_report_css <- function() {
     "body{margin:0;background:#f6f7f9;color:#1a1a1a;",
     "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;",
     "line-height:1.55}",
-    "main{max-width:60rem;margin:0 auto;padding:2rem 1.5rem 4rem}",
+    "main{max-width:66rem;margin:0 auto;padding:2rem 1.5rem 4rem}",
     "h1{font-size:1.6rem;margin:0 0 1.5rem;font-weight:650}",
     "h2{font-size:1.1rem;margin:0 0 .75rem;font-weight:650;color:#33475b}",
     "section{background:#fff;border:1px solid #e3e6ea;border-radius:8px;",

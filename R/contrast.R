@@ -94,6 +94,14 @@ fy_is_intercept_column <- function(x) {
 # row would change nothing. The model frame is used only when the source data
 # cannot be found, which is workable as long as every term is a plain variable.
 fy_reference_row <- function(info) {
+  where <- fy_reference_index(info)
+  where$frame[where$index, , drop = FALSE]
+}
+
+# Which row that is, and which frame it came from, so that the code the app
+# writes out can name the row foresty actually used rather than a row of its
+# own choosing.
+fy_reference_index <- function(info) {
   frame <- if (!is.null(info$data)) info$data else info$mf
   if (is.null(frame)) {
     stop(
@@ -107,8 +115,11 @@ fy_reference_row <- function(info) {
   # column full of missing values does not rule every row out.
   used <- intersect(all.vars(stats::formula(info$fit)), names(frame))
   complete <- which(stats::complete.cases(frame[, used, drop = FALSE]))
-  index <- if (length(complete)) complete[1L] else 1L
-  frame[index, , drop = FALSE]
+  list(
+    frame = frame,
+    index = if (length(complete)) complete[1L] else 1L,
+    from_data = !is.null(info$data)
+  )
 }
 
 # The values a model variable takes. The model frame is asked first, so that
@@ -130,6 +141,54 @@ fy_is_categorical <- function(x) {
   is.factor(x) || is.character(x) || is.logical(x)
 }
 
+# The increment an effect is reported per, as a number.
+#
+# A number is taken as it stands. `"iqr"` is taken from the data: the
+# interquartile range of the exposure as the model saw it, which is what a
+# reader wants for an exposure whose units mean nothing on their own -- a
+# pollutant, a biomarker, a score. The range it came to is carried back as a
+# label, because an effect per interquartile range is not readable without the
+# range: two cohorts have two of them, and a figure that does not say which was
+# used cannot be compared with anything.
+fy_resolve_contrast <- function(contrast, x, exposure) {
+  if (is.numeric(contrast)) {
+    checkmate::assert_number(contrast)
+    return(contrast)
+  }
+  if (!is.character(contrast) || length(contrast) != 1L ||
+      !identical(tolower(contrast), "iqr")) {
+    stop(
+      "`contrast` must be a number, as `contrast = 10`, or \"iqr\" for the ",
+      "interquartile range of \"", exposure, "\" in the data the model was ",
+      "fitted to",
+      call. = FALSE
+    )
+  }
+  if (!is.numeric(x)) {
+    stop(
+      "`contrast = \"iqr\"` is the interquartile range of \"", exposure,
+      "\", which a categorical exposure does not have: its comparisons are ",
+      "its levels. Use `at` to compare two of them.",
+      call. = FALSE
+    )
+  }
+
+  iqr <- stats::IQR(x, na.rm = TRUE)
+  if (!is.finite(iqr) || iqr <= 0) {
+    stop(
+      "the interquartile range of \"", exposure, "\" is ", fy_trim_number(iqr),
+      ", so there is no difference to report an effect per. Name the increment ",
+      "yourself, as `contrast = 10`.",
+      call. = FALSE
+    )
+  }
+  # The range itself is used as it is; the label carries it to three figures,
+  # which is how a paper writes it and is enough to know which range was meant.
+  structure(iqr, label = paste0(
+    "per IQR, ", format(iqr, digits = 3, trim = TRUE, drop0trailing = TRUE)
+  ))
+}
+
 # The comparisons to make for an exposure.
 #
 # A categorical exposure yields one comparison per level, the reference level
@@ -139,12 +198,30 @@ fy_is_categorical <- function(x) {
 # comparisons are its levels, and `at` names two of those levels.
 #
 # A continuous exposure yields a single comparison, of a value against that
-# value plus `contrast`. An increment that is not one is written beside the
+# value plus `contrast`. An increment that was asked for is written beside the
 # exposure -- "NO2 (per 10)" -- because a figure whose numbers change with
 # `contrast` and whose labels do not cannot be read. No unit is invented for
 # it, since the package has no way of knowing what the numbers in a column
 # mean; give one through `labels`.
-fy_exposure_values <- function(info, exposure, contrast = 1, at = NULL) {
+#
+# An increment is written wherever it was named, one included: `contrast = 1`
+# draws "NO2 (per 1)", since a figure saying what its rows are per is read the
+# same way whatever the number is. `NULL`, the default, is one unit and says
+# nothing, which is what leaves a plain "NO2" on a figure nobody asked the
+# question of.
+#
+# `contrast = "iqr"` is the increment taken from the data rather than named:
+# an exposure whose units mean nothing to a reader -- a pollutant, a biomarker,
+# a score -- is reported per interquartile range, and the range that was used
+# is written beside the exposure so that the figure still says what a row is
+# the effect of.
+fy_exposure_values <- function(info, exposure, contrast = NULL, at = NULL) {
+  # Whether the increment was named or left to the default, which is what
+  # decides whether the figure says it. The number itself is one either way.
+  named <- !is.null(contrast)
+  if (!named) {
+    contrast <- 1
+  }
   x <- fy_variable(info, exposure)
   if (is.null(x)) {
     stop(
@@ -154,7 +231,30 @@ fy_exposure_values <- function(info, exposure, contrast = 1, at = NULL) {
       call. = FALSE
     )
   }
-  checkmate::assert_number(contrast)
+  # A basis built before the model was fitted and entered as columns of its own
+  # is not a variable this package can contrast two values of. The columns
+  # record nothing that ties them to the variable they were built from -- not
+  # the knots, not the variable's name -- so there is no way to ask what the
+  # design matrix looks like at two values of it. A basis built inside the
+  # formula does record all of that, in the `predvars` of the terms object, and
+  # is rebuilt from them with the knots it was fitted with.
+  if (is.matrix(x) && ncol(x) > 1L) {
+    stop(
+      "\"", exposure, "\" is a matrix of ", ncol(x), " columns in the data ",
+      "this model was fitted to -- a spline basis built before fitting, by ",
+      "the look of it. Its columns record nothing that ties them to the ",
+      "variable they were built from, so foresty cannot say what the design ",
+      "matrix looks like at two values of that variable. Build the basis in ",
+      "the formula instead, as `ns(x, 3)` or `rcs(x, 4)` with the same knots, ",
+      "refit, and pass the variable itself as the exposure with ",
+      "`at = c(from, to)`: the knots are then taken from the fitted terms ",
+      "and the two values are contrasted on the curve the model actually has.",
+      call. = FALSE
+    )
+  }
+  contrast <- fy_resolve_contrast(contrast, x, exposure)
+  named_contrast <- attr(contrast, "label")
+  contrast <- as.numeric(contrast)
 
   if (!is.null(at)) {
     if (length(at) != 2L) {
@@ -164,11 +264,16 @@ fy_exposure_values <- function(info, exposure, contrast = 1, at = NULL) {
     # Both say which two values are being compared, and one of them would have
     # to be ignored.
     if (!isTRUE(all.equal(contrast, 1))) {
+      said <- if (is.null(named_contrast)) {
+        fy_trim_number(contrast)
+      } else {
+        "\"iqr\""
+      }
       stop(
         "`at` and `contrast` both say which two values of \"", exposure,
         "\" are compared, so only one of them can be given: `at = c(",
-        at[[1L]], ", ", at[[2L]], ")` names the values, `contrast = ", contrast,
-        "` asks for the effect per ", contrast, " of them.",
+        at[[1L]], ", ", at[[2L]], ")` names the values, `contrast = ", said,
+        "` asks for the effect per ", fy_trim_number(contrast), " of them.",
         call. = FALSE
       )
     }
@@ -219,9 +324,15 @@ fy_exposure_values <- function(info, exposure, contrast = 1, at = NULL) {
   }
 
   base <- stats::median(x, na.rm = TRUE)
+  if (!is.null(named_contrast)) {
+    return(list(list(
+      from = base, to = base + contrast, level = NA_character_,
+      contrast_label = named_contrast, reference = FALSE
+    )))
+  }
   list(list(
     from = base, to = base + contrast, level = NA_character_,
-    contrast_label = if (isTRUE(all.equal(contrast, 1))) {
+    contrast_label = if (!named) {
       NA_character_
     } else {
       paste0("per ", fy_trim_number(contrast))

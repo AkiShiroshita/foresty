@@ -73,7 +73,7 @@ fy_forest_plot <- function(estimates,
   rows <- fy_layout_rows(estimates, grouped = grouped, as_rows = as_rows,
                          separators = layout$separators, fold = fold,
                          gaps = gaps)
-  estimates <- rows$estimates
+  estimates <- fy_row_colours(rows$estimates, layout)
   row_labels <- if (folded) {
     as.character(estimates$group)
   } else {
@@ -620,11 +620,7 @@ fy_forest_panel <- function(estimates, exponentiate, measure_label, null_value,
     fy_interval_layers(drawn[!diamonds, , drop = FALSE], layout) +
     fy_point_layers(drawn[!diamonds, , drop = FALSE], layout) +
     fy_diamond_layer(drawn[diamonds, , drop = FALSE], layout) +
-    ggplot2::scale_fill_manual(
-      values = c(`FALSE` = layout$palette$estimate,
-                 `TRUE` = layout$palette$reference),
-      guide = "none"
-    ) +
+    fy_colour_scales(layout) +
     fy_arrow_labels(geo, layout, null_value) +
     ggplot2::labs(title = title, subtitle = subtitle,
                   x = fy_wrap(measure_label, 34), y = NULL) +
@@ -641,6 +637,24 @@ fy_forest_panel <- function(estimates, exponentiate, measure_label, null_value,
   }
   attr(out, "fy_width") <- fy_plot_width(layout)
   out
+}
+
+# How the marks are filled.
+#
+# A figure drawn in one colour maps the fill to whether the row is the
+# reference level, so that a scale added by hand still reaches it. A figure
+# whose rows carry colours of their own has those colours on the rows already,
+# and takes them as they are.
+fy_colour_scales <- function(layout) {
+  if (fy_colours_rows(layout)) {
+    return(list(ggplot2::scale_fill_identity(),
+                ggplot2::scale_colour_identity()))
+  }
+  ggplot2::scale_fill_manual(
+    values = c(`FALSE` = layout$palette$estimate,
+               `TRUE` = layout$palette$reference),
+    guide = "none"
+  )
 }
 
 fy_plot_width <- function(layout) {
@@ -718,6 +732,15 @@ fy_diamond_layer <- function(part, layout) {
                         part$position, part$position - half)),
     stringsAsFactors = FALSE
   )
+  if (fy_colours_rows(layout)) {
+    corners$colour <- rep(part$row_colour, each = 4L)
+    return(ggplot2::geom_polygon(
+      data = corners,
+      ggplot2::aes(x = .data$x, y = .data$y, group = .data$id,
+                   fill = .data$colour, colour = .data$colour),
+      linewidth = 0.35, na.rm = TRUE, show.legend = FALSE
+    ))
+  }
   ggplot2::geom_polygon(
     data = corners,
     ggplot2::aes(x = .data$x, y = .data$y, group = .data$id),
@@ -753,6 +776,15 @@ fy_point_layer <- function(part, shape, size, layout) {
   if (!nrow(part)) {
     return(NULL)
   }
+  if (fy_colours_rows(layout)) {
+    return(ggplot2::geom_point(
+      data = part,
+      ggplot2::aes(x = .data$estimate_drawn, y = .data$position,
+                   fill = .data$fill_colour, colour = .data$row_colour),
+      shape = shape, size = size, stroke = 0.5, show.legend = FALSE,
+      na.rm = TRUE
+    ))
+  }
   ggplot2::geom_point(
     data = part,
     ggplot2::aes(x = .data$estimate_drawn, y = .data$position,
@@ -782,6 +814,16 @@ fy_interval_layers <- function(drawn, layout) {
     part <- drawn[kind$rows, , drop = FALSE]
     if (!nrow(part)) {
       return(NULL)
+    }
+    if (fy_colours_rows(layout)) {
+      return(ggplot2::geom_segment(
+        data = part,
+        ggplot2::aes(x = .data$low, xend = .data$high,
+                     y = .data$position, yend = .data$position,
+                     colour = .data$row_colour),
+        linewidth = layout$interval_width, lineend = "butt",
+        arrow = kind$arrow, na.rm = TRUE, show.legend = FALSE
+      ))
     }
     ggplot2::geom_segment(
       data = part,
@@ -826,9 +868,10 @@ fy_arrow_labels <- function(geo, layout, null_value) {
 }
 
 fy_forest_theme <- function(layout, has_axis_labels, geo) {
-  base <- ggplot2::theme_void(base_size = layout$base_size,
-                              base_family = layout$family %||% "")
-  out <- base + ggplot2::theme(
+  # theme_void() unless the layout named one of ggplot2's own, in which case
+  # the plot is drawn on that -- its background, its border, its grid -- with
+  # everything the layout sets applied over it.
+  out <- fy_base_theme(layout) + ggplot2::theme(
     # The same band above the panel as the columns of text carry, so that the
     # rows of one panel meet the rows of the next.
     plot.margin = ggplot2::margin(2 + geo$pad_top_pt, 4, 2, 4),
@@ -848,11 +891,18 @@ fy_forest_theme <- function(layout, has_axis_labels, geo) {
       size = layout$base_size, colour = layout$palette$text,
       margin = ggplot2::margin(t = 4)
     ),
+    # The grid is the layout's to say, whatever theme it is drawn over: a
+    # theme's own would be a second answer to the same question. The rows are
+    # the figure's own rules, so there is never a horizontal one.
     panel.grid.major.x = if (layout$grid) {
       ggplot2::element_line(colour = layout$palette$band, linewidth = 0.3)
     } else {
       ggplot2::element_blank()
     },
+    panel.grid.major.y = ggplot2::element_blank(),
+    panel.grid.minor = ggplot2::element_blank(),
+    axis.text.y = ggplot2::element_blank(),
+    axis.ticks.y = ggplot2::element_blank(),
     plot.title = ggplot2::element_text(
       size = layout$base_size * 1.15, face = "bold",
       colour = layout$palette$text, margin = ggplot2::margin(b = 2)

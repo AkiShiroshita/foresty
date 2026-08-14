@@ -147,3 +147,20 @@ fy_hand_lincom <- function(fit, exposure, interaction_term) {
     se = sqrt(sum(v[terms, terms]))
   )
 }
+
+# The layer that draws the marks, and the one that draws the intervals. A
+# figure is several panels joined, and which layer is which depends on what
+# the figure carries, so they are found by what they hold rather than by
+# where they sit.
+fy_marks <- function(x) {
+  data <- ggplot2::ggplot_build(x)$data
+  hit <- Filter(function(d) all(c("shape", "fill") %in% names(d)), data)
+  hit[[length(hit)]]
+}
+
+fy_bars <- function(x) {
+  data <- ggplot2::ggplot_build(x)$data
+  hit <- Filter(function(d) all(c("xend", "colour") %in% names(d)) &&
+                  nrow(d) > 0L, data)
+  hit[[length(hit)]]
+}

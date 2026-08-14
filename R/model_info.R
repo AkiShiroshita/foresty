@@ -332,6 +332,100 @@ fy_measure <- function(fit, outcome = fy_outcome_label(fit)) {
   fy_measure_spec("Coefficient", outcome)
 }
 
+# What the model is called, in the words a paper calls it.
+#
+# A report saying "glm, lm" names the function that fitted the model rather
+# than the model, and a reader checking a figure against a methods section is
+# looking for "logistic regression". The name follows from the same two things
+# the effect measure does -- the class of the fit and its family -- so the two
+# always agree: a page reporting odds ratios says logistic regression.
+#
+# The class is the fallback rather than the answer, since a fit this package
+# has never heard of still has to be named something, and what it was fitted
+# by is the only honest thing left to say.
+fy_model_name <- function(fit) {
+  fam <- try(stats::family(fit), silent = TRUE)
+  failed <- inherits(fam, "try-error") || is.null(fam)
+  fam_name <- if (failed) NA_character_ else fam$family
+  link <- if (failed || is.null(fam$link) || is.na(fam$link)) "" else fam$link
+
+  # A negative binomial is a glm whose family carries its theta in its name --
+  # "Negative Binomial(1.32)" -- so it is matched on the front of it.
+  if (!is.na(fam_name) && grepl("^Negative Binomial", fam_name)) {
+    fam_name <- "negbin"
+  }
+
+  base <- if (inherits(fit, c("coxph", "cph"))) {
+    "Cox proportional hazards model"
+  } else if (inherits(fit, "survreg")) {
+    "Accelerated failure time model"
+  } else if (inherits(fit, "lrm")) {
+    "Logistic regression model"
+  } else if (inherits(fit, c("polr", "orm"))) {
+    "Ordinal logistic regression model"
+  } else if (identical(fam_name, "negbin")) {
+    "Negative binomial regression model"
+  } else if (fy_family_is(fam_name, c("binomial", "quasibinomial"))) {
+    switch(
+      link,
+      logit = "Logistic regression model",
+      log = "Log-binomial regression model",
+      probit = "Probit regression model",
+      identity = "Binomial regression model with an identity link",
+      cloglog = "Complementary log-log regression model",
+      "Binomial regression model"
+    )
+  } else if (fy_family_is(fam_name, c("poisson", "quasipoisson"))) {
+    quasi <- identical(fam_name, "quasipoisson")
+    if (identical(link, "log")) {
+      if (fy_has_offset(fit)) {
+        if (quasi) "Quasi-Poisson rate model" else "Poisson rate model"
+      } else if (quasi) {
+        "Quasi-Poisson regression model"
+      } else {
+        "Poisson regression model"
+      }
+    } else if (quasi) {
+      "Quasi-Poisson regression model"
+    } else {
+      "Poisson regression model"
+    }
+  } else if (fy_family_is(fam_name, "Gamma")) {
+    "Gamma regression model"
+  } else if (fy_family_is(fam_name, "inverse.gaussian")) {
+    "Inverse Gaussian regression model"
+  } else if (fy_family_is(fam_name, "gaussian") && identical(link, "identity")) {
+    "Linear regression model"
+  } else if (inherits(fit, c("lmerMod", "lme"))) {
+    "Linear mixed-effects model"
+  } else if (inherits(fit, "ols") ||
+             (inherits(fit, "lm") && !inherits(fit, "glm"))) {
+    "Linear regression model"
+  } else {
+    paste0(class(fit)[1L], " model")
+  }
+
+  # How it was fitted, where that is part of what the model is: a mixed model
+  # and a GEE answer different questions from the same family and link, and a
+  # methods section names which of the two it was.
+  if (inherits(fit, c("glmerMod", "lmerMod", "glmmTMB", "lme"))) {
+    return(paste0("Mixed-effects ", fy_lower_first(base)))
+  }
+  if (inherits(fit, c("geeglm", "gee"))) {
+    return(paste0(sub(" model$", "", base),
+                  " fitted by generalized estimating equations"))
+  }
+  base
+}
+
+fy_family_is <- function(fam_name, wanted) {
+  !is.na(fam_name) && fam_name %in% wanted
+}
+
+fy_lower_first <- function(x) {
+  paste0(tolower(substring(x, 1L, 1L)), substring(x, 2L))
+}
+
 # The outcome a measure is a measure of, taken from the left of the formula, so
 # that an axis reads "Adjusted odds ratio for asthma" rather than leaving the
 # reader to remember which model produced it.

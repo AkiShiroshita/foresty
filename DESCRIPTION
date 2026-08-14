@@ -35,6 +35,7 @@ Imports:
     car (>= 3.1.0),
     checkmate (>= 2.1.0),
     ggplot2 (>= 3.4.0),
+    grDevices,
     grid,
     patchwork (>= 1.1.0),
     scales (>= 1.2.0),
@@ -53,9 +54,12 @@ Suggests:
     rmarkdown,
     rms,
     sandwich (>= 3.0.0),
+    shiny (>= 1.7.0),
     survival (>= 3.2.0),
+    svglite,
     tibble,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    zip
 VignetteBuilder: knitr
 LazyData: true
 Config/testthat/edition: 3

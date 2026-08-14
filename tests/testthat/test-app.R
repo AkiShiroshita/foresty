@@ -1,0 +1,993 @@
+# The controls as the app leaves them, so that a test setting one of them is
+# setting one of them and not also filling in the rest.
+#
+# The controls belonging to an exposure carry its name, since each exposure has
+# a set of its own: `contrast_kind_no2` and `colour_maternal_age`.
+fy_app_defaults <- function(...) {
+  utils::modifyList(
+    list(exposure = "no2", modifier = character(0), overall = TRUE,
+         combine = TRUE, style = "classic", table = TRUE,
+         colour_by = "none", palette = "Dark2", colours_hex = "",
+         columns = character(0), test = "lrt", scale = "ratio",
+         ci_level = 0.95, digits = 2, use_xlim = FALSE, xlim_low = 0.5,
+         xlim_high = 2, title = "", no_title = FALSE, no_subtitle = FALSE,
+         width = 10, height = 6, dpi = 300),
+    list(...)
+  )
+}
+
+fy_app_fit <- function() {
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  glm(asthma ~ no2 + male + urbanicity + maternal_age, family = binomial,
+      data = d)
+}
+
+test_that("the variables are sorted into what each of them can be asked to do", {
+  info <- fy_model_info(fy_app_fit())
+  v <- fy_app_variables(info)
+
+  # The outcome is not one of the model's variables to draw, and every variable
+  # entering as a term of its own can be the exposure.
+  expect_false("asthma" %in% v$all)
+  expect_equal(v$exposure, c("male", "maternal_age", "no2", "urbanicity"))
+
+  # A flag stored as a number has levels, so it can be a modifier; a continuous
+  # variable cannot, and the reason is the guard's own sentence rather than a
+  # second copy of the rule kept by the app.
+  expect_equal(v$modifier, c("male", "urbanicity"))
+  expect_true(is.na(v$refusal[["male"]]))
+  expect_match(v$refusal[["maternal_age"]], "cut\\(")
+
+  # `contrast` and `at` are about a continuous exposure, so the app has to know
+  # which of them are. A flag stored as 0/1 is a number and has a range, even
+  # though it has levels as well.
+  expect_equal(v$continuous, c("male", "maternal_age", "no2"))
+  expect_false("urbanicity" %in% v$continuous)
+})
+
+test_that("a variable that cannot be a modifier is still offered, in its own group", {
+  v <- fy_app_variables(fy_model_info(fy_app_fit()))
+  choices <- fy_app_modifier_choices(v)
+
+  # The overall effect is not among them: it is not a modifier but the absence
+  # of one, and it has a checkbox of its own.
+  expect_named(choices, c("Can be a modifier", "Cannot be a modifier"))
+  expect_equal(unname(choices[["Cannot be a modifier"]]),
+               c("maternal_age", "no2"))
+})
+
+test_that("the columns are offered in words rather than by argument name", {
+  info <- fy_model_info(fy_app_fit())
+  choices <- fy_app_column_choices(info)
+
+  expect_equal(unname(choices), c("estimate", "n", "events", "interaction_p"))
+  expect_true("Events" %in% names(choices))
+  expect_match(names(choices)[1L], "confidence interval")
+  # The p-value of each row is not offered: beside a p for the interaction it
+  # is the column a reader takes for the other one.
+  expect_false("p" %in% choices)
+  # There is no person-time behind a logistic model, so no column of it.
+  expect_false("person_time" %in% choices)
+})
+
+test_that("person-time is offered, and drawn, where the model carries it", {
+  d <- foresty_cohort
+  set.seed(1)
+  d$follow_up <- stats::runif(nrow(d), 1, 5)
+  fit <- glm(asthma ~ no2 + sex + offset(log(follow_up)), family = poisson,
+             data = d)
+
+  choices <- fy_app_column_choices(fy_model_info(fit))
+  expect_true("person_time" %in% choices)
+  expect_true("Person-time" %in% names(choices))
+
+  # And the figure the app would draw with it carries the column.
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                           columns = c("estimate", "n", "person_time"))
+  expect_true(all(is.finite(as.data.frame(x)$person.time)))
+})
+
+test_that("the app object is built without being run", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("the code tab writes only what was moved off its default", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    # The model is named with the name the caller knows it by, so the call can
+    # be pasted next to it. The difference each estimate is for is written even
+    # where it is one unit, since that is a question the app asked and the
+    # figure answers.
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE))
+    expect_equal(
+      output$code,
+      paste0("foresty_interaction(my_fit, exposure = \"no2\", ",
+             "interaction = \"male\", \n    contrast = 1)")
+    )
+
+    # A style is named on its own where nothing else about the layout moved,
+    # rather than written as a foresty_layout() call with one argument.
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE,
+                                               style = "jama"))
+    expect_match(output$code, "layout = \"jama\"", fixed = TRUE)
+
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE,
+                                               style = "jama", digits = 3))
+    expect_match(output$code, "foresty_layout(\"jama\", digits = 3)",
+                 fixed = TRUE)
+
+    # No modifier is the overall effect, which is foresty_main() and takes its
+    # model in a list.
+    do.call(session$setInputs, fy_app_defaults())
+    expect_equal(output$code,
+                 "foresty_main(list(my_fit), exposure = \"no2\", contrast = 1)")
+  })
+})
+
+test_that("the difference in the exposure is said once, and one way", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    # `at` and `contrast` both say which two values are compared, so the call
+    # carries whichever the app is showing and never the two of them.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "at", at_from_no2 = 10,
+                            at_to_no2 = 20, contrast_no2 = 10))
+    expect_match(output$code, "at = c(10, 20)", fixed = TRUE)
+    expect_false(grepl("contrast", output$code, fixed = TRUE))
+
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "number", contrast_no2 = 10))
+    expect_match(output$code, "contrast = 10", fixed = TRUE)
+    expect_false(grepl("at = ", output$code, fixed = TRUE))
+
+    # The interquartile range is the package's own, taken from the data rather
+    # than worked out here and pasted in as a number, so the code says what was
+    # asked for.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "iqr"))
+    expect_match(output$code, "contrast = \"iqr\"", fixed = TRUE)
+    expect_null(figure()$error)
+    expect_match(as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
+                 "per IQR", fixed = TRUE)
+
+    # One unit is written as the one unit it is, and the figure says so, since
+    # a row saying nothing at all reads as though the question had not been
+    # asked.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "unit", contrast_no2 = 10))
+    expect_match(output$code, "contrast = 1", fixed = TRUE)
+    expect_null(figure()$error)
+    expect_match(as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
+                 "per 1", fixed = TRUE)
+  })
+})
+
+test_that("each exposure is asked separately, and keeps its own answer", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    # One exposure per interquartile range and the other per decade: the two
+    # controls are two controls and neither of them answers for the other.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = c("no2", "maternal_age"),
+                            overall = TRUE, combine = FALSE,
+                            contrast_kind_no2 = "iqr",
+                            contrast_kind_maternal_age = "number",
+                            contrast_maternal_age = 10))
+
+    code <- output$code
+    expect_match(code, "list(exposure = \"no2\", contrast = \"iqr\"",
+                 fixed = TRUE)
+    expect_match(code, "list(exposure = \"maternal_age\", contrast = 10",
+                 fixed = TRUE)
+
+    # And the figures are drawn that way: the one says which range it used, the
+    # other says the increment.
+    expect_match(as.character(as.data.frame(figures()[[1L]]$value)$label[1L]),
+                 "per IQR", fixed = TRUE)
+    expect_match(as.character(as.data.frame(figures()[[2L]]$value)$label[1L]),
+                 "per 10", fixed = TRUE)
+  })
+})
+
+test_that("an exposure can be given a colour of its own", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_no2 = "#B24745"))
+    expect_match(output$code, "colour = \"#B24745\"", fixed = TRUE)
+    expect_null(figure()$error)
+
+    # Two exposures are two colours, so the layout stops being something the
+    # figures share and moves into the list they are drawn from.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = c("no2", "maternal_age"),
+                            overall = TRUE, combine = FALSE,
+                            colour_no2 = "#B24745",
+                            colour_maternal_age = "#1A476F"))
+    code <- output$code
+    expect_match(code, "colour = \"#B24745\"", fixed = TRUE)
+    expect_match(code, "colour = \"#1A476F\"", fixed = TRUE)
+
+    env <- new.env(parent = environment())
+    eval(parse(text = code), envir = env)
+    expect_length(env$figures, 2L)
+
+    # A colour no menu holds is typed as a hex code instead.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_no2 = "hex", colour_hex_no2 = "2E7D32"))
+    expect_match(output$code, "colour = \"#2E7D32\"", fixed = TRUE)
+    expect_null(figure()$error)
+
+    # Half a code is not a colour, and is left as though nothing had been
+    # chosen rather than drawn as an error. Three figures are a colour, since
+    # that is a hex code too.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_no2 = "hex", colour_hex_no2 = "#2E7D3"))
+    expect_false(grepl("colour = ", output$code, fixed = TRUE))
+    expect_null(figure()$error)
+
+    # The style's own colour is written by leaving it out.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_no2 = "", colour_maternal_age = ""))
+    expect_false(grepl("colour", output$code, fixed = TRUE))
+  })
+})
+
+test_that("an exposure is asked about with the values it actually takes", {
+  skip_if_not_installed("shiny")
+  variables <- fy_app_variables(fy_model_info(fy_app_fit()))
+  ends <- signif(range(foresty_cohort$no2), 4)
+
+  expect_equal(variables$range[["no2"]], ends)
+  # A categorical variable has no range, and is asked about differently.
+  expect_null(variables$range[["urbanicity"]])
+
+  html <- as.character(fy_app_exposure_ui("no2", "no2", TRUE, list(),
+                                          range = variables$range[["no2"]]))
+  expect_match(html, "lowest value to its highest", fixed = TRUE)
+  expect_match(html, paste0("runs from ", ends[1L], " to ", ends[2L]),
+               fixed = TRUE)
+  # The colours are offered by their place in the palette as well as by name.
+  expect_match(html, "Dark2 3", fixed = TRUE)
+
+  expect_match(
+    as.character(fy_app_exposure_ui("urbanicity", "urbanicity", FALSE, list())),
+    "its comparisons are its levels", fixed = TRUE
+  )
+})
+
+test_that("the two ends of an exposure are a difference it can be reported for", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+  range <- signif(range(foresty_cohort$no2), 4)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "range"))
+    expect_match(output$code,
+                 paste0("at = c(", range[1L], ", ", range[2L], ")"),
+                 fixed = TRUE)
+    expect_null(figure()$error)
+    # The figure says which two values it compared, since the numbers mean
+    # nothing without them.
+    expect_match(
+      as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
+      paste0(range[2L], " vs ", range[1L]), fixed = TRUE
+    )
+
+    # The other way up is the same comparison reversed, which is how a
+    # protective effect is drawn as one.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "range_reverse"))
+    expect_match(output$code,
+                 paste0("at = c(", range[2L], ", ", range[1L], ")"),
+                 fixed = TRUE)
+    expect_null(figure()$error)
+  })
+})
+
+test_that("two quantiles of an exposure are a difference it can be reported for", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+  quartiles <- signif(unname(stats::quantile(foresty_cohort$no2,
+                                             probs = c(0.25, 0.75))), 4)
+  deciles <- signif(unname(stats::quantile(foresty_cohort$no2,
+                                           probs = c(0.1, 0.9))), 4)
+
+  shiny::testServer(app, {
+    # The quartiles to begin with, and as `at` rather than as `contrast`: these
+    # are two values of the exposure, not a width to report an effect per.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "quantile",
+                            quantile_low_no2 = 0.25, quantile_high_no2 = 0.75))
+    expect_match(output$code,
+                 paste0("at = c(", quartiles[1L], ", ", quartiles[2L], ")"),
+                 fixed = TRUE)
+    expect_false(grepl("contrast", output$code, fixed = TRUE))
+    expect_null(figure()$error)
+    expect_match(
+      as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
+      paste0(quartiles[2L], " vs ", quartiles[1L]), fixed = TRUE
+    )
+
+    # And any other pair, since which two quantiles are compared is the reader's
+    # question rather than the package's.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "quantile",
+                            quantile_low_no2 = 0.1, quantile_high_no2 = 0.9))
+    expect_match(output$code,
+                 paste0("at = c(", deciles[1L], ", ", deciles[2L], ")"),
+                 fixed = TRUE)
+    expect_null(figure()$error)
+
+    # A probability that is not one is left to fall back on the plain one unit
+    # rather than drawn as an estimate of nothing.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "quantile",
+                            quantile_low_no2 = 0.25, quantile_high_no2 = 4))
+    expect_false(grepl("at = ", output$code, fixed = TRUE))
+    expect_null(figure()$error)
+  })
+})
+
+test_that("a splined exposure can be reported between two quantiles", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("splines")
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  my_fit <- glm(asthma ~ splines::ns(no2, 3) + male + maternal_age,
+                family = binomial, data = d)
+  app <- foresty_app(my_fit, launch = FALSE)
+  quartiles <- signif(unname(stats::quantile(d$no2, probs = c(0.25, 0.75))), 4)
+
+  shiny::testServer(app, {
+    # An interquartile range is a step along a slope, and a splined exposure has
+    # none: it is refused. Two quantiles of it are two values, so the same two
+    # numbers can be compared on the curve the model has.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "iqr"))
+    expect_match(figure()$error, "not a single number")
+
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "quantile",
+                            quantile_low_no2 = 0.25, quantile_high_no2 = 0.75))
+    expect_null(figure()$error)
+    expect_match(output$code,
+                 paste0("at = c(", quartiles[1L], ", ", quartiles[2L], ")"),
+                 fixed = TRUE)
+  })
+})
+
+test_that("the rows can be coloured by their category rather than the exposure", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_by = "category", palette = "Dark2"))
+    expect_match(output$code, "colour_by = \"category\"", fixed = TRUE)
+    expect_match(output$code, "colours = \"Dark2\"", fixed = TRUE)
+    expect_null(figure()$error)
+    expect_equal(sort(unique(fy_marks(figure()$value)$fill)),
+                 sort(foresty_colours("Dark2")[1:2]))
+
+    # Colours of your own are typed as hex codes, which is how a figure is
+    # drawn to match colours no palette holds. They win over the palette, since
+    # having typed them is the answer to the question the menu asks.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_by = "category", palette = "Dark2",
+                            colours_hex = "#B24745, 1A476F"))
+    expect_match(output$code, "colours = c(\"#B24745\", \"#1A476F\")",
+                 fixed = TRUE)
+    expect_equal(sort(unique(fy_marks(figure()$value)$fill)),
+                 sort(c("#B24745", "#1A476F")))
+
+    # A code half typed is not a colour yet, so the palette is drawn rather
+    # than an error.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_by = "category", palette = "Dark2",
+                            colours_hex = "#B247"))
+    expect_match(output$code, "colours = \"Dark2\"", fixed = TRUE)
+    expect_null(figure()$error)
+
+    # A figure whose rows carry colours of their own has no one colour to be
+    # drawn in, so the exposure's own is left out rather than written and
+    # overridden.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            colour_by = "row", colour_no2 = "#B24745"))
+    expect_false(grepl("colour = ", output$code, fixed = TRUE))
+    expect_match(output$code, "colour_by = \"row\"", fixed = TRUE)
+  })
+})
+
+test_that("the subtitle naming the exposure can be turned off on its own", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    # Several figures are told apart by the exposure under each title, which is
+    # the subtitle.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE))
+    expect_match(output$code, "subtitle = \"Exposure: no2", fixed = TRUE)
+
+    # A title of its own says it already on a figure whose rows are all of one
+    # exposure, so the line can go while the title stays.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE, no_subtitle = TRUE))
+    expect_false(grepl("subtitle", output$code, fixed = TRUE))
+    expect_false(grepl("title = NA", output$code, fixed = TRUE))
+    expect_null(figure()$error)
+  })
+})
+
+test_that("the scale is a choice between the two things it is a choice between", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE, scale = "log"))
+    expect_match(output$code, "exponentiate = FALSE", fixed = TRUE)
+    expect_false(isTRUE(fy_result(figure()$value)$exponentiate))
+
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE,
+                                               scale = "ratio"))
+    expect_false(grepl("exponentiate", output$code, fixed = TRUE))
+    expect_true(isTRUE(fy_result(figure()$value)$exponentiate))
+  })
+})
+
+test_that("only the two tests the package reports are offered", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE, test = "wald"))
+    expect_match(output$code, "test = \"wald\"", fixed = TRUE)
+    expect_equal(fy_result(figure()$value)$interaction_test$test,
+                 "Wald chi-square")
+
+    # The likelihood ratio test is the package's default, so it is written by
+    # leaving it out.
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE, test = "lrt"))
+    expect_false(grepl("test = ", output$code, fixed = TRUE))
+  })
+})
+
+test_that("the code shown is the code that drew the figure", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            scale = "log", ci_level = 0.9,
+                            contrast_kind_no2 = "number", contrast_no2 = 10))
+    drawn <- figure()
+    expect_null(drawn$error)
+
+    # Evaluating what the tab shows has to reproduce what the tab is beside,
+    # which is what stops the two of them drifting apart.
+    pasted <- eval(parse(text = output$code))
+    expect_equal(as.data.frame(pasted)$estimate,
+                 as.data.frame(drawn$value)$estimate, tolerance = 1e-10)
+    expect_equal(as.data.frame(pasted)$conf.low,
+                 as.data.frame(drawn$value)$conf.low, tolerance = 1e-10)
+  })
+})
+
+test_that("a modifier the guards refuse shows the remedy in place of a figure", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(modifier = "maternal_age",
+                                               overall = FALSE))
+    state <- figure()
+    expect_null(state$value)
+    expect_match(state$error, "cut\\(")
+
+    # And the app recovers: choosing one that works draws it.
+    do.call(session$setInputs, fy_app_defaults(modifier = "urbanicity",
+                                               overall = FALSE))
+    state <- figure()
+    expect_null(state$error)
+    expect_equal(nrow(as.data.frame(state$value)), 3L)
+  })
+})
+
+test_that("the menus come to every exposure against every modifier", {
+  # Two exposures and two modifiers, with the overall effect asked for beside
+  # them rather than instead of them, are six figures.
+  pairs <- fy_app_pairs(list(exposure = c("no2", "male"),
+                             modifier = "urbanicity", overall = TRUE))
+  expect_length(pairs, 4L)
+  expect_equal(vapply(pairs, fy_app_pair_label, character(1)),
+               c("no2, overall", "no2 by urbanicity",
+                 "male, overall", "male by urbanicity"))
+  # No modifier is NULL rather than "", everywhere but in the menu.
+  expect_null(pairs[[1L]]$modifier)
+
+  # Without the overall effect there is one figure per pair.
+  expect_equal(
+    vapply(fy_app_pairs(list(exposure = "no2", modifier = c("male", "urbanicity"),
+                             overall = FALSE)),
+           fy_app_pair_label, character(1)),
+    c("no2 by male", "no2 by urbanicity")
+  )
+
+  # And with no modifier chosen, the overall effect is what there is to draw,
+  # whether or not the box was ticked.
+  expect_equal(fy_app_pairs(list(exposure = "no2", overall = FALSE)),
+               list(list(exposure = "no2", modifier = NULL)))
+  # Nothing is drawn until an exposure is chosen.
+  expect_length(fy_app_pairs(list(exposure = NULL, modifier = "male")), 0L)
+})
+
+test_that("the text size chosen is written into the layout", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(base_size = 18))
+    expect_match(output$code, "foresty_layout(\"classic\", ", fixed = TRUE)
+    expect_match(output$code, "base_size = 18", fixed = TRUE)
+
+    # And the figure beside the tab is drawn from that call, text and all.
+    expect_null(figure()$error)
+  })
+})
+
+test_that("several pairs are written as a loop over the pairs", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE))
+
+    code <- output$code
+    expect_match(code, "specs <- list(", fixed = TRUE)
+    expect_match(code, "list(exposure = \"no2\", interaction = \"male\"",
+                 fixed = TRUE)
+    expect_match(code, "figures <- lapply(specs, function(spec) {", fixed = TRUE)
+    # The pairs differ in what varies between the figures and in nothing else,
+    # so the two calls are written once apiece rather than once per pair.
+    expect_match(code, "do.call(foresty_main, c(list(list(my_fit)), spec",
+                 fixed = TRUE)
+    expect_match(code, "do.call(foresty_interaction, c(list(my_fit), spec",
+                 fixed = TRUE)
+    expect_match(code, "combined <- do.call(foresty_combine, ", fixed = TRUE)
+
+    # Each figure says which exposure it is of, under its own title, since
+    # there is more than one of them to tell apart.
+    expect_match(code, "subtitle = \"Exposure: no2 (per 1)\"", fixed = TRUE)
+
+    # What the tab shows has to reproduce what the tab is beside, which is what
+    # stops the two of them drifting apart.
+    env <- new.env(parent = environment())
+    eval(parse(text = code), envir = env)
+    expect_named(env$figures, names(figures()))
+    expect_s3_class(env$combined, "foresty")
+    expect_equal(as.data.frame(env$combined)$estimate,
+                 as.data.frame(combined()$value)$estimate, tolerance = 1e-10)
+
+    # The overall estimate and the two subgroups, in one figure.
+    expect_equal(nrow(as.data.frame(combined()$value)), 3L)
+    expect_length(display(), 1L)
+    expect_named(display(), "Combined")
+
+    # Unless the combining is turned off, when both are drawn as they are.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE, combine = FALSE))
+    expect_null(combined())
+    expect_named(display(), c("no2, overall", "no2 by male"))
+    expect_false(grepl("foresty_combine", output$code, fixed = TRUE))
+  })
+})
+
+test_that("the loop carries the style, and the combination carries it too", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = c("male", "urbanicity"),
+                            overall = FALSE, style = "jama", base_size = 14,
+                            contrast_kind_no2 = "iqr"))
+
+    code <- output$code
+    expect_false(grepl("is.null(spec$interaction)", code, fixed = TRUE))
+    expect_match(code, "contrast = \"iqr\"", fixed = TRUE)
+    expect_match(code, "do.call(foresty_combine, c(", fixed = TRUE)
+    expect_match(code, "unname(figures),", fixed = TRUE)
+    expect_match(code, "layout = foresty_layout(\"jama\", base_size = 14)",
+                 fixed = TRUE)
+
+    env <- new.env(parent = environment())
+    eval(parse(text = code), envir = env)
+    expect_equal(as.data.frame(env$combined)$estimate,
+                 as.data.frame(combined()$value)$estimate, tolerance = 1e-10)
+  })
+})
+
+test_that("figures of different exposures stay apart when combined", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = c("no2", "maternal_age"),
+                            modifier = "male", overall = FALSE))
+    # foresty_combine() returns a figure per exposure, and the app draws them
+    # one under the other rather than trying to make one of them.
+    expect_length(display(), 2L)
+    expect_null(combined()$error)
+  })
+})
+
+test_that("a pair the guards refuse is left out of the combination", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", overall = FALSE,
+                            modifier = c("male", "maternal_age")))
+    states <- figures()
+    expect_null(states[["no2 by male"]]$error)
+    expect_match(states[["no2 by maternal_age"]]$error, "cut\\(")
+
+    # One figure was drawn, so there is nothing to combine it with, and it is
+    # drawn as it is.
+    expect_null(combined())
+    expect_named(display(), "no2 by male")
+  })
+})
+
+test_that("the Models tab writes out how each figure was arrived at", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE, test = "wald"))
+    text <- output$models
+
+    # The model as it was fitted, and the model each figure came out of, each
+    # under a heading saying what the figure is of.
+    expect_match(text, "asthma ~ no2 + male + urbanicity + maternal_age",
+                 fixed = TRUE)
+    expect_match(text, "Outcome:         asthma", fixed = TRUE)
+    expect_match(text, "Effect modifier: male", fixed = TRUE)
+    expect_match(text, "Effect modifier: none -- the overall effect",
+                 fixed = TRUE)
+    expect_match(text, "my_fit_int <- update(my_fit, . ~ . + no2:male)",
+                 fixed = TRUE)
+    # The estimates and the test as the code they amount to, named for this
+    # model and these variables. It is the call foresty makes, not a shorter
+    # one that would come to something else: the default method, the degrees
+    # of freedom and the test it worked out.
+    expect_match(text, "car::linearHypothesis.default(my_fit_int", fixed = TRUE)
+    expect_match(text, "error.df = Inf, test = \"Chisq\"", fixed = TRUE)
+    expect_match(text, "singular.ok = TRUE", fixed = TRUE)
+    expect_match(text, "rows$male <- level", fixed = TRUE)
+    # The levels are put back as the column holds them: a flag coded 0 and 1 is
+    # a number, and quoting it would build a design matrix of a character
+    # column.
+    expect_match(text, "lapply(c(0, 1), within)", fixed = TRUE)
+    expect_match(text, "Wald chi-square", fixed = TRUE)
+    # The design matrix is built the way the fitting function builds its own,
+    # levels and contrast coding included.
+    expect_match(text, "xlev = my_fit_int$xlevels", fixed = TRUE)
+    expect_match(text, "contrasts.arg = my_fit_int$contrasts", fixed = TRUE)
+    # The overall figure is drawn from the model as it stands, and says so.
+    expect_match(text, "THE MODEL YOU FITTED -- no interaction term",
+                 fixed = TRUE)
+
+    # Each section opens with what the model is, in the words a methods section
+    # uses rather than the classes of the object it is held in, and carries the
+    # formula of the model that section's figure came out of -- which is the
+    # refitted one where the section is a subgroup analysis.
+    expect_match(text, "Logistic regression model", fixed = TRUE)
+    expect_false(grepl("Class:", text, fixed = TRUE))
+    expect_match(text, "Formula:         asthma ~ no2 + male + urbanicity + maternal_age",
+                 fixed = TRUE)
+    expect_match(text, "Formula:         asthma ~ no2 + male + urbanicity + maternal_age + no2:male",
+                 fixed = TRUE)
+
+    # The likelihood ratio test is a different piece of code, and the tab
+    # writes the one that was taken.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = FALSE, test = "lrt"))
+    expect_match(output$models, "2 * (as.numeric(logLik(my_fit_int))",
+                 fixed = TRUE)
+    expect_match(output$models, "anova(reduced, my_fit_int, test = \"LRT\")",
+                 fixed = TRUE)
+  })
+})
+
+test_that("what the Models tab writes out is what foresty ran", {
+  # Fitted here rather than through the fixture, because the code the tab
+  # writes names the data frame the model's own call names -- which is what
+  # makes it code a reader can paste beside the model -- and pasting it needs
+  # that data frame to be there.
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  my_fit <- glm(asthma ~ no2 + male + urbanicity + maternal_age,
+                family = binomial, data = d)
+  info <- fy_model_info(my_fit)
+  compared <- list(from = "11.9", to = "21.9", said = "")
+
+  # Pasting the code beside the model has to reproduce the number on the
+  # figure, or the tab is a description of the analysis rather than the
+  # analysis.
+  code <- paste(fy_app_lincom_code(info, "my_fit", "no2", compared),
+                collapse = "\n")
+  drawn <- foresty_main(list(my_fit), exposure = "no2", at = c(11.9, 21.9))
+  pasted <- eval(parse(text = code))
+  expect_equal(exp(as.vector(attr(pasted, "value"))),
+               as.data.frame(drawn)$estimate, tolerance = 1e-10)
+
+  # The subgroups, from the model carrying the interaction.
+  my_fit_int <- update(my_fit, . ~ . + no2:male)
+  info_int <- fy_model_info(my_fit_int)
+  subgroups <- eval(parse(text = paste(
+    fy_app_lincom_code(info_int, "my_fit_int", "no2", compared,
+                       modifier = "male", levels = c("0", "1")),
+    collapse = "\n"
+  )))
+  by_male <- foresty_interaction(my_fit, exposure = "no2", interaction = "male",
+                                 at = c(11.9, 21.9))
+  expect_equal(
+    unname(exp(vapply(subgroups,
+                      function(x) as.vector(attr(x, "value")), numeric(1)))),
+    as.data.frame(by_male)$estimate, tolerance = 1e-10
+  )
+
+  # And the joint test beside them.
+  columns <- fy_modifier_interaction_columns(info_int, "no2", "male")
+  joint <- eval(parse(text = paste(
+    fy_app_joint_code(info_int, "my_fit_int", columns), collapse = "\n"
+  )))
+  wald <- foresty_interaction(my_fit, exposure = "no2", interaction = "male",
+                              at = c(11.9, 21.9), test = "wald")
+  expect_equal(joint[["Pr(>Chisq)"]][2L],
+               fy_result(wald)$interaction_test$p.value, tolerance = 1e-10)
+
+  # A gaussian model is tested with F on its residual degrees of freedom, and
+  # the code says so rather than saying Chisq to everything.
+  linear <- lm(no2 ~ maternal_age + sex, data = foresty_cohort)
+  text <- paste(fy_app_lincom_code(fy_model_info(linear), "linear",
+                                   "maternal_age",
+                                   list(from = "29", to = "39", said = "")),
+                collapse = "\n")
+  expect_match(text, paste0("error.df = ", stats::df.residual(linear),
+                            ", test = \"F\""), fixed = TRUE)
+})
+
+test_that("the summary tab shows the model fitted and the model with the term", {
+  skip_if_not_installed("shiny")
+  my_fit <- fy_app_fit()
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE))
+    text <- output$model
+
+    expect_match(text, "THE MODEL YOU FITTED", fixed = TRUE)
+    expect_match(text, "WITH THE no2 BY male INTERACTION TERM", fixed = TRUE)
+    # A coefficient table says which terms are in the model and nothing about
+    # what the figure beside it is of, so the heading says it.
+    expect_match(text, "Outcome:         asthma", fixed = TRUE)
+    expect_match(text, "Exposure:        no2", fixed = TRUE)
+    expect_match(text, "Effect modifier: male", fixed = TRUE)
+    # The model you fitted carries no interaction term, which is the whole of
+    # what makes it the model the overall effect comes from.
+    expect_match(text, "Effect modifier: none -- this model carries no",
+                 fixed = TRUE)
+    # Both summaries are there, so the coefficient of the interaction can be
+    # read beside the model that does not carry it.
+    expect_match(text, "no2:male", fixed = TRUE)
+    expect_equal(length(gregexpr("Coefficients:", text, fixed = TRUE)[[1L]]), 2L)
+  })
+})
+
+test_that("a model that already carries the interaction is not given it twice", {
+  skip_if_not_installed("shiny")
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  my_fit <- glm(asthma ~ no2 * male + maternal_age, family = binomial, data = d)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE))
+    expect_match(output$models, "already", fixed = TRUE)
+  })
+})
+
+test_that("a download is named for what it is of", {
+  one <- list(list(exposure = "no2", modifier = "male"))
+  expect_equal(fy_app_slug(one), "no2_male")
+  expect_equal(fy_app_slug(list(list(exposure = "no2", modifier = NULL))),
+               "no2_overall")
+  expect_equal(
+    fy_app_slug(c(one, list(list(exposure = "maternal_age", modifier = NULL)))),
+    "no2_maternal_age_figures"
+  )
+
+  # One figure is one file; several that were not combined are several files,
+  # which come down zipped.
+  expect_equal(fy_app_file_name(one, list(1), "png"), "no2_male.png")
+  expect_equal(fy_app_file_name(one, list(1, 2), "png"), "no2_male_png.zip")
+  expect_equal(fy_app_file_name(one, list(1, 2), "html"), "no2_male_html.zip")
+})
+
+test_that("the figures export as a named list to go on with", {
+  skip_if_not_installed("shiny")
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "male",
+                            overall = TRUE))
+
+    drawn <- Filter(function(s) !is.null(s$value), figures())
+    objects <- stats::setNames(lapply(drawn, function(s) s$value), names(drawn))
+    objects$Combined <- combined()$value
+
+    expect_named(objects, c("no2, overall", "no2 by male", "Combined"))
+    expect_s3_class(objects[["no2 by male"]], "foresty")
+    # The estimates travel with the figures, which is what makes them worth
+    # exporting rather than an image of them.
+    expect_equal(nrow(as.data.frame(objects[["no2 by male"]])), 2L)
+
+    file <- tempfile(fileext = ".rds")
+    on.exit(unlink(file), add = TRUE)
+    saveRDS(objects, file)
+    expect_named(readRDS(file), names(objects))
+  })
+})
+
+test_that("the figure is written as PNG and as SVG", {
+  fit <- fy_app_fit()
+  figures <- list("no2 by male" = foresty_interaction(fit, exposure = "no2",
+                                                      interaction = "male"))
+  input <- list(width = 6, height = 4, dpi = 96)
+
+  png <- tempfile(fileext = ".png")
+  on.exit(unlink(png), add = TRUE)
+  fy_app_save(figures, png, "png", input)
+  # A PNG begins with the bytes that say so.
+  expect_equal(readBin(png, "raw", 4L), as.raw(c(0x89, 0x50, 0x4e, 0x47)))
+
+  skip_if_not(requireNamespace("svglite", quietly = TRUE) ||
+                isTRUE(capabilities("cairo")), "no SVG device")
+  svg <- tempfile(fileext = ".svg")
+  on.exit(unlink(svg), add = TRUE)
+  fy_app_save(figures, svg, "svg", input)
+  expect_match(paste(readLines(svg, n = 3L, warn = FALSE), collapse = " "),
+               "<svg")
+})
+
+test_that("figures that were not combined come down as a file apiece", {
+  skip_if_not_installed("zip")
+  fit <- fy_app_fit()
+  figures <- list(
+    "no2, overall" = foresty_main(list(fit), exposure = "no2"),
+    "no2 by male" = foresty_interaction(fit, exposure = "no2",
+                                        interaction = "male")
+  )
+  input <- list(width = 6, height = 4, dpi = 96)
+
+  file <- tempfile(fileext = ".zip")
+  on.exit(unlink(file), add = TRUE)
+  fy_app_save_all(figures, file, "png", input)
+
+  # Named for the pair each of them is of, so that a directory of them can be
+  # read without opening them.
+  inside <- zip::zip_list(file)$filename
+  expect_equal(sort(inside), c("no2_by_male.png", "no2_overall.png"))
+})
+
+test_that("a report is written for each model rather than for the first", {
+  skip_if_not_installed("zip")
+  skip_if_not_installed("gt")
+  fit <- fy_app_fit()
+  figures <- list(
+    "no2, overall" = foresty_main(list(fit), exposure = "no2"),
+    "no2 by male" = foresty_interaction(fit, exposure = "no2",
+                                        interaction = "male")
+  )
+
+  file <- tempfile(fileext = ".zip")
+  on.exit(unlink(file), add = TRUE)
+  fy_app_write_reports(figures, file)
+  expect_equal(sort(zip::zip_list(file)$filename),
+               c("no2_by_male.html", "no2_overall.html"))
+
+  # One figure is one page, under the name the browser was promised rather than
+  # under the one foresty_report() would have chosen.
+  single <- tempfile()
+  on.exit(unlink(single), add = TRUE)
+  fy_app_write_reports(figures[1], single)
+  expect_true(file.exists(single))
+  expect_match(paste(readLines(single, n = 5L, warn = FALSE), collapse = " "),
+               "<html")
+})
+
+test_that("what foresty says while it works is shown, not swallowed", {
+  skip_if_not_installed("shiny")
+  # The model already carries the interaction, which foresty reports with a
+  # message; the app has to pass that on, since it changes how the figure is
+  # read.
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  my_fit <- glm(asthma ~ no2 * male + maternal_age, family = binomial, data = d)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE))
+    state <- figure()
+    expect_null(state$error)
+    expect_true(any(grepl("already contains", state$notes)))
+  })
+})

@@ -9,6 +9,9 @@ foresty_layout(
   base_size = NULL,
   family = NULL,
   colour = NULL,
+  colour_by = NULL,
+  colours = NULL,
+  theme = NULL,
   palette = NULL,
   point_shape = NULL,
   point_size = NULL,
@@ -55,7 +58,40 @@ to it.}
 leaves the device's default.}
 
 \item{colour}{One colour for the estimates and their intervals, which is the
-usual thing to change. \code{palette} changes them apart.}
+usual thing to change. \code{palette} changes them apart, and \code{colour_by} draws
+the rows in colours of their own instead. \code{\link[=foresty_colours]{foresty_colours()}} names a
+colour of a ColorBrewer palette without pasting a hex code, as
+\code{colour = foresty_colours("Dark2")[3]}.}
+
+\item{colour_by}{What the colours change with, for a figure drawn in more
+than one. \code{"none"}, the default, draws the whole figure in \code{colour}.
+\code{"category"} gives every category of the rows a colour of its own: the
+levels of a categorical exposure -- "Yes" and "No" -- where the rows are
+levels, and the subgroups of the modifier where they are subgroups, which
+is what an interaction figure draws. A category keeps its colour wherever
+it appears, so a combined figure reads across its blocks. \code{"row"} gives
+every row a colour, whatever it is of. The reference level of a
+categorical exposure is drawn hollow either way, being a definition rather
+than an estimate. No legend is drawn: every row is labelled already, and a
+legend repeating the labels is a second copy of them to keep in step.}
+
+\item{colours}{The colours \code{colour_by} draws the categories in, in order,
+and cycled where there are more categories than colours. The name of a
+ColorBrewer palette -- \code{"Dark2"}, the default, \code{"Set1"} or \code{"Set2"} -- or
+the colours themselves, as \code{c("#1B9E77", "#D95F02")}. \code{\link[=foresty_colours]{foresty_colours()}}
+builds one starting from a chosen place in a palette, as
+\code{colours = foresty_colours("Dark2", start = 3)}.}
+
+\item{theme}{The \code{ggplot2} theme the plot itself is drawn on: \code{"void"}, the
+default, which is the plain panel a forest plot is usually drawn as, or
+the name of one of \code{ggplot2}'s own -- \code{"minimal"}, \code{"bw"}, \code{"classic"},
+\code{"light"}, \code{"linedraw"}, \code{"grey"} or \code{"dark"} -- for its background, its
+border and its grid. A theme object or a theme function is also accepted.
+It is the plot's theme, not the figure's: the columns of numbers beside it
+are a table rather than a plot and keep their own. Everything the layout
+sets -- the sizes, the colours of the text, whether the axis line and the
+grid are drawn -- is applied over it, so \code{grid = TRUE} and \code{theme = "bw"}
+are not two answers to the same question.}
 
 \item{palette}{Named character vector overriding single colours, as
 \code{c(estimate = "#B24745", null = "grey60")}. The names are \code{estimate},

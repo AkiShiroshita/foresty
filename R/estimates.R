@@ -78,6 +78,25 @@ fy_row_labels <- function(estimates, labels = NULL) {
   list(variable_label = variable_label, row_label = row_label)
 }
 
+# The exposure as a figure of it names it: the variable, and the comparison
+# where that is not the plain one unit -- "no2 (per 10)", "no2 (per IQR, 8.44)",
+# "no2 (20 vs 10)".
+#
+# It is the label the rows are drawn against, taken before anything is drawn,
+# so that a caller wanting to say which exposure a figure is of says it the
+# same way the figure does rather than writing its own version.
+fy_exposure_display <- function(info, exposure, contrast = NULL, at = NULL,
+                                labels = NULL) {
+  values <- fy_exposure_values(info, exposure, contrast = contrast, at = at)
+  estimates <- data.frame(
+    variable = exposure,
+    level = NA_character_,
+    contrast_label = values[[1L]]$contrast_label %||% NA_character_,
+    stringsAsFactors = FALSE
+  )
+  fy_row_labels(estimates, labels)$variable_label[[1L]]
+}
+
 # 10 rather than 10.0, 0.5 rather than 0.500.
 fy_trim_number <- function(x) {
   format(x, trim = TRUE, drop0trailing = TRUE)

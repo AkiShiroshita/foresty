@@ -11,7 +11,7 @@ foresty_main(
   exponentiate = TRUE,
   labels = NULL,
   ci_level = 0.95,
-  contrast = 1,
+  contrast = NULL,
   at = NULL,
   vcov = NULL,
   cluster = NULL,
@@ -54,12 +54,20 @@ they are.}
 \item{ci_level}{Confidence level of the intervals. Defaults to \code{0.95}.}
 
 \item{contrast}{For a continuous exposure, the increment the effect is
-reported per. Defaults to \code{1}. The increment is written beside the
-variable, so \code{contrast = 10} draws the row as \code{"NO2 (per 10)"}, but no
-unit is invented, since the package cannot know what a column's numbers
+reported per. \code{NULL}, the default, is one unit and is not written on the
+figure. An increment you name is: \code{contrast = 10} draws the row as
+\code{"NO2 (per 10)"} and \code{contrast = 1} draws it as \code{"NO2 (per 1)"}, the same
+estimate as the default said out loud. No unit is invented, since the
+package cannot know what a column's numbers
 mean; name the unit in \code{labels}, as \code{c(no2 = "NO2, ug/m3")}, and the row
-reads \code{"NO2, ug/m3 (per 10)"}. It says nothing about a categorical
-exposure, whose comparisons are its levels.}
+reads \code{"NO2, ug/m3 (per 10)"}. \code{contrast = "iqr"} takes the increment from
+the data instead: the interquartile range of the exposure as the model saw
+it, which is what an exposure with no natural unit is usually reported per.
+The range it came to is written beside the variable, as
+\code{"NO2 (per IQR, 8.44)"}, because an effect per interquartile range cannot
+be compared with anything unless the figure says which range that was.
+\code{contrast} says nothing about a categorical exposure, whose comparisons are
+its levels.}
 
 \item{at}{The two values of the exposure to contrast, as \code{c(from, to)}.
 Which two they were is written beside the exposure, as \code{"NO2 (20 vs 10)"},

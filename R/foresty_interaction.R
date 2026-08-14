@@ -58,12 +58,20 @@
 #'   figure, which saves repeating it in `labels`.
 #' @param interaction Name of the effect modifier, as a character string, and
 #'   named as `interaction = c(Sex = "sex")` where the figure is to call it
-#'   something other than what the column is called. It must be a factor with
-#'   at least two levels. A continuous modifier is rejected: categorize it with
-#'   [cut()] first, so that the subgroups being compared are the ones you
-#'   intend.
+#'   something other than what the column is called. It must have at least two
+#'   levels. A numeric column taking exactly two values counts as having them,
+#'   so a flag coded 0 and 1 is read as those two subgroups without being
+#'   wrapped in [factor()] and fitted again: it entered the model through the
+#'   one coefficient a two-level factor would have given, and the estimates and
+#'   the test are the same either way. Its rows are labelled with the values
+#'   themselves, `0` and `1`, which is rarely what a figure should say, so name
+#'   them through `level_labels`. A modifier taking three or more numeric values
+#'   is rejected: categorize it with [cut()] and refit, so that the subgroups
+#'   being compared are the ones you intend and the test has the degrees of
+#'   freedom the figure implies.
 #' @param level_labels Named character vector giving the label to draw for a
-#'   level of the modifier, as `c(F = "Female", M = "Male")`.
+#'   level of the modifier, as `c(F = "Female", M = "Male")`, or
+#'   `c("0" = "No", "1" = "Yes")` for a modifier coded as a flag.
 #' @param test How the interaction is tested: `"lrt"`, the default, is the
 #'   likelihood ratio test against the same model without the interaction
 #'   terms; `"wald"` is the joint Wald test of those terms; `"both"` reports
@@ -122,7 +130,7 @@ foresty_interaction <- function(fit,
                                 labels = NULL,
                                 level_labels = NULL,
                                 ci_level = 0.95,
-                                contrast = 1,
+                                contrast = NULL,
                                 at = NULL,
                                 vcov = NULL,
                                 cluster = NULL,
@@ -261,8 +269,23 @@ foresty_interaction <- function(fit,
   out
 }
 
-# The modifier has to be categorical. A continuous one would silently be
+# The modifier has to have levels. A continuous one would silently be
 # contrasted at a single arbitrary value, which is worse than refusing.
+#
+# Having levels is not the same as being stored as a factor. A numeric modifier
+# taking exactly two values in the fitted data has two levels: it entered the
+# model through the one coefficient a two-level factor would have given, so the
+# contrast taken at each of its values is exact and the joint test of the
+# interaction has the same single degree of freedom. A binary coded 0 and 1 --
+# which is how a flag usually reaches a regression -- is therefore read as the
+# two subgroups it is, rather than sent back to be wrapped in factor() and
+# fitted again to no effect.
+#
+# Three or more values are refused even when they look like codes, because the
+# model fitted them as a straight line: there is one interaction coefficient,
+# the subgroup estimates would be constrained to equal steps while appearing to
+# have been estimated freely, and the test would have one degree of freedom
+# where the figure implies more. That has to be a refit the caller asks for.
 fy_check_modifier <- function(info, interaction) {
   if (!interaction %in% names(info$mf)) {
     stop(
@@ -281,20 +304,28 @@ fy_check_modifier <- function(info, interaction) {
       call. = FALSE
     )
   }
-  if (is.numeric(x)) {
+  values <- if (is.numeric(x)) {
+    unique(x[!is.na(x)])
+  } else {
+    levels(droplevels(as.factor(x)))
+  }
+  if (length(values) < 2L) {
+    stop(
+      "\"", interaction, "\" takes only one value in the data this model was ",
+      "fitted to, so there are no subgroups to compare",
+      call. = FALSE
+    )
+  }
+  if (is.numeric(x) && length(values) > 2L) {
     stop(
       "\"", interaction, "\" is continuous, and foresty does not split a ",
       "continuous modifier for you. Categorize it first, for example ",
       "`data$", interaction, "_grp <- cut(data$", interaction,
       ", breaks = quantile(data$", interaction,
-      ", 0:3/3), include.lowest = TRUE)`, refit, and pass the new variable.",
-      call. = FALSE
-    )
-  }
-  if (nlevels(droplevels(as.factor(x))) < 2L) {
-    stop(
-      "\"", interaction, "\" takes only one value in the data this model was ",
-      "fitted to, so there are no subgroups to compare",
+      ", 0:3/3), include.lowest = TRUE)`, refit, and pass the new variable. ",
+      "It takes ", length(values), " values in this model; a numeric modifier ",
+      "taking two, 0 and 1 for instance, is read as those two subgroups and ",
+      "needs no such change.",
       call. = FALSE
     )
   }
