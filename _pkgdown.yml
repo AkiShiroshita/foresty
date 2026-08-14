@@ -1,0 +1,25 @@
+url: https://akishiroshita.github.io/foresty/
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Forest plots
+    contents:
+      - foresty_main
+      - foresty_interaction
+      - foresty_combine
+  - title: Layout
+    contents:
+      - foresty_layout
+  - title: Reporting
+    contents:
+      - foresty_report
+  - title: Working with the result
+    contents:
+      - summary.foresty
+      - foresty-tidiers
+      - foresty-model-methods
+  - title: Data
+    contents:
+      - foresty_cohort

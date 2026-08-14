@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+Rplots.pdf
+docs/
+*.html
+README.knit.md
+README_files/
+.quarto/

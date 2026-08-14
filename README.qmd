@@ -1,0 +1,596 @@
+---
+format: gfm
+default-image-extension: ""
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE,
+  fig.path = "man/figures/README-",
+  fig.width = 9,
+  fig.height = 3.2,
+  dpi = 200,
+  out.width = "100%"
+)
+```
+
+# foresty
+
+Forest plots and subgroup effects, taken from models you have already fitted.
+
+An interaction p-value tells you that subgroups depart from a common effect.
+It does not tell you which subgroup carries the effect, in which direction, or
+how far apart they are. A small p-value from a large study can sit above two
+subgroup estimates that are practically the same, and a large one can sit above
+two that are not. The p-value on its own is not enough to decide what to
+report.
+
+`foresty` puts the two side by side. Give it a fitted model, the name of the
+exposure and the name of an effect modifier, and it adds the interaction term,
+estimates the exposure effect within every level of the modifier, tests the
+interaction, and draws the result.
+
+## What it is for: two-way interactions
+
+**`foresty` is a package for two-way interactions, and only for those.** One
+exposure crossed with one effect modifier, per figure: `exposure = "no2"` and
+`interaction = "sex"` gives the effect of NO<sub>2</sub> within each level of
+sex, and the joint test of the NO<sub>2</sub> by sex terms beside it. That
+two-way interaction is the one a paper reports in a subgroup panel and the one
+this package is built to make readable.
+
+What follows from that:
+
+* **One modifier per call.** Two of them are two calls, put together with
+  `foresty_combine()` as two blocks of one figure — sex in one block, maternal
+  smoking in the next — never crossed with each other. A three-way interaction
+  is not fitted, not estimated and not tested.
+* **The test is of that pair.** The p-value beside a block is the joint test
+  that every exposure-by-modifier coefficient is zero, and nothing else in the
+  model is being tested by it.
+* **Higher-order terms already in your model are left alone.** A model that
+  happens to carry a three-way interaction is used as it was fitted; the
+  subgroup estimates are then reported at the first complete observation's
+  values of the other interacting variables, and `foresty` warns that it has
+  done so. Read those figures knowing what they hold.
+
+## Installation
+
+```{r}
+#| eval: false
+# install.packages("remotes")
+remotes::install_github("AkiShiroshita/foresty")
+```
+
+## Use
+
+Three functions. `foresty_main()` draws the effect of one exposure from each of
+several models, one row apiece:
+
+```{r}
+#| label: main
+library(foresty)
+
+fit_no2 <- glm(asthma ~ no2 + sex + maternal_smoking + maternal_age,
+               family = binomial, data = foresty_cohort)
+fit_bc <- glm(asthma ~ black_carbon + sex + maternal_smoking + maternal_age,
+              family = binomial, data = foresty_cohort)
+
+foresty_main(
+  list(fit_no2, fit_bc),
+  exposure = c("no2", "black_carbon"),
+  labels = c(no2 = "NO2", black_carbon = "Black carbon")
+)
+```
+
+The figure says which effect it is showing and that it came out of a model
+with no interaction in it, which is what separates it from the next one.
+
+`foresty_interaction()` is the one the package exists for:
+
+```{r}
+#| label: by-sex
+by_sex <- foresty_interaction(fit_no2, exposure = "no2", interaction = "sex")
+
+by_sex             # draws the figure
+```
+
+```{r}
+#| label: by-sex-summary
+summary(by_sex)    # the numbers behind it
+```
+
+The interaction is tested by the likelihood ratio test against the same model
+without it. `test = "wald"` takes the joint Wald test over its terms instead,
+and `test = "both"` reports each in a column of its own — worth doing to show
+that the p-value does not turn on which test was taken. The two usually agree;
+where they do not, which is a small study, a rare outcome or a sparse subgroup,
+the likelihood ratio test is the one to trust, which is why it is the default:
+
+```{r}
+#| label: both-tests
+foresty_interaction(fit_no2, "no2", "sex", test = "both")
+```
+
+The likelihood ratio test is computed from the likelihood, so it has no robust
+form, and a quasi-likelihood family and a GEE have no likelihood at all. Where
+it cannot be taken, or where robust standard errors would leave it out of step
+with the intervals beside it, the Wald test is reported in its place and
+`foresty` says so; ask for one by name and you get that one or an error.
+
+A label can be written where the variable is named, which saves repeating it in
+`labels`:
+
+```{r}
+#| eval: false
+foresty_interaction(fit_no2, exposure = c(NO2 = "no2"),
+                    interaction = c(Sex = "sex"))
+```
+
+`foresty_combine()` puts figures already made together, which is how the
+subgroup panel of a paper is built: the overall estimate at the top, one
+subgroup analysis under another, and the interaction p-value beside each block.
+
+```{r}
+#| label: combine
+#| fig-height: 3.6
+overall <- foresty_main(list(fit_no2), exposure = "no2",
+                        labels = c(no2 = "NO2"))
+by_smoking <- foresty_interaction(fit_no2, "no2", "maternal_smoking")
+
+foresty_combine(
+  Overall = overall,
+  Sex = by_sex,
+  `Maternal smoking` = by_smoking
+)
+```
+
+Nothing is refitted and nothing is re-estimated; every row is the row it was
+drawn from on its own figure. A named argument names its block, and an unnamed
+one is named for itself — the modifier for a `foresty_interaction()` figure,
+`"Overall"` for a `foresty_main()` one. A block holding a single row is drawn
+as that row rather than as a heading with one row under it. The figures have to
+agree on the effect measure and the confidence level, since the rows are read
+against one axis; they do not have to come from the same model, and usually
+will not.
+
+The title names the measure, the outcome it is a measure of and the exposure
+the figure reports, and it names the exposure once however many blocks it was
+drawn under: a figure whose overall block called it `NO2` and whose subgroup
+blocks called it `no2` is titled with the first of those, not with both.
+
+### The overall estimate
+
+The overall estimate is not one of the subgroups — it is what they are read
+against — so it is drawn apart from them: a filled diamond on its confidence
+interval, half again the size of the squares under it, its label in bold, and a
+rule between it and the subgroups. The interval is a plain line, as every other
+interval on the figure is, so the whole figure is read the same way and the
+diamond says which row is the summary.
+
+`emphasize` says which blocks are drawn that way, and `emphasize = NULL` draws
+every block alike:
+
+```{r}
+#| eval: false
+foresty_combine(Overall = overall, Sex = by_sex, emphasize = NULL)
+```
+
+`emphasis_shape`, `emphasis_size`, `emphasis_face` and `emphasis_gap` in the
+layout say how they are drawn. `emphasis_shape = "diamond"` draws instead the
+wide summary diamond a paper draws, spanning the confidence interval in place
+of it, at `emphasis_height`.
+
+### Several exposures are several figures
+
+Every row of a combined figure is read against the rows above it, and rows
+reporting the effect of different exposures are not comparable that way,
+however alike their axes happen to be. So `foresty_combine()` sorts the figures
+it is given by the exposure they report and draws one figure for each — NO2 on
+the first, black carbon on the second — each titled with its own exposure:
+
+```{r}
+#| label: combine-two
+#| fig-height: 2.6
+by_sex_bc <- foresty_interaction(fit_bc, "black_carbon", "sex")
+
+figures <- foresty_combine(
+  Overall = foresty_main(list(fit_no2, fit_bc),
+                         exposure = c(NO2 = "no2",
+                                      `Black carbon` = "black_carbon")),
+  `NO2 by sex` = by_sex,
+  `Black carbon by sex` = by_sex_bc
+)
+
+names(figures)
+figures
+```
+
+A call covering one exposure — the usual one — returns that figure, as it
+always did. A call covering several returns them in a list, named for the
+exposures, which draws them one after another when it is printed and holds
+`foresty` figures that are used singly as any other is:
+
+```{r}
+#| eval: false
+figures[["NO2"]]
+ggplot2::ggsave("no2.png", figures[["NO2"]], width = 9, height = 3)
+```
+
+## The HTML report
+
+`foresty_report()` writes a self-contained page holding the model, the
+estimates, the interaction test, the ratio of the odds ratios between levels,
+the whole coefficient table and the figure. Nothing is linked from outside it,
+so it can be sent to a co-author as it is.
+
+```{r}
+#| eval: false
+foresty_report(by_sex, file = "no2_sex.html")
+```
+
+Nothing is written unless it is asked for. `html = TRUE` writes the same page
+as the figure is made, under a name written from the variables it is about —
+the exposure and the modifier, joined by an underscore — so a directory of them
+can be read without opening any:
+
+```{r}
+#| eval: false
+foresty_interaction(fit_no2, "no2", "sex", html = TRUE)   # -> no2_sex.html
+foresty_main(list(fit_no2), "no2", html = TRUE)           # -> no2.html
+foresty_main(list(fit_no2, fit_bc), c("no2", "black_carbon"),
+             html = TRUE)                                 # -> no2_black_carbon.html
+```
+
+A path is taken as it is, as `html = "reports/no2_sex.html"`, and `FALSE`, the
+default, writes nothing. A page for a figure drawn from several models carries
+each of them, in a section of its own headed with the exposure it was fitted
+for; `model = 1` cuts that down to one.
+
+The report needs `gt`, which is not installed with the package.
+
+## The result is a ggplot
+
+Layers, scales and themes are added to it as usual, and `+` always reaches the
+forest:
+
+```{r}
+#| eval: false
+by_sex + ggplot2::coord_cartesian(xlim = c(0.9, 1.2))
+by_sex + ggplot2::labs(title = "Infancy NO2 and childhood asthma")
+by_sex + ggplot2::theme_minimal(base_size = 15)
+```
+
+The estimates travel with the figure, so `summary()`, `tidy()` and the rest
+still work after it has been retuned.
+
+`&` reaches every panel of a figure that has more than one. That is worth
+knowing about but rarely what you want, since a scale or a coordinate system
+applied to the table of numbers will spoil it. Use `+`.
+
+## The table beside the plot
+
+The numbers are drawn next to the figure — the estimate with its interval, the
+counts, and the p-value for the interaction where there is one — since a forest
+plot is read from them as much as from the marks. `table = FALSE` leaves a
+plain figure, and `columns` chooses what the table carries:
+
+```{r}
+#| eval: false
+foresty_main(list(fit_no2, fit_bc), c("no2", "black_carbon"), table = FALSE)
+by_sex_table <- foresty_interaction(fit_no2, "no2", "sex",
+                                    columns = c("estimate", "n", "events"))
+```
+
+A figure reporting a test of an interaction leaves the p-value of each row off:
+two columns of p-values side by side are read for each other however they are
+headed, and the one a reader reaches for is the test of the interaction. Name
+`"p"` in `columns` to have the other back.
+
+The figure is a row of panels — the labels, the plot, the numbers — drawn on
+one shared scale, so a number sits beside the interval it belongs to whatever
+else is on the figure. Each column of text is as wide as the widest thing in
+it and no wider, and the plot takes what they leave, which is what keeps a
+crowded figure compact. A subgroup is named on a row of its own above the rows
+it covers, and those rows are indented under it.
+
+## Layout and style
+
+`layout` says how the figure is drawn. Pass the name of a style:
+
+```{r}
+#| label: jama
+foresty_interaction(fit_no2, "no2", "sex", layout = "jama")
+```
+
+| Style | What it does |
+|---|---|
+| `"classic"` | the default: black on white, a dashed line at the null, a rule under the headings |
+| `"jama"` | numbers to the left of the plot, rules around the block, navy squares, p-values as `.03` and `<.001`, `No.` and `P value` as headings |
+| `"nejm"` | numbers to the right, blue squares, en dashes between the confidence limits |
+| `"lancet"` | the Lancet's blue, en dashes, and the middle dot for a decimal point (`1·17`) |
+| `"bmj"` | the BMJ's violet, grey rules, `to` between the confidence limits |
+| `"revman"` | Cochrane's RevMan: blue squares, intervals written `1.15 [0.93, 1.42]` |
+
+They are approximations of a house style, read off the forest plots those
+journals print and the layouts of the
+[`meta`](https://github.com/guido-s/meta) package, not the style sheets
+themselves. `foresty_layout()` starts from one and changes whatever it needs
+to:
+
+```{r}
+#| eval: false
+foresty_layout("jama", colour = "#B24745", base_size = 11)
+foresty_layout("classic", palette = c(estimate = "#00468B", null = "grey60"))
+```
+
+Some of what it holds:
+
+| | |
+|---|---|
+| `colour`, `palette` | one colour for the estimates and their intervals, or each colour on the figure by name |
+| `base_size`, `family` | font size and family |
+| `point_shape`, `point_size`, `interval_width`, `null_line` | the marks |
+| `emphasis_shape`, `emphasis_height`, `emphasis_size`, `emphasis_face`, `emphasis_gap` | how the overall estimate is singled out on a combined figure |
+| `rules`, `separators`, `band`, `grid`, `axis_line` | the lines and the shading |
+| `group_position`, `table_side` | the subgroup on a row or in a column; the numbers to the left of the plot or to its right |
+| `digits`, `p_format`, `decimal_mark`, `ci_separator`, `ci_brackets` | how the numbers are written |
+| `headings` | the column headings, as `c(n = "No. of patients")` |
+| `column_gap` | space between one column of numbers and the next, in ems |
+| `xlim`, `arrows` | limits for the plot, and labels for the two directions |
+| `plot_width` | how much of the figure the plot takes |
+
+### How wide the plot is
+
+Each column of text takes the centimetres its longest entry needs, and the plot
+takes everything left over, so widening the figure widens the plot and nothing
+else:
+
+```{r}
+#| eval: false
+ggplot2::ggsave("figure.png", by_sex_table, width = 13, height = 3.2)
+```
+
+Three things make the columns give the plot more room. `headings` replaces the
+estimate's heading, which is written from the model and is usually the widest
+thing on the figure; `column_gap` tightens the space between the columns; and
+`columns` drops the ones the figure does not need.
+
+```{r}
+#| label: tightened
+foresty_interaction(
+  fit_no2, "no2", "sex",
+  columns = c("estimate", "interaction_p"),
+  layout = foresty_layout("classic", headings = c(estimate = "aOR (95% CI)"),
+                          column_gap = 0.6)
+)
+```
+
+`plot_width` decides it outright. A fraction gives the plot that share of the
+figure at whatever width it is drawn — the columns of text then share the rest
+between them, so give the figure enough width that they still fit:
+
+```{r}
+#| eval: false
+foresty_layout("classic", plot_width = 0.6)   # three fifths of the figure
+foresty_layout("classic", plot_width = 9)     # exactly 9 cm
+```
+
+`xlim` is worth knowing about: an interval running past the limits is drawn
+with an arrow at that end rather than being left off, which keeps one wide
+interval from flattening the rest of the figure.
+
+```{r}
+#| label: urbanicity
+fit_urban <- glm(asthma ~ urbanicity + sex + maternal_age,
+                 family = binomial, data = foresty_cohort)
+
+foresty_main(
+  list(fit_urban), "urbanicity",
+  layout = foresty_layout(
+    "classic",
+    xlim = c(0.8, 2.5),
+    arrows = c("Lower risk of asthma", "Higher risk of asthma"),
+    headings = c(estimate = "aOR (95% CI)")
+  )
+)
+```
+
+The styles that follow a journal leave the title the functions write for
+themselves off the figure, since that text belongs in the caption; a title
+passed by hand is always drawn, and `title = NA` draws none whatever the style.
+
+`headings` also names the column of row labels, which is headed `Exposure` by
+`foresty_main()`, by the modifier by `foresty_interaction()` and `Subgroup` by
+`foresty_combine()` — left unheaded there when the figure carries an overall
+estimate, which is not a subgroup:
+
+```{r}
+#| eval: false
+foresty_main(list(fit_no2, fit_bc), c("no2", "black_carbon"),
+             layout = foresty_layout("classic",
+                                     headings = c(label = "Pollutant")))
+```
+
+## Passing the result on
+
+| | |
+|---|---|
+| `summary(x)` | the whole coefficient table with standard errors and p-values, laid out as `summary.glm()` lays one out, then the estimates and the interaction test |
+| `as.data.frame(x)` | everything the figure carries, display labels included |
+| `broom::tidy(x)` | the estimates in `broom`'s columns and order — `term`, `estimate`, `std.error`, `statistic`, `p.value`, `conf.low`, `conf.high`, then the counts. `tidy(x, what = "coefficients")` gives the model's coefficients instead |
+| `broom::glance(x)` | one row: measure, n, events, person-time, interaction test |
+| `predict(x, ...)` | passes through to the underlying model |
+| `coef()`, `vcov()`, `formula()`, `nobs()`, `model.frame()` | likewise |
+
+`tidy()` and `glance()` are `broom`'s generics, and `foresty` registers its
+methods on them rather than carrying `broom` itself. Install `broom` if you
+want them — it is not installed with the package — and call them as
+`broom::tidy(x)` or after `library(broom)`. `as.data.frame()` needs nothing.
+
+## Robust standard errors
+
+`vcov = "robust"` gives the heteroskedasticity-consistent sandwich estimator
+(`HC1`); `"HC0"` to `"HC4"` name one exactly. `cluster` gives the
+cluster-robust version. Both come from `sandwich`.
+
+```{r}
+#| eval: false
+foresty_main(list(fit_no2), "no2", vcov = "robust")
+foresty_main(list(fit_no2), "no2", cluster = "practice_id")
+```
+
+`cluster` says which observations belong together, so it takes a column name, a
+vector of one identifier per observation, or a one-sided formula — not `TRUE`.
+
+Where sandwich does not apply, foresty says so rather than returning a
+plausible wrong number: refit a Cox model with `coxph(..., robust = TRUE)`, and
+an `rms` fit through `rms::robcov()`. A fit that is already robust is used as
+it stands.
+
+## What it does with the model
+
+The subgroup effects come from **one** model containing the interaction, not
+from a model refitted inside each subgroup. In the reference level of the
+modifier the effect is the exposure term alone; in the other levels it is the
+exposure term plus the relevant interaction terms. Every subgroup therefore
+shares one estimate of the covariate effects, and the interaction can be
+tested, which is what fitting separate models inside each subgroup gives up.
+
+The linear combinations and their tests are computed by
+[`car`](https://cran.r-project.org/package=car), and not reimplemented here.
+
+The contrast is built as the difference between two rows of the model's own
+design matrix, one at the baseline value of the exposure and one at the value
+compared with it. Every column not involving the exposure cancels. That is why
+a factor exposure, a factor with more than two levels, a spline among the
+covariates, and `rms`'s own naming all come out right without the package
+having to parse a single coefficient name.
+
+## Models it works with
+
+Anything supplying `coef()`, `vcov()` and a model frame. Tested against:
+
+| | |
+|---|---|
+| base R | `glm()` (binomial, Poisson, Gaussian, any link), `lm()` |
+| `survival` | `coxph()`, `survreg()` |
+| `rms` | `lrm()`, `cph()`, `ols()`, `Glm()`, `psm()` |
+| `lme4` | `lmer()`, `glmer()` — the fixed effects, with the random effects held as they were fitted |
+| others | `MASS::polr()`, `nnet::multinom()`, `geepack::geeglm()` |
+
+The effect measure is read from the model and named on the figure, and can be
+overridden with `measure`:
+
+| Model | Measure |
+|---|---|
+| logistic, `lrm()`, `polr()` | Odds ratio |
+| Cox, `cph()` | Hazard ratio |
+| log-link binomial | Risk ratio |
+| Poisson with an offset | Incidence rate ratio |
+| linear, `ols()` | Mean difference |
+
+The measure names the outcome it is a measure of, so the axis under the plot
+reads *Adjusted odds ratio for asthma* and the title *Adjusted odds ratio for
+asthma associated with NO2*: what a ratio is a ratio of is the outcome, and the
+exposure it is reported for comes after it. The outcome comes from the left of
+the formula; a survival outcome is named by its event rather than its time. The
+column of estimates beside the plot is headed with the measure alone, the axis
+having named the outcome once already.
+
+A ratio can be left on the scale the model was fitted on:
+
+```{r}
+#| eval: false
+foresty_main(list(fit_no2), "no2", exponentiate = FALSE)
+```
+
+The figure then reports a log odds ratio read against zero rather than against
+one, and `tidy()` returns the estimates and intervals on that scale too. It has
+no effect on a mean difference or a coefficient, which are on that scale
+already.
+
+The axis is linear. A log axis would put a halving and a doubling the same
+distance from the null, which is worth having when estimates span several fold,
+but it is not the default — add `+ ggplot2::scale_x_continuous(transform =
+"log")` when you want it.
+
+Linear models are tested with *t* and *F* on their residual degrees of freedom;
+everything else with the normal approximation and a Wald chi-square. The
+interaction is tested by the likelihood ratio, or by the Wald test, or by both,
+through `test` in `foresty_interaction()`; a quasi-likelihood family and a GEE
+have no likelihood to take the first one over, and a mixed model fitted by REML
+is refitted by maximum likelihood before it is taken, as `lme4`'s own `anova()`
+does.
+
+A model carrying time — a Cox model, or a Poisson model with an offset —
+reports the person-time behind each row alongside the events, since a rate
+cannot be read without it:
+
+```{r}
+#| label: rate
+rate <- glm(asthma ~ no2 + sex + maternal_smoking + maternal_age +
+              offset(log(followup_years)),
+            family = poisson, data = foresty_cohort)
+
+foresty_main(list(rate), exposure = "no2", labels = c(no2 = "NO2, ug/m3"),
+             contrast = 10)
+```
+
+The offset makes the measure an incidence rate ratio rather than a risk ratio,
+the figure reports it per 10 µg/m³ and says so on the row, and the column of
+person-time is drawn beside the counts. The subgroup and combined figures
+carry it the same way:
+
+```{r}
+#| eval: false
+foresty_combine(
+  Overall = foresty_main(list(rate), exposure = c(NO2 = "no2"), contrast = 10),
+  Sex = foresty_interaction(rate, exposure = "no2", interaction = "sex",
+                            contrast = 10)
+)
+```
+
+## What it will not do
+
+* **Cross two modifiers with each other.** The package reports two-way
+  interactions: one exposure, one modifier, one joint test. Two modifiers are
+  two calls and two blocks of a combined figure, which is what a subgroup panel
+  is; a three-way interaction is not fitted for you.
+* **Split a continuous modifier for you.** Categorize it with `cut()` first and
+  refit. Which cut points you use is a decision about the analysis, not a
+  default the package should pick.
+* **Summarise a splined exposure with one number.** Its effect depends on where
+  along the spline the difference is taken, so `at = c(from, to)` has to name
+  the two values. The basis has to be in the formula — `splines::ns(no2, 3)`,
+  `rms::rcs(no2, knots)`, `poly()` — because the two rows of the design matrix
+  are built by evaluating it at those values. A basis computed beforehand and
+  fitted as `y ~ spline1 + spline2 + spline3` records nothing that ties those
+  columns to the variable, so naming the variable is an error that says as
+  much; refit with the basis in the formula, which is the same model.
+* **Invent a unit.** A continuous exposure is labelled with its name, and with
+  the increment where that is not one — `contrast = 10` draws the row as
+  `NO2 (per 10)` — but never with a unit, because the package cannot know what
+  the numbers in a column mean. Name the unit in `labels`, as
+  `c(no2 = "NO2, ug/m3")`, and the row reads `NO2, ug/m3 (per 10)`.
+* **Draw an exposure that is interacted with something, from `foresty_main()`.**
+  It has no single effect in such a model, and the function says so rather than
+  reporting one of them.
+
+## Dependencies
+
+`car`, `checkmate`, `ggplot2`, `patchwork`, `scales`, `grid`, and base R.
+
+Everything else is installed only if you want what it does: `broom` for
+`tidy()` and `glance()`, `gt` for the HTML report, `sandwich` for robust
+standard errors, `tibble` so that `tidy()` returns one, and `lme4`, `rms` and
+`survival` if you fit models with them.
+
+## License
+
+GPL-3.

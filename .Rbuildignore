@@ -1,0 +1,12 @@
+^foresty\.Rproj$
+^\.Rproj\.user$
+^_pkgdown\.yml$
+^docs$
+^data-raw$
+^\.github$
+^README\.qmd$
+^README\.knit\.md$
+^README_files$
+^\.quarto$
+^Rplots\.pdf$
+^[^/]*\.html$

@@ -1,0 +1,410 @@
+#' Write a foresty figure and its numbers to a self-contained HTML page
+#'
+#' Writes what an interaction p-value was standing in for: the exposure effect
+#' within each level of the modifier, the joint test of the interaction, the
+#' ratio of the effects between levels, the whole coefficient table of the
+#' updated model, and the figure. Everything is inlined, so the file can be
+#' opened or sent on its own.
+#'
+#' A figure drawn from several models -- [foresty_main()] over a list of them --
+#' carries each of them on the page, in a section of its own headed with the
+#' exposure it was fitted for. `model` cuts that down to one.
+#'
+#' @param x An object returned by [foresty_interaction()] or [foresty_main()].
+#' @param file Path to write to. A `.html` extension is added if missing.
+#' @param title Page title. The default names the exposure and the modifier.
+#' @param model Which model to report the coefficients of, when the figure
+#'   covers several. The default reports every one of them.
+#' @param width,height Size of the embedded plot in inches. `height` defaults
+#'   to a size that fits the number of rows.
+#' @param open Whether to open the file when it has been written. Defaults to
+#'   `FALSE`.
+#'
+#' @return The path written to, invisibly.
+#'
+#' @examples
+#' fit <- glm(asthma ~ no2 + sex + maternal_age, family = binomial,
+#'            data = foresty_cohort)
+#' x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
+#' foresty_report(x, file = file.path(tempdir(), "no2_by_sex.html"))
+#'
+#' # The same page as the figure is made, under a name written from the
+#' # variables it is about -- here no2_sex.html.
+#' \dontrun{
+#' foresty_interaction(fit, exposure = "no2", interaction = "sex", html = TRUE)
+#' foresty_main(list(fit), exposure = "no2", html = TRUE)
+#' }
+#'
+#' @export
+foresty_report <- function(x, file, title = NULL, model = NULL, width = 10,
+                           height = NULL, open = FALSE) {
+  if (inherits(x, "foresty_figures")) {
+    stop(
+      "this is the list of figures foresty_combine() returns when the figures ",
+      "it combined report more than one exposure, and a report is written of ",
+      "one figure at a time. Pass one of them, as `x[[1]]` or `x[[\"",
+      names(x)[1L], "\"]]`.",
+      call. = FALSE
+    )
+  }
+  if (!inherits(x, "foresty")) {
+    stop("`x` must be the result of foresty_interaction() or foresty_main()",
+         call. = FALSE)
+  }
+  checkmate::assert_string(file)
+  fy_require("gt", "write an HTML report")
+
+  if (!grepl("\\.html?$", file, ignore.case = TRUE)) {
+    file <- paste0(file, ".html")
+  }
+  result <- fy_result(x)
+  is_interaction <- !is.null(result$interaction_test)
+  if (is.null(title)) {
+    exposures <- paste(unique(as.character(result$exposure)), collapse = ", ")
+    title <- if (is_interaction) {
+      paste0(exposures, " by ", result$modifier)
+    } else if (nzchar(exposures)) {
+      exposures
+    } else {
+      "Forest plot"
+    }
+  }
+
+  infos <- fy_infos(x)
+  chosen <- if (is.null(model)) {
+    seq_along(infos)
+  } else {
+    checkmate::assert_int(model, lower = 1, upper = length(infos))
+    as.integer(model)
+  }
+  # A page carrying more than one model has to say which is which, and the
+  # exposure is what tells them apart: they are one model per exposure.
+  named <- rep_len(as.character(result$exposure), length(infos))
+  heading <- function(what, i) {
+    if (length(chosen) > 1L) paste0(what, ": ", named[i]) else what
+  }
+
+  sections <- c(
+    vapply(chosen, function(i) {
+      fy_section(heading("Model", i),
+                 fy_model_table(infos[[i]], result, named[i]))
+    }, character(1)),
+    if (is_interaction) fy_section("Interaction test",
+                                   fy_interaction_html(x, result)),
+    fy_section(
+      if (is_interaction) "Subgroup-specific estimates" else "Estimates",
+      fy_estimates_table(x, result)
+    ),
+    fy_section("Forest plot", fy_plot_html(x, width = width, height = height)),
+    vapply(chosen, function(i) {
+      fy_section(heading("Full coefficient table", i),
+                 fy_coefficient_table(infos[[i]], result))
+    }, character(1))
+  )
+
+  html <- paste0(
+    "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n",
+    "<meta charset=\"utf-8\">\n",
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n",
+    "<title>", fy_escape(title), "</title>\n<style>", fy_report_css(),
+    "</style>\n</head>\n<body>\n<main>\n<h1>", fy_escape(title), "</h1>\n",
+    paste(sections, collapse = "\n"),
+    "\n<footer>Produced by the foresty package on ",
+    format(Sys.Date(), "%d %B %Y"), ".</footer>\n</main>\n</body>\n</html>\n"
+  )
+
+  writeLines(html, file, useBytes = TRUE)
+  if (isTRUE(open)) {
+    utils::browseURL(file)
+  }
+  invisible(file)
+}
+
+# What `html` in foresty_main() and foresty_interaction() asks for.
+#
+# FALSE, which is the default, asks for nothing, so nothing leaves the session
+# unless it is asked for. TRUE asks for the report under a name written from
+# the variables it is about -- the exposure and the modifier, joined by an
+# underscore -- so that a report of NO2 by sex is no2_sex.html and a directory
+# of them can be read without opening any. A string is the path itself.
+fy_report_file <- function(html, exposure, modifier = NULL) {
+  if (is.null(html) || isFALSE(html)) {
+    return(NULL)
+  }
+  if (is.character(html)) {
+    checkmate::assert_string(html, min.chars = 1L)
+    return(html)
+  }
+  if (!isTRUE(html)) {
+    stop(
+      "`html` must be TRUE or FALSE, or the path to write the report to; it ",
+      "is ", paste(class(html), collapse = "/"), ".",
+      call. = FALSE
+    )
+  }
+  name <- fy_file_slug(c(unique(exposure), modifier))
+  paste0(if (nzchar(name)) name else "foresty", ".html")
+}
+
+# The variable names as a file name: joined by underscores, and with anything a
+# file name cannot carry -- a bracket from `ns(no2, 3)`, a slash, a space --
+# turned into one as well.
+fy_file_slug <- function(x) {
+  out <- gsub("[^A-Za-z0-9._-]+", "_", paste(as.character(x), collapse = "_"))
+  gsub("(^_+)|(_+$)", "", gsub("_+", "_", out))
+}
+
+fy_section <- function(heading, body) {
+  paste0("<section>\n<h2>", fy_escape(heading), "</h2>\n", body, "\n</section>")
+}
+
+fy_model_table <- function(info, result, exposure) {
+  rows <- list()
+  rows[["Model"]] <- paste(class(info$fit), collapse = ", ")
+  formula <- try(stats::formula(info$fit), silent = TRUE)
+  if (!inherits(formula, "try-error")) {
+    rows[["Formula"]] <- paste(deparse(formula), collapse = " ")
+  }
+  rows[["Observations"]] <- fy_format_count(info$n)
+  if (!is.na(info$events)) {
+    rows[["Events"]] <- fy_format_count(info$events)
+  }
+  if (!is.na(info$person_time)) {
+    rows[["Person-time"]] <- fy_format_count(info$person_time)
+  }
+  rows[["Exposure"]] <- exposure
+  if (!is.null(result$modifier)) {
+    rows[["Effect modifier"]] <- result$modifier
+  }
+  rows[["Effect measure"]] <- result$measure_label
+  rows[["Standard errors"]] <- if (isTRUE(result$robust)) "Robust" else "Model-based"
+  rows[["Confidence level"]] <- paste0(round(result$ci_level * 100), "%")
+
+  fy_gt(
+    data.frame(
+      Field = names(rows),
+      Value = unlist(rows, use.names = FALSE),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+# The joint test, plus the ratio of the effect between levels. The ratio is the
+# size of the interaction, which is the part the p-value on its own leaves out.
+#
+# What the test is a test of is said by the heading over it and by the table of
+# ratios under it, so the test is written as the test: the statistic, its
+# degrees of freedom and its p-value, and nothing restating the hypothesis.
+fy_interaction_html <- function(x, result) {
+  tests <- result$interaction_tests %||% list(result$interaction_test)
+  lead <- paste0(
+    "<p class=\"lead\">",
+    paste(vapply(tests, fy_test_phrase, character(1)), collapse = "; "),
+    ".</p>"
+  )
+
+  ratios <- fy_ratio_table(x, result)
+  paste0(lead, "\n", if (is.null(ratios)) "" else ratios)
+}
+
+fy_test_phrase <- function(test) {
+  paste0(
+    fy_escape(test$test), " = ", fy_format_number(test$statistic),
+    " on ", test$df, " degree", if (isTRUE(test$df != 1)) "s" else "",
+    " of freedom, p ",
+    if (is.na(test$p.value)) "unavailable"
+    else if (test$p.value < 0.001) "&lt; 0.001"
+    else paste0("= ", fy_format_p(test$p.value))
+  )
+}
+
+fy_ratio_table <- function(x, result) {
+  info <- fy_infos(x)[[1L]]
+  columns <- result$interaction_test$terms
+  if (is.null(columns) || !length(columns)) {
+    return(NULL)
+  }
+  L <- diag(length(info$coef))[match(columns, names(info$coef)), , drop = FALSE]
+  rownames(L) <- columns
+  est <- fy_lincom(info, L, ci_level = result$ci_level,
+                   exponentiate = info$exponentiate)
+
+  header <- if (info$exponentiate) {
+    paste0("Ratio of ", tolower(info$measure_name), "s")
+  } else {
+    "Difference in effect"
+  }
+  out <- data.frame(
+    Term = est$term_label,
+    Value = paste0(
+      fy_format_number(est$estimate), " (",
+      fy_format_number(est$conf.low), " to ",
+      fy_format_number(est$conf.high), ")"
+    ),
+    `p-value` = fy_format_p(est$p.value),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  names(out)[2] <- paste0(header, " (", round(result$ci_level * 100), "% CI)")
+  fy_gt(out)
+}
+
+fy_estimates_table <- function(x, result) {
+  est <- result$estimates
+  info <- fy_infos(x)[[1L]]
+  out <- data.frame(check.names = FALSE, stringsAsFactors = FALSE,
+                    Variable = as.character(est$variable_label))
+  if ("block_label" %in% names(est)) {
+    out <- cbind(
+      data.frame(Block = as.character(est$block_label),
+                 Row = as.character(est$label),
+                 check.names = FALSE, stringsAsFactors = FALSE),
+      out
+    )
+  }
+  if ("modifier_label" %in% names(est)) {
+    out <- cbind(
+      data.frame(Subgroup = as.character(est$modifier_label),
+                 check.names = FALSE, stringsAsFactors = FALSE),
+      out
+    )
+  }
+  if (any(!is.na(est$level))) {
+    out[["Level"]] <- ifelse(is.na(est$level), "", est$level)
+  }
+
+  header <- fy_estimate_header(info, isTRUE(result$adjusted), result$ci_level)
+  out[[header]] <- ifelse(
+    est$reference,
+    paste0(fy_format_number(est$estimate), " (reference)"),
+    paste0(fy_format_number(est$estimate), " (",
+           fy_format_number(est$conf.low), " to ",
+           fy_format_number(est$conf.high), ")")
+  )
+  out[["p-value"]] <- fy_format_p(est$p.value)
+  out[["N"]] <- fy_format_count(est$n)
+  if (!all(is.na(est$events))) {
+    out[["Events"]] <- fy_format_count(est$events)
+  }
+  if (!all(is.na(est$person_time))) {
+    out[["Person-time"]] <- fy_format_count(est$person_time)
+  }
+  both <- "interaction_p_lrt" %in% names(est)
+  if ("interaction_p" %in% names(est)) {
+    heading <- if (both) "p for interaction (Wald)" else "p for interaction"
+    out[[heading]] <- fy_format_p(est$interaction_p)
+  }
+  if (both) {
+    out[["p for interaction (LR)"]] <- fy_format_p(est$interaction_p_lrt)
+  }
+  fy_gt(out)
+}
+
+fy_coefficient_table <- function(info, result) {
+  L <- diag(length(info$coef))
+  rownames(L) <- names(info$coef)
+  est <- fy_lincom(info, L, ci_level = result$ci_level,
+                   exponentiate = info$exponentiate)
+
+  out <- data.frame(
+    Coefficient = est$term_label,
+    check.names = FALSE, stringsAsFactors = FALSE
+  )
+  header <- if (info$exponentiate) info$measure_label else "Estimate"
+  out[[paste0(header, " (", round(result$ci_level * 100), "% CI)")]] <- paste0(
+    fy_format_number(est$estimate), " (",
+    fy_format_number(est$conf.low), " to ",
+    fy_format_number(est$conf.high), ")"
+  )
+  out[["SE"]] <- fy_format_number(est$se, digits = 3)
+  out[["p-value"]] <- fy_format_p(est$p.value)
+  fy_gt(out)
+}
+
+# The plot is embedded as a data URI rather than written beside the page, so
+# that the report stays a single file that can be sent on.
+fy_plot_html <- function(x, width = 10, height = NULL) {
+  # The rows are the whole of the panel, so the height is what sets them apart
+  # from one another: a little under half an inch apiece, and enough beside it
+  # for the column headings and the axis.
+  if (is.null(height)) {
+    rows <- nrow(fy_result(x)$estimates)
+    height <- max(2.5, 1.2 + 0.4 * rows)
+  }
+  path <- tempfile(fileext = ".png")
+  on.exit(unlink(path), add = TRUE)
+
+  # The figure carries the foresty class, which ggsave() has no device for, so
+  # it is written as the plain plot it also is.
+  plain <- x
+  class(plain) <- setdiff(class(plain), "foresty")
+  attr(plain, "foresty") <- NULL
+
+  ok <- try(
+    ggplot2::ggsave(path, plot = plain, width = width, height = height,
+                    dpi = 150, units = "in"),
+    silent = TRUE
+  )
+  if (inherits(ok, "try-error") || !file.exists(path)) {
+    return("<p class=\"note\">The plot could not be rendered.</p>")
+  }
+
+  encoded <- fy_base64(path)
+  if (is.null(encoded)) {
+    return(paste0(
+      "<p class=\"note\">The plot could not be embedded; install the ",
+      "base64enc package to include it.</p>"
+    ))
+  }
+  paste0("<img alt=\"Forest plot\" src=\"data:image/png;base64,", encoded, "\">")
+}
+
+fy_base64 <- function(path) {
+  # gt imports base64enc, so anything that can write the report can embed the
+  # plot in it.
+  if (requireNamespace("base64enc", quietly = TRUE)) {
+    return(base64enc::base64encode(path))
+  }
+  NULL
+}
+
+fy_gt <- function(data) {
+  tbl <- gt::gt(data)
+  tbl <- gt::tab_options(tbl, table.font.size = gt::px(13),
+                         data_row.padding = gt::px(4))
+  as.character(gt::as_raw_html(tbl, inline_css = TRUE))
+}
+
+fy_escape <- function(x) {
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  gsub(">", "&gt;", x, fixed = TRUE)
+}
+
+fy_require <- function(package, purpose) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    stop(
+      "the ", package, " package is needed to ", purpose,
+      ". Install it with install.packages(\"", package, "\").",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
+fy_report_css <- function() {
+  paste0(
+    "body{margin:0;background:#f6f7f9;color:#1a1a1a;",
+    "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;",
+    "line-height:1.55}",
+    "main{max-width:60rem;margin:0 auto;padding:2rem 1.5rem 4rem}",
+    "h1{font-size:1.6rem;margin:0 0 1.5rem;font-weight:650}",
+    "h2{font-size:1.1rem;margin:0 0 .75rem;font-weight:650;color:#33475b}",
+    "section{background:#fff;border:1px solid #e3e6ea;border-radius:8px;",
+    "padding:1.25rem 1.5rem;margin-bottom:1.25rem;overflow-x:auto}",
+    "p.lead{margin:0 0 1rem}",
+    "p.note{margin:0;color:#6b7280;font-style:italic}",
+    "img{max-width:100%;height:auto;display:block}",
+    "footer{color:#6b7280;font-size:.8rem;text-align:center}"
+  )
+}
