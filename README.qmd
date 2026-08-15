@@ -21,9 +21,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-(Under construction)
-
 # foresty
+
+<img src="man/figures/logo.png" alt="Logo of foresty" align="right" height="120" />
 
 Visualize interaction effects with publication-ready forest plots.
 
@@ -111,7 +111,6 @@ matrix, and a model frame. Tested model classes include:
 | ---------- | ------------------------------------------------------- |
 | base R     | `glm()`, `lm()`                                         |
 | `survival` | `coxph()`, `survreg()`                                  |
-| `rms`      | `lrm()`, `cph()`, `ols()`, `Glm()`, `psm()`             |
 | `lme4`     | `lmer()`, `glmer()`                                     |
 | other      | `MASS::polr()`, `nnet::multinom()`, `geepack::geeglm()` |
 
@@ -120,6 +119,11 @@ ratios, hazard ratios, risk ratios, incidence rate ratios, and mean
 differences.
 
 Robust and cluster-robust standard errors are also supported where applicable.
+
+`rms` fits -- `lrm()`, `ols()`, `cph()`, `psm()`, `Glm()`, `orm()` -- are **not**
+supported. A variable *transformed* by `rms` is a different thing and is still read: `rms::rcs(x, 4)`
+inside a `glm()` formula is a spline basis like any other, as are
+`splines::ns()`, `splines::bs()` and `stats::poly()`.
 
 ## What foresty does not do
 

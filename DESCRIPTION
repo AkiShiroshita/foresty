@@ -22,9 +22,11 @@ Description: An interaction p-value says whether two exposures depart from a
     test, and the full coefficient table, so that what the p-value was
     summarising can be inspected. Linear combinations and their tests are
     computed by the 'car' package rather than reimplemented here. Models
-    fitted by stats::glm(), stats::lm(), the 'survival' package, the 'rms'
-    package of Frank Harrell and the 'lme4' package are supported, along with
-    any other fit that supplies coef() and vcov().
+    fitted by stats::glm(), stats::lm(), the 'survival' package, the 'lme4'
+    package and the 'geepack' package are supported, along with any other fit
+    that supplies coef() and vcov(). Fits from the 'rms' package are not, and
+    are refused with the function that fits the same model named in their
+    place.
 License: GPL-3
 URL: https://github.com/AkiShiroshita/foresty
 BugReports: https://github.com/AkiShiroshita/foresty/issues
