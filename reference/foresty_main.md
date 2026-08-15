@@ -171,8 +171,9 @@ foresty_main(
   outright, as `person_time = c("Person-years (per 1,000)" = 1000)`. The
   unit reaches the figure,
   [`summary()`](https://rdrr.io/r/base/summary.html) and the HTML report
-  alike; the estimates themselves are untouched, `person_time` being how
-  the column is written and not what was fitted.
+  alike. It does not refit the model or change its estimates, confidence
+  intervals, or p-values: `person_time` controls only how the
+  person-time column is written.
 
 - layout:
 

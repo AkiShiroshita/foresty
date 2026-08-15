@@ -55,7 +55,8 @@ exploration becomes a reproducible script.
 
 ## Use it in R
 
-`foresty` has three main functions (see `vignette("getting-started")`
+`foresty` has three main functions (see
+[`vignette("getting-started")`](https://akishiroshita.github.io/foresty/articles/getting-started.md)
 for details):
 
 1.  **[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)**
