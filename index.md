@@ -55,7 +55,8 @@ exploration becomes a reproducible script.
 
 ## Use it in R
 
-`foresty` has three main functions (see the vignettes for details):
+`foresty` has three main functions (see `vignette("getting-started")`
+for details):
 
 1.  **[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)**
     — draws the effect of one or more exposures from models you have
@@ -86,7 +87,7 @@ journal templates.
 
 The output can be customized further with ordinary `ggplot2` layers, and
 it can be passed to [`summary()`](https://rdrr.io/r/base/summary.html),
-`predct()`,
+[`predict()`](https://rdrr.io/r/stats/predict.html),
 [`broom::tidy()`](https://generics.r-lib.org/reference/tidy.html), and
 [`broom::glance()`](https://generics.r-lib.org/reference/glance.html),
 etc.
@@ -142,7 +143,7 @@ interactions**.
   final responsibility remain the author’s.
 
 - Subgroup-specific effect sizes are computed through
-  [car](https://github.com/bprice2652/car_repo).
+  [car](https://CRAN.R-project.org/package=car).
 
 - The forest plot designs took their cues from
   [meta](https://github.com/guido-s/meta).

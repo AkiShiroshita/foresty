@@ -47,3 +47,10 @@
 
 - [`foresty_cohort`](https://akishiroshita.github.io/foresty/reference/foresty_cohort.md)
   : A simulated birth cohort
+
+## Package
+
+- [`foresty`](https://akishiroshita.github.io/foresty/reference/foresty-package.md)
+  [`foresty-package`](https://akishiroshita.github.io/foresty/reference/foresty-package.md)
+  : foresty: Forest Plots and Subgroup Effects from Fitted Regression
+  Models
