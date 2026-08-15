@@ -91,6 +91,7 @@ summary.foresty <- function(object, model = NULL, ...) {
       n = info$n,
       events = info$events,
       person_time = info$person_time,
+      person_time_unit = result$person_time,
       measure = result$measure,
       measure_label = result$measure_label,
       exponentiate = result$exponentiate,
@@ -143,13 +144,17 @@ print.summary.foresty <- function(x, ...) {
     cat("   Events:", format(x$events, big.mark = ","))
   }
   if (!is.na(x$person_time)) {
-    cat("   Person-time:", format(round(x$person_time), big.mark = ","))
+    cat("   ",
+        fy_person_time_heading("Person-time", x$person_time_unit, sep = " "),
+        ": ", fy_format_person_time(x$person_time, x$person_time_unit),
+        sep = "")
   }
   cat("\n\nCoefficients:\n")
   stats::printCoefmat(x$coefficients, signif.stars = FALSE, digits = 4)
 
   cat("\n", x$measure_label, " (", round(x$ci_level * 100), "% CI):\n", sep = "")
-  print(fy_console_table(x$estimates, x$measure), row.names = FALSE)
+  print(fy_console_table(x$estimates, x$measure, x$person_time_unit),
+        row.names = FALSE)
 
   # Every test that was asked for, one line apiece, so that a figure reporting
   # both says what each of them came to.
@@ -167,7 +172,7 @@ print.summary.foresty <- function(x, ...) {
   invisible(x)
 }
 
-fy_console_table <- function(estimates, measure) {
+fy_console_table <- function(estimates, measure, person_time = NULL) {
   columns <- list()
   if ("block_label" %in% names(estimates)) {
     columns[["Block"]] <- as.character(estimates$block_label)
@@ -192,7 +197,9 @@ fy_console_table <- function(estimates, measure) {
     columns[["Events"]] <- fy_format_count(estimates$events)
   }
   if (!all(is.na(estimates$person_time))) {
-    columns[["Person-time"]] <- fy_format_count(estimates$person_time)
+    heading <- fy_person_time_heading("Person-time", person_time, sep = " ")
+    columns[[heading]] <- fy_format_person_time(estimates$person_time,
+                                                person_time)
   }
   do.call(data.frame, c(columns, check.names = FALSE,
                         stringsAsFactors = FALSE))

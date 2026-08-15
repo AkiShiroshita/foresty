@@ -13,47 +13,85 @@ expect_same_result <- function(a, b, tolerance = 1e-6, p_tolerance = 1e-4) {
                tolerance = p_tolerance)
 }
 
-test_that("glm and rms::lrm agree", {
+test_that("an rms fit is refused", {
   skip_if_not_installed("rms")
   d <- foresty_cohort
-  a <- foresty_interaction(
-    glm(asthma ~ no2 + sex + maternal_age, family = binomial, data = d),
-    exposure = "no2", interaction = "sex"
-  )
-  b <- foresty_interaction(
-    rms::lrm(asthma ~ no2 + sex + maternal_age, data = d),
-    exposure = "no2", interaction = "sex"
-  )
-  expect_same_result(a, b)
-})
 
-test_that("survival::coxph and rms::cph agree", {
-  skip_if_not_installed("rms")
+  expect_error(
+    foresty_main(list(rms::lrm(asthma ~ no2 + sex, data = d)),
+                 exposure = "no2"),
+    "does not support rms fits"
+  )
+  expect_error(
+    foresty_main(list(rms::ols(no2 ~ black_carbon + sex, data = d)),
+                 exposure = "black_carbon"),
+    "does not support rms fits"
+  )
+  expect_error(
+    foresty_interaction(rms::lrm(asthma ~ no2 + sex, data = d),
+                        exposure = "no2", interaction = "sex"),
+    "does not support rms fits"
+  )
+
   skip_if_not_installed("survival")
-  d <- foresty_cohort
-  a <- foresty_interaction(
-    survival::coxph(survival::Surv(followup_years, wheeze) ~ no2 + sex, data = d),
-    exposure = "no2", interaction = "sex"
+  expect_error(
+    foresty_main(
+      list(rms::cph(survival::Surv(followup_years, wheeze) ~ no2 + sex,
+                    data = d)),
+      exposure = "no2"
+    ),
+    "does not support rms fits"
   )
-  b <- foresty_interaction(
-    rms::cph(survival::Surv(followup_years, wheeze) ~ no2 + sex, data = d),
-    exposure = "no2", interaction = "sex"
-  )
-  expect_same_result(a, b, tolerance = 1e-3, p_tolerance = 0.05)
 })
 
-test_that("lm and rms::ols agree", {
+test_that("a variable transformed by rms inside a base R fit is still read", {
   skip_if_not_installed("rms")
   d <- foresty_cohort
-  a <- foresty_interaction(
-    lm(no2 ~ black_carbon + sex, data = d),
-    exposure = "black_carbon", interaction = "sex"
+  knots <- stats::quantile(d$maternal_age, probs = c(0.05, 0.35, 0.65, 0.95))
+  # The fit is a glm, so it is not an rms fit; rcs() is a basis like ns().
+  fit <- glm(asthma ~ no2 + sex + rms::rcs(maternal_age, knots),
+             family = binomial, data = d)
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
+  expect_length(fy_est(x)$estimate, 2L)
+  expect_true(all(is.finite(fy_est(x)$se)))
+})
+
+test_that("an exposure entered as poly() is contrasted between two values", {
+  d <- foresty_cohort
+  # An orthogonal basis, whose centring and scaling are recorded in the terms
+  # object and have to be reused rather than recomputed from two rows.
+  fit <- glm(asthma ~ poly(maternal_age, 2) + no2 + sex, family = binomial,
+             data = d)
+  est <- fy_est(foresty_main(list(fit), exposure = "maternal_age",
+                             at = c(25, 35), exponentiate = FALSE))
+  nd <- d[c(1, 1), ]
+  nd$maternal_age <- c(25, 35)
+  expect_equal(est$estimate,
+               unname(diff(stats::predict(fit, newdata = nd, type = "link"))),
+               tolerance = 1e-8)
+
+  # And within each level of a modifier, from the model carrying the
+  # interaction.
+  x <- foresty_interaction(fit, exposure = "maternal_age", interaction = "sex",
+                           at = c(25, 35))
+  expect_length(fy_est(x)$estimate, 2L)
+  expect_true(all(is.finite(fy_est(x)$se)))
+
+  # A raw polynomial is the same question with a different basis.
+  raw <- glm(asthma ~ poly(no2, 3, raw = TRUE) + sex, family = binomial,
+             data = d)
+  nd2 <- d[c(1, 1), ]
+  nd2$no2 <- c(10, 20)
+  expect_equal(
+    fy_est(foresty_main(list(raw), exposure = "no2", at = c(10, 20),
+                        exponentiate = FALSE))$estimate,
+    unname(diff(stats::predict(raw, newdata = nd2, type = "link"))),
+    tolerance = 1e-8
   )
-  b <- foresty_interaction(
-    rms::ols(no2 ~ black_carbon + sex, data = d),
-    exposure = "black_carbon", interaction = "sex"
-  )
-  expect_same_result(a, b)
+
+  # Without two values it has no single effect to report, as any spline has.
+  expect_error(foresty_main(list(fit), exposure = "maternal_age"),
+               "at = c(from, to)", fixed = TRUE)
 })
 
 test_that("the effect measure is read from the model", {
@@ -163,15 +201,14 @@ test_that("a covariate entered as a spline does not disturb the exposure", {
   expect_equal(fy_est(plain)$estimate, fy_est(splined)$estimate,
                tolerance = 0.01)
 
-  skip_if_not_installed("rms")
-  # rms has to be attached for rcs() to be found when the model is fitted, as
-  # it would be in any script that uses it.
-  library(rms)
-  rms_fit <- foresty_interaction(
-    rms::lrm(asthma ~ no2 + sex + rcs(maternal_age, 4), data = d),
+  # And a polynomial, which is the other way a covariate is let off being a
+  # straight line.
+  polynomial <- foresty_interaction(
+    glm(asthma ~ no2 + sex + poly(maternal_age, 3),
+        family = binomial, data = d),
     exposure = "no2", interaction = "sex"
   )
-  expect_equal(fy_est(rms_fit)$estimate, fy_est(splined)$estimate,
+  expect_equal(fy_est(plain)$estimate, fy_est(polynomial)$estimate,
                tolerance = 0.01)
 })
 

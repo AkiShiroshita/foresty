@@ -28,11 +28,8 @@
 #' ```
 #'
 #' The basis has to be built inside the formula, by `splines::ns()`,
-#' `splines::bs()`, `stats::poly()`, [rms::rcs()] or any other function of the
-#' variable, because the contrast is taken between two rows of the model's own
-#' design matrix and those two rows are built by evaluating the formula at the
-#' two values. That is what makes the answer agree with [rms::contrast()] on an
-#' `rms` fit and with a difference of two [stats::predict()] calls on a `glm`.
+#' `splines::bs()`, `stats::poly()` or another function of the variable, so the
+#' two design-matrix rows can be evaluated at the two values.
 #'
 #' A basis computed before the fit and entered as columns of its own --
 #' `Hmisc::rcspline.eval()` written into `spline1`, `spline2`, `spline3` and
@@ -44,7 +41,7 @@
 #'
 #' ```r
 #' knots <- quantile(d$age, probs = c(0.05, 0.35, 0.65, 0.95))
-#' fit <- glm(y ~ rms::rcs(age, knots) + sex, family = binomial, data = d)
+#' fit <- glm(y ~ splines::ns(age, 4) + sex, family = binomial, data = d)
 #' foresty_main(list(fit), exposure = "age", at = c(30, 60))
 #' ```
 #'
@@ -63,7 +60,7 @@
 #' applied to the table of numbers beside the plot will spoil it. Use `+`.
 #'
 #' @param fits A list of fitted models. Models fitted by [stats::glm()],
-#'   [stats::lm()], the `survival` package and the `rms` package are supported,
+#'   [stats::lm()] and the `survival` package are supported,
 #'   as is any fit supplying `coef()`, `vcov()` and a model frame.
 #' @param exposure Name of the exposure variable in each model, as a character
 #'   vector: either one name for all of them, or one name per model. Naming an
@@ -83,7 +80,30 @@
 #'   and are never exponentiated.
 #' @param labels Named character vector giving the label to draw for a
 #'   variable, as `c(no2 = "Nitrogen dioxide")`. Names not matched are left as
-#'   they are.
+#'   they are. This is where the exposure is renamed, and naming it where it is
+#'   chosen -- `exposure = c(NO2 = "no2")` -- comes to the same thing.
+#' @param outcome What to call the outcome, as `outcome = "incident asthma"`.
+#'   The default takes it from the left of the model's formula, which is the
+#'   name of a column -- `asthma_ever_dx`, `evt5` -- and is rarely what a figure
+#'   should say the effect is an effect on. It is written wherever the outcome
+#'   is named: the axis under the plot, the title the package writes for itself,
+#'   and the HTML report. `NA` names none, leaving "Adjusted odds ratio" on its
+#'   own for a figure whose caption says what of.
+#' @param xlab The label under the plot, which by default names the measure and
+#'   the outcome, as `"Adjusted odds ratio for asthma"`. A string is drawn as it
+#'   was given -- `xlab = "Odds ratio (95% CI), NO2 per 10 ug/m3"` -- and `NA`
+#'   draws none. Renaming only the outcome is what `outcome` is for; this
+#'   replaces the whole line.
+#' @param person_time The unit person-time is reported in, for a model that
+#'   carries any. `NULL`, the default, reports the total the model was fitted
+#'   over. A number divides by it, so `person_time = 1000` draws a column of
+#'   thousands of person-years and heads it `"Person-time (per 1,000)"`, since a
+#'   count of person-time that does not say what it counts cannot be read
+#'   against another study's. Naming the number heads the column outright, as
+#'   `person_time = c("Person-years (per 1,000)" = 1000)`. The unit reaches the
+#'   figure, [summary()] and the HTML report alike; the estimates themselves are
+#'   untouched, `person_time` being how the column is written and not what was
+#'   fitted.
 #' @param ci_level Confidence level of the intervals. Defaults to `0.95`.
 #' @param contrast For a continuous exposure, the increment the effect is
 #'   reported per. `NULL`, the default, is one unit and is not written on the
@@ -101,7 +121,7 @@
 #'   `contrast` says nothing about a categorical exposure, whose comparisons are
 #'   its levels.
 #' @param at The two values of the exposure to contrast, as `c(from, to)`.
-#'   Which two they were is written beside the exposure, as `"NO2 (20 vs 10)"`,
+#'   Which two they were is written beside the exposure, as `"NO2 (10 -> 20)"`,
 #'   wherever the exposure is named: every row of a figure is that same
 #'   comparison taken within another subgroup, so it is said once rather than
 #'   on each of them. An exposure entered as a spline, or in any other way that
@@ -114,8 +134,8 @@
 #'   own. `"robust"` gives the heteroskedasticity-consistent sandwich estimator
 #'   (`HC1`), and `"HC0"` to `"HC4"` name one exactly; both come from the
 #'   `sandwich` package. A function is called on the fit, and a matrix is used
-#'   as it stands. For a Cox model refit with `robust = TRUE`, and for an `rms`
-#'   fit use [rms::robcov()]; a fit that is already robust is used as it is.
+#'   as it stands. For a Cox model refit with `robust = TRUE`; a fit that is
+#'   already robust is used as it is.
 #' @param cluster Cluster-robust standard errors, passed to
 #'   [sandwich::vcovCL()]. It says which observations belong together, so it
 #'   takes a column name, a vector of one identifier per observation, or a
@@ -201,12 +221,21 @@
 #' # On the scale the model was fitted on, as a log odds ratio about zero.
 #' foresty_main(list(fit_no2), exposure = "no2", exponentiate = FALSE)
 #'
+#' # The exposure, the outcome and the axis all named by hand.
+#' foresty_main(list(fit_no2), exposure = c(`NO2, ug/m3` = "no2"),
+#'              outcome = "incident asthma by age 8",
+#'              xlab = "Adjusted odds ratio (95% CI)")
+#'
+#' # Person-time reported per 1,000 rather than as the total.
+#' foresty_main(list(fit_rate), exposure = "no2", person_time = 1000)
+#'
 #' @export
 foresty_main <- function(fits,
                          exposure,
                          measure = NULL,
                          exponentiate = TRUE,
                          labels = NULL,
+                         outcome = NULL,
                          ci_level = 0.95,
                          contrast = NULL,
                          at = NULL,
@@ -214,9 +243,11 @@ foresty_main <- function(fits,
                          cluster = NULL,
                          table = TRUE,
                          columns = NULL,
+                         person_time = NULL,
                          layout = NULL,
                          title = NULL,
                          subtitle = NULL,
+                         xlab = NULL,
                          html = FALSE) {
   fits <- fy_check_fit_list(fits)
   # A label written where the exposure is named -- `exposure = c(NO2 = "no2")`
@@ -227,6 +258,7 @@ foresty_main <- function(fits,
   checkmate::assert_number(ci_level, lower = 0.5, upper = 0.9999)
   checkmate::assert_flag(table)
   layout <- fy_as_layout(layout)
+  person_time <- fy_person_time_spec(person_time)
 
   if (length(exposure) == 1L) {
     exposure <- rep(exposure, length(fits))
@@ -240,7 +272,8 @@ foresty_main <- function(fits,
   }
 
   infos <- lapply(fits, fy_model_info, measure = measure,
-                  exponentiate = exponentiate, vcov = vcov, cluster = cluster)
+                  exponentiate = exponentiate, vcov = vcov, cluster = cluster,
+                  outcome = outcome)
   pieces <- Map(function(info, e) {
     fy_guard_no_interaction(info, e)
     values <- fy_exposure_values(info, e, contrast = contrast, at = at)
@@ -275,7 +308,7 @@ foresty_main <- function(fits,
   plot <- fy_forest_plot(
     estimates,
     exponentiate = info$exponentiate,
-    measure_label = fy_axis_label(info, adjusted),
+    measure_label = fy_resolve_xlab(xlab, fy_axis_label(info, adjusted)),
     estimate_header = fy_estimate_header(info, adjusted, ci_level,
                                          with_outcome = FALSE),
     table = table,
@@ -286,7 +319,8 @@ foresty_main <- function(fits,
     title = title,
     subtitle = subtitle,
     layout = layout,
-    label_header = label_header
+    label_header = label_header,
+    person_time = person_time
   )
 
   out <- fy_new_result(
@@ -299,7 +333,8 @@ foresty_main <- function(fits,
     exponentiate = info$exponentiate,
     ci_level = ci_level,
     adjusted = adjusted,
-    robust = info$robust
+    robust = info$robust,
+    person_time = person_time
   )
 
   file <- fy_report_file(html, exposure)
@@ -411,8 +446,8 @@ fy_transformed_hint <- function(exposure) {
     " If \"", exposure, "\" was expanded into columns of its own before the ",
     "model was fitted -- a spline basis written into spline1, spline2, ... ",
     "-- the fit knows nothing of \"", exposure, "\" itself. Put the basis in ",
-    "the formula instead, as splines::ns(", exposure, ", 3) or rms::rcs(",
-    exposure, ", knots), and name the two values to compare with ",
+    "the formula instead, as splines::ns(", exposure, ", 3) or splines::bs(",
+    exposure, ", 3), and name the two values to compare with ",
     "`at = c(from, to)`."
   )
 }

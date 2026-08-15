@@ -145,10 +145,10 @@ test_that("a splined exposure is refused unless `at` names the two values", {
 
   # The rows are the levels of the modifier; the two values compared are the
   # same on both of them, so they are said once, where the exposure is named.
-  expect_equal(unique(est$contrast_label), "20 vs 10")
+  expect_equal(unique(est$contrast_label), "10 \u2192 20")
   expect_equal(as.character(est$modifier_label), c("Female", "Male"))
   expect_match(gsub("\n", " ", fy_title(x), fixed = TRUE),
-               "associated with no2 (20 vs 10) within each level of sex",
+               "associated with no2 (10 \u2192 20) within each level of sex",
                fixed = TRUE)
 })
 

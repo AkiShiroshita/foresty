@@ -84,10 +84,12 @@ test_that("the classes sandwich cannot handle are told what to do instead", {
   )
 
   skip_if_not_installed("rms")
+  # An rms fit is refused before its standard errors are ever reached, so the
+  # refusal is the one about rms rather than one about `vcov`.
   expect_error(
     foresty_main(list(rms::lrm(asthma ~ no2 + sex, data = foresty_cohort)),
                  exposure = "no2", vcov = "robust"),
-    "robcov"
+    "does not support rms fits"
   )
 })
 

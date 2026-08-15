@@ -4,13 +4,16 @@
 # they do so through car::linearHypothesis.default() with `coef.`, `vcov.` and
 # `error.df` supplied explicitly. That matters:
 #
-#   * Ordinary S3 dispatch on car::linearHypothesis() fails for rms::cph() and
-#     misdirects rms::ols() to the lm method, so the default method is called
-#     directly rather than relying on dispatch.
+#   * The method a fit dispatches to has its own idea of which coefficients,
+#     which covariance and how many degrees of freedom to use, and would quietly
+#     use the model's own where a robust or cluster-robust variance was asked
+#     for. Calling the default method and handing it all three means the test
+#     beside a figure is taken over the same numbers the intervals were.
 #   * The hypothesis is always passed as a numeric contrast matrix and never as
-#     a character formula such as "x + x:gMale". rms names its coefficients
-#     `x * g=Male`, which car's parser cannot read, and the matrix form sidesteps
-#     coefficient names entirely.
+#     a character formula such as "x + x:sexMale". A coefficient may be named
+#     anything a fitting function likes -- brackets, colons, spaces, an equals
+#     sign -- and car's formula parser reads only some of those, whereas the
+#     matrix form sidesteps coefficient names entirely.
 #
 # The estimate and its variance are read from the attributes that car attaches
 # to its result, which is how biostat3::lincom() obtains the same quantities.

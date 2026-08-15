@@ -12,7 +12,8 @@
 #'
 #' @param x An object returned by [foresty_interaction()] or [foresty_main()].
 #' @param file Path to write to. A `.html` extension is added if missing.
-#' @param title Page title. The default names the exposure and the modifier.
+#' @param title Browser page title. The default names the exposure and the
+#'   modifier; it is not displayed in the report body.
 #' @param model Which model to report the coefficients of, when the figure
 #'   covers several. The default reports every one of them.
 #' @param width,height Size of the embedded plot in inches. `height` defaults
@@ -77,11 +78,19 @@ foresty_report <- function(x, file, title = NULL, model = NULL, width = 10,
     checkmate::assert_int(model, lower = 1, upper = length(infos))
     as.integer(model)
   }
-  # A page carrying more than one model has to say which is which, and the
-  # exposure is what tells them apart: they are one model per exposure.
+  # A page carrying more than one model has to say which is which. A combined
+  # figure's models are its Overall and subgroup blocks, so include that block
+  # as well as the exposure in the coefficient-table heading.
   named <- rep_len(as.character(result$exposure), length(infos))
+  blocks <- rep_len(result$blocks %||% NA_character_, length(infos))
   heading <- function(what, i) {
-    if (length(chosen) > 1L) paste0(what, ": ", named[i]) else what
+    block <- blocks[i]
+    if (!is.na(block) && nzchar(block) && !identical(block, "Overall")) {
+      block <- paste0("Subgroup: ", block)
+    }
+    suffix <- c(named[i], block)
+    suffix <- suffix[!is.na(suffix) & nzchar(suffix)]
+    if (length(chosen) > 1L) paste0(what, ": ", paste(suffix, collapse = " - ")) else what
   }
 
   sections <- c(
@@ -102,15 +111,19 @@ foresty_report <- function(x, file, title = NULL, model = NULL, width = 10,
     }, character(1))
   )
 
+  # The date the page was written goes under the heading rather than at the
+  # foot: a directory fills up with pages of the same analysis run again, and
+  # which of them is the current one is the first thing a reader has to know,
+  # not the last.
   html <- paste0(
     "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n",
     "<meta charset=\"utf-8\">\n",
     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n",
     "<title>", fy_escape(title), "</title>\n<style>", fy_report_css(),
-    "</style>\n</head>\n<body>\n<main>\n<h1>", fy_escape(title), "</h1>\n",
+    "</style>\n</head>\n<body>\n<main>\n",
+    "<p class=\"date\">", format(Sys.Date(), "%d %B %Y"), "</p>\n",
     paste(sections, collapse = "\n"),
-    "\n<footer>Produced by the foresty package on ",
-    format(Sys.Date(), "%d %B %Y"), ".</footer>\n</main>\n</body>\n</html>\n"
+    "\n</main>\n</body>\n</html>\n"
   )
 
   writeLines(html, file, useBytes = TRUE)
@@ -173,7 +186,8 @@ fy_model_table <- function(info, result, exposure) {
     rows[["Events"]] <- fy_format_count(info$events)
   }
   if (!is.na(info$person_time)) {
-    rows[["Person-time"]] <- fy_format_count(info$person_time)
+    rows[[fy_person_time_heading("Person-time", result$person_time, sep = " ")]] <-
+      fy_format_person_time(info$person_time, result$person_time)
   }
   rows[["Exposure"]] <- exposure
   if (!is.null(result$modifier)) {
@@ -292,7 +306,8 @@ fy_estimates_table <- function(x, result) {
     out[["Events"]] <- fy_format_count(est$events)
   }
   if (!all(is.na(est$person_time))) {
-    out[["Person-time"]] <- fy_format_count(est$person_time)
+    out[[fy_person_time_heading("Person-time", result$person_time, sep = " ")]] <-
+      fy_format_person_time(est$person_time, result$person_time)
   }
   both <- "interaction_p_lrt" %in% names(est)
   if ("interaction_p" %in% names(est)) {
@@ -419,13 +434,13 @@ fy_report_css <- function() {
     "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;",
     "line-height:1.55}",
     "main{max-width:66rem;margin:0 auto;padding:2rem 1.5rem 4rem}",
-    "h1{font-size:1.6rem;margin:0 0 1.5rem;font-weight:650}",
+    "h1{font-size:1.6rem;margin:0 0 .25rem;font-weight:650}",
+    "p.date{margin:0 0 1.5rem;color:#6b7280;font-size:.85rem}",
     "h2{font-size:1.1rem;margin:0 0 .75rem;font-weight:650;color:#33475b}",
     "section{background:#fff;border:1px solid #e3e6ea;border-radius:8px;",
     "padding:1.25rem 1.5rem;margin-bottom:1.25rem;overflow-x:auto}",
     "p.lead{margin:0 0 1rem}",
     "p.note{margin:0;color:#6b7280;font-style:italic}",
-    "img{max-width:100%;height:auto;display:block}",
-    "footer{color:#6b7280;font-size:.8rem;text-align:center}"
+    "img{max-width:100%;height:auto;display:block}"
   )
 }

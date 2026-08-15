@@ -56,10 +56,8 @@ fy_align_coefs <- function(b, v, fit) {
   }
   v <- as.matrix(v)
 
-  # rms::psm() returns its covariance matrix without dimnames. When the matrix
-  # is unnamed the coefficients are taken to be in the order they were reported
-  # in, which is the convention every fitting function follows, and any extra
-  # trailing parameters such as a log scale are dropped.
+  # When the covariance matrix is unnamed, the coefficients are taken to be in
+  # the order they were reported and any extra trailing parameters are dropped.
   if (is.null(colnames(v)) && nrow(v) >= length(b)) {
     v <- v[seq_along(b), seq_along(b), drop = FALSE]
     dimnames(v) <- list(names(b), names(b))
@@ -133,15 +131,7 @@ fy_hc_type <- function(vcov) {
 
 # The classes sandwich cannot do this for, each with the thing to do instead.
 fy_check_sandwich_supported <- function(fit, cluster) {
-  if (inherits(fit, "rms")) {
-    stop(
-      "sandwich's estimators do not work on rms fits. Use rms's own instead: ",
-      "`fit <- rms::robcov(fit", if (!is.null(cluster)) ", cluster = ...", ")`, ",
-      "then pass that fit to foresty, whose standard errors are robust already.",
-      call. = FALSE
-    )
-  }
-  if (inherits(fit, c("coxph", "cph")) && is.null(cluster)) {
+  if (inherits(fit, "coxph") && is.null(cluster)) {
     stop(
       "a heteroskedasticity-consistent estimator is not the robust variance ",
       "for a Cox model. Refit with `coxph(..., robust = TRUE)`, or pass ",
@@ -208,8 +198,7 @@ fy_term_map <- function(fit, coef_names) {
   # terms are read off the design matrix below like any other fit's.
   assign <- if (isS4(fit)) NULL else fit[["assign"]]
 
-  # survival and rms fits carry `assign` as a named list of coefficient
-  # positions, which already groups rcs(x, 4) into its three columns.
+  # Some model classes carry `assign` as a named list of coefficient positions.
   if (is.list(assign) && !is.null(names(assign)) && length(assign)) {
     full <- names(stats::coef(fit))
     out <- lapply(assign, function(idx) intersect(full[idx], coef_names))
@@ -303,10 +292,10 @@ fy_measure <- function(fit, outcome = fy_outcome_label(fit)) {
   fam_name <- if (inherits(fam, "try-error") || is.null(fam)) NA_character_ else fam$family
   link <- if (inherits(fam, "try-error") || is.null(fam)) NA_character_ else fam$link
 
-  if (inherits(fit, c("coxph", "cph"))) {
+  if (inherits(fit, "coxph")) {
     return(fy_measure_spec("HR", outcome))
   }
-  if (inherits(fit, "lrm") || inherits(fit, "polr")) {
+  if (inherits(fit, "polr")) {
     return(fy_measure_spec("OR", outcome))
   }
   if (!is.na(fam_name)) {
@@ -326,10 +315,21 @@ fy_measure <- function(fit, outcome = fy_outcome_label(fit)) {
       return(fy_measure_spec("MD", outcome))
     }
   }
-  if (inherits(fit, "ols") || (inherits(fit, "lm") && !inherits(fit, "glm"))) {
+  if (inherits(fit, "lm") && !inherits(fit, "glm")) {
     return(fy_measure_spec("MD", outcome))
   }
   fy_measure_spec("Coefficient", outcome)
+}
+
+fy_reject_rms <- function(fit) {
+  if (!inherits(fit, "rms")) {
+    return(invisible(TRUE))
+  }
+  stop(
+    "foresty does not support rms fits. Fit the model with glm(), lm(), or ",
+    "survival::coxph() and pass that fit instead.",
+    call. = FALSE
+  )
 }
 
 # What the model is called, in the words a paper calls it.
@@ -355,13 +355,11 @@ fy_model_name <- function(fit) {
     fam_name <- "negbin"
   }
 
-  base <- if (inherits(fit, c("coxph", "cph"))) {
+  base <- if (inherits(fit, "coxph")) {
     "Cox proportional hazards model"
   } else if (inherits(fit, "survreg")) {
     "Accelerated failure time model"
-  } else if (inherits(fit, "lrm")) {
-    "Logistic regression model"
-  } else if (inherits(fit, c("polr", "orm"))) {
+  } else if (inherits(fit, "polr")) {
     "Ordinal logistic regression model"
   } else if (identical(fam_name, "negbin")) {
     "Negative binomial regression model"
@@ -398,8 +396,7 @@ fy_model_name <- function(fit) {
     "Linear regression model"
   } else if (inherits(fit, c("lmerMod", "lme"))) {
     "Linear mixed-effects model"
-  } else if (inherits(fit, "ols") ||
-             (inherits(fit, "lm") && !inherits(fit, "glm"))) {
+  } else if (inherits(fit, "lm") && !inherits(fit, "glm")) {
     "Linear regression model"
   } else {
     paste0(class(fit)[1L], " model")
@@ -513,6 +510,31 @@ fy_apply_exponentiate <- function(spec, exponentiate) {
   spec
 }
 
+# The outcome as the caller wants it named.
+#
+# The name taken from the left of the formula is the name of a column, and a
+# column is called what the data set calls it -- `asthma_ever_dx`, `evt5`, `y`
+# -- which is not what a figure should say the ratio is a ratio of. Naming it
+# here rather than in each title and heading means every place the outcome
+# appears says the same thing: the axis, the estimate column, the titles the
+# package writes and the HTML report.
+#
+# `NA` names none, which leaves "Adjusted odds ratio" on its own, for a figure
+# whose caption says what the outcome was.
+fy_apply_outcome <- function(spec, outcome) {
+  if (is.null(outcome)) {
+    return(spec)
+  }
+  if (length(outcome) == 1L && is.na(outcome)) {
+    spec$outcome <- NA_character_
+  } else {
+    checkmate::assert_string(outcome, min.chars = 1L)
+    spec$outcome <- outcome
+  }
+  spec$label <- fy_measure_label(spec$name, spec$outcome)
+  spec
+}
+
 # Model frame, counts and residual degrees of freedom -------------------------
 
 fy_model_frame <- function(fit) {
@@ -530,11 +552,12 @@ fy_model_frame <- function(fit) {
 # The data frame the model was fitted from, or NULL if it cannot be found.
 #
 # The model frame is not a substitute for it. A model frame holds terms as they
-# were evaluated, so `rcs(maternal_age, 4)` is stored as its three-column basis
-# under that name, and the original `maternal_age` is not in there at all. That
-# is fine for base R fits, whose design matrix is rebuilt from the same
-# evaluated columns, but rms fits are asked for their design through
-# predict(), which needs the untransformed variables back.
+# were evaluated, so `ns(maternal_age, 3)` is stored as its three-column basis
+# under that name, and the original `maternal_age` is not in there at all. The
+# design matrix is rebuilt from those evaluated columns and so needs nothing
+# more, but naming two values of a splined exposure does: the values are set on
+# the untransformed variable and the basis is recomputed from the knots the fit
+# recorded.
 fy_source_data <- function(fit) {
   call <- stats::getCall(fit)
   if (is.null(call) || is.null(call$data)) {
@@ -638,17 +661,22 @@ fy_error_df <- function(fit, ratio) {
 # Assembly --------------------------------------------------------------------
 
 fy_model_info <- function(fit, measure = NULL, exponentiate = NULL, vcov = NULL,
-                          cluster = NULL) {
+                          cluster = NULL, outcome = NULL) {
+  fy_reject_rms(fit)
   data <- fy_source_data(fit)
   robust <- fy_robust_vcov(fit, vcov = vcov, cluster = cluster, data = data)
   cv <- fy_coefs(fit, vcov_matrix = robust)
-  outcome <- fy_outcome_label(fit)
+  from_formula <- fy_outcome_label(fit)
   spec <- if (is.null(measure)) {
-    fy_measure(fit, outcome)
+    fy_measure(fit, from_formula)
   } else {
-    fy_measure_spec(measure, outcome)
+    fy_measure_spec(measure, from_formula)
   }
   spec <- fy_apply_exponentiate(spec, exponentiate)
+  # An outcome named by the caller replaces the column name taken from the left
+  # of the formula, so that the axis reads "Adjusted odds ratio for incident
+  # asthma" rather than "for asthma_ever_dx".
+  spec <- fy_apply_outcome(spec, outcome)
   term_map <- fy_term_map(fit, names(cv$coef))
   mf <- fy_model_frame(fit)
   # The names a symbol in a term has to be one of to be a variable of the
@@ -690,17 +718,51 @@ fy_model_info <- function(fit, measure = NULL, exponentiate = NULL, vcov = NULL,
 }
 
 # Whether the fit's own vcov() is already a robust one, so that a model fitted
-# with coxph(robust = TRUE) or passed through rms::robcov() is reported as
-# robust even though foresty did nothing to it.
+# with coxph(robust = TRUE) is reported as robust even though foresty did
+# nothing to it.
 fy_fit_is_robust <- function(fit) {
-  if (inherits(fit, c("coxph", "cph")) && !is.null(fit[["naive.var"]])) {
-    return(TRUE)
-  }
-  if (inherits(fit, "rms") && !is.null(fit[["orig.var"]])) {
+  if (inherits(fit, "coxph") && !is.null(fit[["naive.var"]])) {
     return(TRUE)
   }
   # A GEE is fitted to give the sandwich estimator in the first place.
-  inherits(fit, c("geeglm", "gee"))
+  fy_is_gee(fit)
+}
+
+# Whether the fit has a likelihood to take a likelihood ratio test over.
+#
+# A GEE has none: it is estimating equations rather than a likelihood, and its
+# standard errors are the sandwich ones from the start. A quasi-likelihood
+# family has none either -- logLik() returns NA for it -- since the dispersion
+# is estimated rather than assumed.
+fy_is_gee <- function(fit) {
+  inherits(fit, c("geeglm", "gee", "geese", "geeM", "wgee", "ordgee"))
+}
+
+fy_has_no_likelihood <- function(fit) {
+  if (fy_is_gee(fit)) {
+    return(TRUE)
+  }
+  fam <- try(stats::family(fit), silent = TRUE)
+  if (inherits(fam, "try-error") || is.null(fam$family) || is.na(fam$family)) {
+    return(FALSE)
+  }
+  grepl("^quasi", fam$family)
+}
+
+# What to call the thing that has no likelihood, so that the sentence saying
+# the Wald test was reported instead says why.
+fy_no_likelihood_reason <- function(fit) {
+  if (fy_is_gee(fit)) {
+    return(paste0(
+      "a GEE estimates its coefficients from estimating equations rather than ",
+      "from a likelihood, and its standard errors are the sandwich ones from ",
+      "the start"
+    ))
+  }
+  paste0(
+    "a quasi-likelihood family has no likelihood to take one over, the ",
+    "dispersion being estimated rather than assumed"
+  )
 }
 
 # Pieces of a fit that most fitting functions store in the object itself.

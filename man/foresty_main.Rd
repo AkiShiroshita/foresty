@@ -10,6 +10,7 @@ foresty_main(
   measure = NULL,
   exponentiate = TRUE,
   labels = NULL,
+  outcome = NULL,
   ci_level = 0.95,
   contrast = NULL,
   at = NULL,
@@ -17,9 +18,11 @@ foresty_main(
   cluster = NULL,
   table = TRUE,
   columns = NULL,
+  person_time = NULL,
   layout = NULL,
   title = NULL,
   subtitle = NULL,
+  xlab = NULL,
   html = FALSE
 )
 }
@@ -49,7 +52,16 @@ and are never exponentiated.}
 
 \item{labels}{Named character vector giving the label to draw for a
 variable, as \code{c(no2 = "Nitrogen dioxide")}. Names not matched are left as
-they are.}
+they are. This is where the exposure is renamed, and naming it where it is
+chosen -- \code{exposure = c(NO2 = "no2")} -- comes to the same thing.}
+
+\item{outcome}{What to call the outcome, as \code{outcome = "incident asthma"}.
+The default takes it from the left of the model's formula, which is the
+name of a column -- \code{asthma_ever_dx}, \code{evt5} -- and is rarely what a figure
+should say the effect is an effect on. It is written wherever the outcome
+is named: the axis under the plot, the title the package writes for itself,
+and the HTML report. \code{NA} names none, leaving "Adjusted odds ratio" on its
+own for a figure whose caption says what of.}
 
 \item{ci_level}{Confidence level of the intervals. Defaults to \code{0.95}.}
 
@@ -106,6 +118,17 @@ the models can supply. On a figure reporting a test of an interaction the
 p-value of each row is left off, being easily read as the test beside it;
 name it in \code{columns} to have it back.}
 
+\item{person_time}{The unit person-time is reported in, for a model that
+carries any. \code{NULL}, the default, reports the total the model was fitted
+over. A number divides by it, so \code{person_time = 1000} draws a column of
+thousands of person-years and heads it \code{"Person-time (per 1,000)"}, since a
+count of person-time that does not say what it counts cannot be read
+against another study's. Naming the number heads the column outright, as
+\code{person_time = c("Person-years (per 1,000)" = 1000)}. The unit reaches the
+figure, \code{\link[=summary]{summary()}} and the HTML report alike; the estimates themselves are
+untouched, \code{person_time} being how the column is written and not what was
+fitted.}
+
 \item{layout}{How the figure is drawn: the name of a style, as
 \code{layout = "jama"}, or a layout built by \code{\link[=foresty_layout]{foresty_layout()}} when something
 about it has to be changed. The styles are \code{"classic"}, \code{"jama"},
@@ -117,6 +140,12 @@ comes from a model with no interaction term in it, as \code{"Adjusted odds ratio
 caption being where a journal puts that.}
 
 \item{subtitle}{Plot subtitle. \code{NULL}, the default, draws none.}
+
+\item{xlab}{The label under the plot, which by default names the measure and
+the outcome, as \code{"Adjusted odds ratio for asthma"}. A string is drawn as it
+was given -- \code{xlab = "Odds ratio (95\% CI), NO2 per 10 ug/m3"} -- and \code{NA}
+draws none. Renaming only the outcome is what \code{outcome} is for; this
+replaces the whole line.}
 
 \item{html}{Whether to write the HTML report -- the model it was drawn from,
 the estimates, the figure and the whole coefficient table, on a page that
@@ -239,6 +268,14 @@ foresty_main(list(fit_spline), exposure = "no2", at = c(10, 20))
 
 # On the scale the model was fitted on, as a log odds ratio about zero.
 foresty_main(list(fit_no2), exposure = "no2", exponentiate = FALSE)
+
+# The exposure, the outcome and the axis all named by hand.
+foresty_main(list(fit_no2), exposure = c(`NO2, ug/m3` = "no2"),
+             outcome = "incident asthma by age 8",
+             xlab = "Adjusted odds ratio (95\% CI)")
+
+# Person-time reported per 1,000 rather than as the total.
+foresty_main(list(fit_rate), exposure = "no2", person_time = 1000)
 
 }
 \seealso{

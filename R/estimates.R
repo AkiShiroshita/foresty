@@ -38,7 +38,7 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
       variable = exposure,
       level = v$level,
       # What the comparison was, where it is not the plain one unit: "per 10",
-      # or "20 vs 10" from `at`. Carried on the estimates so that the figure
+      # or "10 -> 20" from `at`. Carried on the estimates so that the figure
       # can say it and so that it survives into tidy().
       contrast_label = v$contrast_label %||% NA_character_,
       reference = isTRUE(v$reference),
@@ -62,7 +62,7 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
 # row. A continuous exposure has no level, so it takes the variable's label.
 #
 # A comparison that is not the plain one unit says so beside the variable --
-# "NO2 (per 10)", "NO2 (20 vs 10)" -- and says it wherever the variable is
+# "NO2 (per 10)", "NO2 (20 -> 10)" -- and says it wherever the variable is
 # named, the title included, since the estimate means nothing without it. It
 # belongs to the exposure rather than to the row because every row of the
 # figure is that same comparison, taken within another subgroup. It is written
@@ -80,7 +80,7 @@ fy_row_labels <- function(estimates, labels = NULL) {
 
 # The exposure as a figure of it names it: the variable, and the comparison
 # where that is not the plain one unit -- "no2 (per 10)", "no2 (per IQR, 8.44)",
-# "no2 (20 vs 10)".
+# "no2 (10 -> 20)".
 #
 # It is the label the rows are drawn against, taken before anything is drawn,
 # so that a caller wanting to say which exposure a figure is of says it the
@@ -170,4 +170,92 @@ fy_axis_label <- function(info, adjusted) {
 # measure is a measure of; the exposure follows the outcome.
 fy_effect_phrase <- function(info, adjusted, exposures) {
   paste0(fy_axis_label(info, adjusted), " associated with ", exposures)
+}
+
+# The label under the plot, where the caller has named one.
+#
+# `NULL` is the one the model wrote for itself, which names the measure and the
+# outcome. A string is drawn as it was given, and `NA` draws none, for a figure
+# whose caption carries that instead.
+fy_resolve_xlab <- function(xlab, default) {
+  if (is.null(xlab)) {
+    return(default)
+  }
+  if (length(xlab) == 1L && is.na(xlab)) {
+    return(NULL)
+  }
+  checkmate::assert_string(xlab)
+  xlab
+}
+
+# The outcome renamed on a model description that has already been built, which
+# is what foresty_combine() needs: its figures were drawn one at a time and it
+# is relabelling what they came back with rather than fitting anything.
+fy_relabel_outcome <- function(info, outcome) {
+  if (is.null(outcome)) {
+    return(info)
+  }
+  spec <- fy_apply_outcome(
+    list(name = info$measure_name, outcome = info$outcome), outcome
+  )
+  info$outcome <- spec$outcome
+  info$measure_label <- spec$label
+  info
+}
+
+# Person-time -----------------------------------------------------------------
+
+# The unit person-time is reported in.
+#
+# `NULL` is the total the model carries, which is what a figure of a few hundred
+# person-years wants. A number is a unit to divide by -- `person_time = 1000`
+# for a column counting thousands of person-years -- and the column says which,
+# since a count of person-time that does not say what it counts cannot be read
+# against another study's. Naming the number names the column outright:
+# `person_time = c("Person-years (per 1,000)" = 1000)`.
+fy_person_time_spec <- function(person_time) {
+  if (is.null(person_time)) {
+    return(NULL)
+  }
+  # Already resolved: foresty_combine() takes the unit its figures were drawn
+  # with rather than being told it again.
+  if (is.list(person_time) && !is.null(person_time$unit)) {
+    return(person_time)
+  }
+  if (!is.numeric(person_time) || length(person_time) != 1L ||
+      is.na(person_time) || !is.finite(person_time) || person_time <= 0) {
+    stop(
+      "`person_time` is the unit person-time is reported in, as ",
+      "`person_time = 1000` for a column counting thousands of person-years. ",
+      "It must be one positive number, optionally named to head the column: ",
+      "`person_time = c(\"Person-years (per 1,000)\" = 1000)`.",
+      call. = FALSE
+    )
+  }
+  heading <- names(person_time)
+  list(
+    unit = as.numeric(person_time),
+    heading = if (!is.null(heading) && nzchar(heading[[1L]])) heading[[1L]]
+  )
+}
+
+# "Person-time" becomes "Person-time (per 1,000)", on a line of its own so that
+# the column stays as narrow as the numbers in it.
+fy_person_time_heading <- function(base, spec, sep = "\n") {
+  if (is.null(spec)) {
+    return(base)
+  }
+  if (!is.null(spec$heading)) {
+    return(spec$heading)
+  }
+  if (isTRUE(all.equal(spec$unit, 1))) {
+    return(base)
+  }
+  paste0(base, sep, "(per ", fy_plain_number(spec$unit), ")")
+}
+
+# 1000 written as 1,000, and never as 1e+03.
+fy_plain_number <- function(x) {
+  format(x, big.mark = ",", trim = TRUE, scientific = FALSE,
+         drop0trailing = TRUE)
 }

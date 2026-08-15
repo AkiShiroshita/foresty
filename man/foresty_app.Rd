@@ -75,6 +75,12 @@ named, one unit included -- \code{"no2 (per 1)"}, \code{"no2 (per 10)"},
 \code{"no2 (per IQR, 8.44)"} -- since a reader comparing two figures across a
 screen should not have to know that a row saying nothing means one.
 
+Which way round the comparison runs is written with an arrow rather than as
+"from ... to ...", since that is the part a reader gets wrong: \verb{Lowest value -> highest value} is the effect of being at the top of the exposure rather
+than the bottom, and the reverse of it is the same estimate the other way up,
+which is how a protective effect is drawn as one. The two boxes that name two
+values are headed the same way.
+
 From one quantile to another is not the interquartile range, though it
 begins at the quartiles: the range is a width, and an effect per one of it
 is a step along a slope, whereas the quantiles are two values of the
@@ -82,6 +88,35 @@ exposure and are compared as \code{at = c(from, to)}. So it can be asked of a
 splined exposure, which has no single slope to report a width per, and the
 two probabilities can be set to anything -- the 10th against the 90th, the
 median against the top decile -- rather than only 0.25 and 0.75.
+}
+
+\section{What things are called}{
+
+
+The rows, the axis and the columns of a figure are named after columns of a
+data set, and a column is called what the data set calls it. \strong{What things
+are called} renames the outcome -- which is otherwise taken from the left of
+your formula, \code{asthma_ever_dx} and all -- and replaces the label under the
+plot outright; each exposure is renamed in its own box under \strong{Each
+exposure}, where the unit goes too, since \code{foresty} cannot know what the
+numbers in a column mean. A model carrying person-time is also asked what
+unit to count it in, 1,000 or 100,000 being how a paper reports a rate and
+six figures beside the plot being width the plot could have had.
+}
+
+\section{A model too slow to redraw}{
+
+
+Every change to a control refits the model once per pair of menus, and while
+that is happening the app looks exactly as it did before, so a line saying
+that it is working is shown above the tabs and the figure on the screen is
+the previous one until it goes.
+
+On a model where that wait is not seconds but minutes, \strong{Write the R code
+only} stops it: nothing is fitted and nothing is drawn, the menus and the
+style controls go on working, and the \strong{R code} tab goes on writing the call
+they come to, which is what to paste into the script and run once. The other
+tabs report on models the app fitted and say so instead.
 }
 
 \section{Colours and the panel}{

@@ -7,11 +7,14 @@
 foresty_combine(
   ...,
   emphasize = "auto",
+  outcome = NULL,
   table = TRUE,
   columns = NULL,
+  person_time = NULL,
   layout = NULL,
   title = NULL,
-  subtitle = NULL
+  subtitle = NULL,
+  xlab = NULL
 )
 }
 \arguments{
@@ -22,6 +25,14 @@ in the order they are to be drawn, optionally named.}
 as another subgroup: \code{"auto"}, the default, takes the overall estimates,
 a character vector names blocks by the names they are drawn under, and
 \code{NULL} draws every block alike. See \emph{Singling out the overall estimate}.}
+
+\item{outcome}{What to call the outcome, as \code{outcome = "incident asthma"}.
+The default takes it from the left of the model's formula, which is the
+name of a column -- \code{asthma_ever_dx}, \code{evt5} -- and is rarely what a figure
+should say the effect is an effect on. It is written wherever the outcome
+is named: the axis under the plot, the title the package writes for itself,
+and the HTML report. \code{NA} names none, leaving "Adjusted odds ratio" on its
+own for a figure whose caption says what of.}
 
 \item{table}{Whether to draw the table of numbers beside the plot. Defaults
 to \code{TRUE}, a forest plot being read from the numbers as much as from the
@@ -35,6 +46,11 @@ shows the estimate and the p-value together with whichever of the others
 the models can supply. On a figure reporting a test of an interaction the
 p-value of each row is left off, being easily read as the test beside it;
 name it in \code{columns} to have it back.}
+
+\item{person_time}{The unit person-time is reported in. \code{NULL}, the default,
+takes whatever the figures being combined were drawn with, since that is a
+decision already made; a number, or a named number, overrides them all. See
+\code{\link[=foresty_main]{foresty_main()}}.}
 
 \item{layout}{How the figure is drawn: the name of a style, as
 \code{layout = "jama"}, or a layout built by \code{\link[=foresty_layout]{foresty_layout()}} when something
@@ -51,6 +67,12 @@ title given by hand is drawn on every figure of a call covering more than
 one exposure, which is a reason to leave it to the default there.}
 
 \item{subtitle}{Plot subtitle. \code{NULL}, the default, draws none.}
+
+\item{xlab}{The label under the plot, which by default names the measure and
+the outcome, as \code{"Adjusted odds ratio for asthma"}. A string is drawn as it
+was given -- \code{xlab = "Odds ratio (95\% CI), NO2 per 10 ug/m3"} -- and \code{NA}
+draws none. Renaming only the outcome is what \code{outcome} is for; this
+replaces the whole line.}
 }
 \value{
 A \code{ggplot2} object, of class \code{foresty}, carrying every estimate

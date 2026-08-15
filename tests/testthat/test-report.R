@@ -215,3 +215,23 @@ test_that("only a foresty object can be reported", {
   expect_error(foresty_report(list(a = 1), file = tempfile()),
                "foresty_interaction")
 })
+
+test_that("the page starts with its date and claims nothing at the foot", {
+  skip_if_not_installed("gt")
+  fit <- fy_test_logistic()
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
+  file <- fy_temp_html()
+  foresty_report(x, file = file)
+  html <- paste(readLines(file, warn = FALSE), collapse = "\n")
+
+  # The date is what a directory of pages of the same analysis is told apart
+  # by, so it is read before the numbers rather than after them.
+  expect_match(html, "<p class=\"date\">", fixed = TRUE)
+  expect_lt(regexpr("<p class=\"date\">", html, fixed = TRUE),
+            regexpr("<h2>", html, fixed = TRUE))
+  expect_false(grepl("<h1>", html, fixed = TRUE))
+  expect_match(html, format(Sys.Date(), "%d %B %Y"), fixed = TRUE)
+
+  expect_false(grepl("<footer", html, fixed = TRUE))
+  expect_false(grepl("foresty package", html, fixed = TRUE))
+})

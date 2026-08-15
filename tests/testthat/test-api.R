@@ -83,9 +83,9 @@ test_that("`at` and `contrast` are two ways of saying the same thing", {
   x <- foresty_main(list(fit), exposure = c(NO2 = "no2"), at = c(10, 20),
                     exponentiate = FALSE)
   est <- fy_est(x)
-  expect_equal(est$contrast_label, "20 vs 10")
-  expect_equal(as.character(est$label), "NO2 (20 vs 10)")
-  expect_true("NO2 (20 vs 10)" %in% fy_panel_text(x[[1]]))
+  expect_equal(est$contrast_label, "10 \u2192 20")
+  expect_equal(as.character(est$label), "NO2 (10 \u2192 20)")
+  expect_true("NO2 (10 \u2192 20)" %in% fy_panel_text(x[[1]]))
   expect_equal(est$estimate, unname(coef(fit)["no2"]) * 10, tolerance = 1e-8)
 
   # A categorical exposure is compared level by level, so `contrast` says
@@ -102,7 +102,7 @@ test_that("`at` and `contrast` are two ways of saying the same thing", {
   # there is none of.
   two <- fy_est(foresty_main(list(urban), exposure = "urbanicity",
                              at = c("Rural", "Urban")))
-  expect_equal(two$contrast_label, "Urban vs Rural")
+  expect_equal(two$contrast_label, "Rural \u2192 Urban")
   expect_equal(two$estimate, unname(exp(coef(urban)["urbanicityUrban"])),
                tolerance = 1e-8)
   expect_equal(two$n, sum(foresty_cohort$urbanicity == "Urban"))

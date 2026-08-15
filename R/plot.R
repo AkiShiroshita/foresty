@@ -41,7 +41,8 @@ fy_forest_plot <- function(estimates,
                            subtitle = NULL,
                            layout = NULL,
                            label_header = NULL,
-                           fold_singletons = FALSE) {
+                           fold_singletons = FALSE,
+                           person_time = NULL) {
   layout <- fy_as_layout(layout)
   null_value <- if (exponentiate) 1 else 0
   estimates <- fy_row_order(estimates, group)
@@ -83,7 +84,8 @@ fy_forest_plot <- function(estimates,
   row_labels[in_fold] <- as.character(estimates$group)[in_fold]
 
   cells <- if (table) {
-    fy_table_cells(estimates, estimate_header, columns, layout)
+    fy_table_cells(estimates, estimate_header, columns, layout,
+                   person_time = person_time)
   } else {
     NULL
   }
@@ -985,8 +987,10 @@ fy_x_scale <- function(null_value, limits, layout) {
 
 # Lays the chosen columns out: where each one sits across the panel, how wide
 # the panel has to be to hold them, and the heading each carries.
-fy_table_cells <- function(estimates, estimate_header, columns, layout) {
-  available <- fy_table_columns(estimates, estimate_header, layout)
+fy_table_cells <- function(estimates, estimate_header, columns, layout,
+                           person_time = NULL) {
+  available <- fy_table_columns(estimates, estimate_header, layout,
+                                person_time = person_time)
   chosen <- fy_choose_columns(available, columns)
 
   gap <- layout$column_gap
@@ -1011,7 +1015,8 @@ fy_table_cells <- function(estimates, estimate_header, columns, layout) {
 # The estimate and its interval are one column rather than two, written the way
 # a result is written in a paper.
 fy_table_columns <- function(estimates, estimate_header,
-                             layout = fy_style("classic")) {
+                             layout = fy_style("classic"),
+                             person_time = NULL) {
   sep <- fy_ci_separator(estimates, layout)
   number <- function(x) fy_format_number(x, layout$digits, layout$decimal_mark)
 
@@ -1045,7 +1050,8 @@ fy_table_columns <- function(estimates, estimate_header,
     keys <- c(keys, "events")
   }
   if (!all(is.na(estimates$person_time))) {
-    out[[layout$headings$person_time]] <- fy_format_count(estimates$person_time)
+    heading <- fy_person_time_heading(layout$headings$person_time, person_time)
+    out[[heading]] <- fy_format_person_time(estimates$person_time, person_time)
     keys <- c(keys, "person_time")
   }
   # One test covers every subgroup it was taken across, so it is written once,
@@ -1148,6 +1154,21 @@ fy_format_number <- function(x, digits = 2, decimal_mark = ".") {
 
 fy_format_count <- function(x) {
   ifelse(is.na(x), "", formatC(round(as.numeric(x)), format = "d", big.mark = ","))
+}
+
+# Person-time, in whatever unit it is being reported in.
+#
+# The total is a count and is written as one, a fractional person-year being
+# noise on a figure. A total divided by a unit is not a count -- 4,318 person-
+# years is 4.3 thousands, not 4 -- so it keeps the one decimal that makes the
+# division worth doing.
+fy_format_person_time <- function(x, spec = NULL) {
+  if (is.null(spec) || isTRUE(all.equal(spec$unit, 1))) {
+    return(fy_format_count(x))
+  }
+  scaled <- as.numeric(x) / spec$unit
+  ifelse(is.na(scaled), "",
+         formatC(scaled, format = "f", digits = 1, big.mark = ","))
 }
 
 # "default" writes 0.032 and <0.001. "jama" drops the leading zero and rounds

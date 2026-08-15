@@ -41,12 +41,22 @@
 #'
 #' The likelihood ratio test is computed from the likelihood, so it has no
 #' robust form: it takes no account of a variance passed through `vcov` or
-#' `cluster`. A quasi-likelihood family and a GEE have no likelihood to take it
-#' over at all. Where it cannot be taken, or where it would not match the
-#' intervals drawn beside it, the Wald test is reported in its place and
-#' `foresty` says so; ask for one by name and you are given that one or an
-#' error. For a linear model it is the chi-square form rather than the exact F
-#' test, which is what the Wald test gives there.
+#' `cluster`. Where it would not match the intervals drawn beside it for that
+#' reason, the Wald test is reported in its place and `foresty` says so; ask for
+#' the likelihood ratio test by name there and it is given, with a warning that
+#' it does not match them.
+#'
+#' A model with no likelihood at all is a different case, and no likelihood
+#' ratio test is reported for one however it is asked for. A GEE is the one that
+#' comes up: it estimates its coefficients from estimating equations rather than
+#' from a likelihood, and its standard errors are the sandwich ones from the
+#' start, so the joint Wald test is the test of it. A quasi-likelihood family is
+#' the same case. `test = "lrt"` on either is an error naming the reason rather
+#' than a number that would look like a likelihood ratio test and not be one;
+#' the default and `test = "both"` report the Wald test and say that they did.
+#'
+#' For a linear model the likelihood ratio test is the chi-square form rather
+#' than the exact F test, which is what the Wald test gives there.
 #'
 #' @inheritSection foresty_main Adjusting the figure
 #'
@@ -129,6 +139,7 @@ foresty_interaction <- function(fit,
                                 exponentiate = TRUE,
                                 labels = NULL,
                                 level_labels = NULL,
+                                outcome = NULL,
                                 ci_level = 0.95,
                                 contrast = NULL,
                                 at = NULL,
@@ -137,9 +148,11 @@ foresty_interaction <- function(fit,
                                 test = c("lrt", "wald", "both"),
                                 table = TRUE,
                                 columns = NULL,
+                                person_time = NULL,
                                 layout = NULL,
                                 title = NULL,
                                 subtitle = NULL,
+                                xlab = NULL,
                                 html = FALSE) {
   # A label written where the variable is named -- `interaction = c(Sex =
   # "sex")` -- says what to call it as well as which one is meant.
@@ -157,6 +170,7 @@ foresty_interaction <- function(fit,
   chosen <- !missing(test)
   test <- match.arg(test)
   layout <- fy_as_layout(layout)
+  person_time <- fy_person_time_spec(person_time)
   if (identical(exposure, interaction)) {
     stop("`exposure` and `interaction` name the same variable, \"",
          exposure, "\"", call. = FALSE)
@@ -170,7 +184,7 @@ foresty_interaction <- function(fit,
                                 already = already)
   info <- fy_model_info(fit_int, measure = measure,
                         exponentiate = exponentiate, vcov = vcov,
-                        cluster = cluster)
+                        cluster = cluster, outcome = outcome)
 
   interaction_columns <- fy_modifier_interaction_columns(info, exposure, interaction)
   if (!length(interaction_columns)) {
@@ -221,7 +235,7 @@ foresty_interaction <- function(fit,
   # own.
   label_header <- layout$headings$label %||% modifier_label
   # The exposure is named as the rows name it, which is with the comparison
-  # behind it -- "no2 (per 10)", "no2 (20 vs 10)" -- since every row of the
+  # behind it -- "no2 (per 10)", "no2 (10 -> 20)" -- since every row of the
   # figure is that comparison taken within another subgroup.
   title <- fy_resolve_title(title, layout, paste0(
     fy_effect_phrase(info, adjusted,
@@ -233,7 +247,7 @@ foresty_interaction <- function(fit,
   plot <- fy_forest_plot(
     estimates,
     exponentiate = info$exponentiate,
-    measure_label = fy_axis_label(info, adjusted),
+    measure_label = fy_resolve_xlab(xlab, fy_axis_label(info, adjusted)),
     estimate_header = fy_estimate_header(info, adjusted, ci_level,
                                          with_outcome = FALSE),
     table = table,
@@ -242,7 +256,8 @@ foresty_interaction <- function(fit,
     title = title,
     subtitle = subtitle,
     layout = layout,
-    label_header = label_header
+    label_header = label_header,
+    person_time = person_time
   )
 
   out <- fy_new_result(
@@ -259,7 +274,8 @@ foresty_interaction <- function(fit,
     exponentiate = info$exponentiate,
     ci_level = ci_level,
     adjusted = adjusted,
-    robust = info$robust
+    robust = info$robust,
+    person_time = person_time
   )
 
   file <- fy_report_file(html, exposure, interaction)
@@ -295,9 +311,9 @@ fy_check_modifier <- function(info, interaction) {
     )
   }
   x <- info$mf[[interaction]]
-  if (inherits(x, "rms") || (is.matrix(x) && ncol(x) > 1L)) {
+  if (is.matrix(x) && ncol(x) > 1L) {
     stop(
-      "\"", interaction, "\" enters this model through an rms transformation ",
+      "\"", interaction, "\" enters this model through a transformation ",
       "rather than as a plain factor, so its levels are not available. Pass ",
       "the variable itself as the modifier and let it enter the formula ",
       "unmodified.",
@@ -350,6 +366,30 @@ fy_interaction_tests <- function(info, columns, test, fit, base_info, exposure,
     out$wald <- fy_joint_test(info, columns)
   }
   if (test %in% c("lrt", "both")) {
+    # A fit that has no likelihood has no likelihood ratio test, whoever asked
+    # for one. A GEE is the case that matters: it is estimating equations rather
+    # than a likelihood, so there is nothing to take twice the difference of,
+    # and refitting it without the interaction to compare the two would not
+    # produce a test either. The Wald test is the test of a GEE, and it is what
+    # is reported -- silently in the sense that nothing is dressed up as a
+    # likelihood ratio test, and out loud in that foresty says which it gave.
+    if (fy_has_no_likelihood(info$fit)) {
+      if (identical(test, "lrt") && chosen) {
+        stop(
+          "no likelihood ratio test can be taken over this model: ",
+          fy_no_likelihood_reason(info$fit),
+          ". The joint Wald test is the test of it; ask for that one with ",
+          "`test = \"wald\"`.",
+          call. = FALSE
+        )
+      }
+      message(
+        "No likelihood ratio test can be taken over this model, since ",
+        fy_no_likelihood_reason(info$fit),
+        ", so the joint Wald test is reported instead."
+      )
+      return(list(wald = out$wald %||% fy_joint_test(info, columns)))
+    }
     if (isTRUE(info$robust)) {
       if (!chosen) {
         message(
@@ -430,8 +470,7 @@ fy_drop_interaction <- function(fit, info, exposure, interaction) {
   dropped
 }
 
-# Adds the interaction unless the fit already carries it. update() handles glm,
-# lm, survival and rms fits alike, and rms does not need datadist set for it.
+# Adds the interaction unless the fit already carries it.
 fy_add_interaction <- function(fit, info, exposure, interaction,
                                already = fy_has_interaction(info, exposure,
                                                             interaction)) {

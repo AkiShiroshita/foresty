@@ -49,6 +49,17 @@ fy_forest_of <- function(x) {
   if (inherits(x, "patchwork")) x[[length(x)]] else x
 }
 
+# The label under the plot, on one line. It is wrapped when it is drawn, so a
+# test reading it back puts it together again rather than matching around the
+# line breaks.
+fy_axis_text <- function(x) {
+  out <- ggplot2::ggplot_build(fy_forest_of(x))$plot$labels$x
+  if (is.null(out)) {
+    return(NULL)
+  }
+  gsub("\n", " ", out, fixed = TRUE)
+}
+
 # Every piece of text drawn in one panel, which is how the column of row labels
 # beside the plot is read back. The rows are drawn with geom_text and the
 # heading over them as a grob in the margin, so both are collected.

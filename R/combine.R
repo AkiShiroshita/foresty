@@ -87,6 +87,10 @@
 #'   title given by hand is drawn on every figure of a call covering more than
 #'   one exposure, which is a reason to leave it to the default there.
 #' @param subtitle Plot subtitle. `NULL`, the default, draws none.
+#' @param person_time The unit person-time is reported in. `NULL`, the default,
+#'   takes whatever the figures being combined were drawn with, since that is a
+#'   decision already made; a number, or a named number, overrides them all. See
+#'   [foresty_main()].
 #'
 #' @return A `ggplot2` object, of class `foresty`, carrying every estimate
 #'   drawn on it -- or, where the figures combined report more than one
@@ -132,11 +136,14 @@
 #' @export
 foresty_combine <- function(...,
                             emphasize = "auto",
+                            outcome = NULL,
                             table = TRUE,
                             columns = NULL,
+                            person_time = NULL,
                             layout = NULL,
                             title = NULL,
-                            subtitle = NULL) {
+                            subtitle = NULL,
+                            xlab = NULL) {
   parts <- list(...)
   checkmate::assert_flag(table)
   layout <- fy_as_layout(layout)
@@ -163,11 +170,24 @@ foresty_combine <- function(...,
   fy_check_combinable(results)
   blocks <- fy_block_names(parts, results)
 
+  # The unit person-time is reported in belongs to the figures that were drawn,
+  # not to the act of putting them side by side, so it is carried over from them
+  # unless this call says otherwise. Nothing here has to agree with anything:
+  # the column is a count, and a combined figure writes every one of its rows in
+  # one unit whichever figure the row came off.
+  person_time <- fy_person_time_spec(
+    person_time %||% fy_first_person_time(results)
+  )
+
   emphasized <- fy_emphasized_blocks(emphasize, results, blocks)
   estimates <- fy_combined_estimates(results, blocks)
   estimates$emphasis <- estimates$block %in% emphasized
 
   infos <- unlist(lapply(parts, fy_infos), recursive = FALSE)
+  # The outcome is renamed on the descriptions the figures came back with; there
+  # is nothing to refit, and the axis and the title of the combined figure are
+  # written from them.
+  infos <- lapply(infos, fy_relabel_outcome, outcome = outcome)
   # Which exposure each of those models was drawn for, so that a figure of one
   # exposure carries the models behind it and not the models behind the others.
   info_exposure <- unlist(lapply(results, function(r) {
@@ -184,16 +204,22 @@ foresty_combine <- function(...,
     blocks = blocks,
     overall_blocks = overall_blocks,
     measure = results[[1L]]$measure,
-    measure_label = results[[1L]]$measure_label,
+    measure_label = if (is.null(outcome)) {
+      results[[1L]]$measure_label
+    } else {
+      infos[[1L]]$measure_label
+    },
     exponentiate = isTRUE(results[[1L]]$exponentiate),
     ci_level = results[[1L]]$ci_level,
     adjusted = all(vapply(results, function(r) isTRUE(r$adjusted), logical(1))),
     robust = any(vapply(results, function(r) isTRUE(r$robust), logical(1))),
     table = table,
     columns = columns,
+    person_time = person_time,
     layout = layout,
     title = title,
-    subtitle = subtitle
+    subtitle = subtitle,
+    xlab = xlab
   )
 
   # Two exposures are two figures. They are not two blocks of one: every row of
@@ -232,7 +258,8 @@ foresty_combine <- function(...,
 fy_combine_figure <- function(estimates, exposure, infos, blocks,
                               overall_blocks, measure, measure_label,
                               exponentiate, ci_level, adjusted, robust,
-                              table, columns, layout, title, subtitle) {
+                              table, columns, person_time, layout, title,
+                              subtitle, xlab) {
   estimates$block_label <- factor(estimates$block,
                                   levels = blocks[blocks %in% estimates$block])
   estimates$variable_label <- factor(as.character(estimates$variable_label))
@@ -268,7 +295,7 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
   plot <- fy_forest_plot(
     estimates,
     exponentiate = exponentiate,
-    measure_label = fy_axis_label(info, adjusted),
+    measure_label = fy_resolve_xlab(xlab, fy_axis_label(info, adjusted)),
     estimate_header = fy_estimate_header(info, adjusted, ci_level,
                                          with_outcome = FALSE),
     table = table,
@@ -278,7 +305,8 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
     subtitle = subtitle,
     layout = layout,
     label_header = label_header,
-    fold_singletons = TRUE
+    fold_singletons = TRUE,
+    person_time = person_time
   )
 
   fy_new_result(
@@ -292,8 +320,21 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
     exponentiate = exponentiate,
     ci_level = ci_level,
     adjusted = adjusted,
-    robust = robust
+    robust = robust,
+    person_time = person_time
   )
+}
+
+# The unit the figures being combined were drawn in, or NULL where none of them
+# named one. The first that did settles it: the rows of one figure are read
+# against one another and cannot each carry a unit of their own.
+fy_first_person_time <- function(results) {
+  for (result in results) {
+    if (!is.null(result$person_time)) {
+      return(result$person_time)
+    }
+  }
+  NULL
 }
 
 #' @export

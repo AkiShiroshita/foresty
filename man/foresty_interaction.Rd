@@ -12,6 +12,7 @@ foresty_interaction(
   exponentiate = TRUE,
   labels = NULL,
   level_labels = NULL,
+  outcome = NULL,
   ci_level = 0.95,
   contrast = NULL,
   at = NULL,
@@ -20,9 +21,11 @@ foresty_interaction(
   test = c("lrt", "wald", "both"),
   table = TRUE,
   columns = NULL,
+  person_time = NULL,
   layout = NULL,
   title = NULL,
   subtitle = NULL,
+  xlab = NULL,
   html = FALSE
 )
 }
@@ -64,11 +67,20 @@ and are never exponentiated.}
 
 \item{labels}{Named character vector giving the label to draw for a
 variable, as \code{c(no2 = "Nitrogen dioxide")}. Names not matched are left as
-they are.}
+they are. This is where the exposure is renamed, and naming it where it is
+chosen -- \code{exposure = c(NO2 = "no2")} -- comes to the same thing.}
 
 \item{level_labels}{Named character vector giving the label to draw for a
 level of the modifier, as \code{c(F = "Female", M = "Male")}, or
 \code{c("0" = "No", "1" = "Yes")} for a modifier coded as a flag.}
+
+\item{outcome}{What to call the outcome, as \code{outcome = "incident asthma"}.
+The default takes it from the left of the model's formula, which is the
+name of a column -- \code{asthma_ever_dx}, \code{evt5} -- and is rarely what a figure
+should say the effect is an effect on. It is written wherever the outcome
+is named: the axis under the plot, the title the package writes for itself,
+and the HTML report. \code{NA} names none, leaving "Adjusted odds ratio" on its
+own for a figure whose caption says what of.}
 
 \item{ci_level}{Confidence level of the intervals. Defaults to \code{0.95}.}
 
@@ -130,6 +142,17 @@ the models can supply. On a figure reporting a test of an interaction the
 p-value of each row is left off, being easily read as the test beside it;
 name it in \code{columns} to have it back.}
 
+\item{person_time}{The unit person-time is reported in, for a model that
+carries any. \code{NULL}, the default, reports the total the model was fitted
+over. A number divides by it, so \code{person_time = 1000} draws a column of
+thousands of person-years and heads it \code{"Person-time (per 1,000)"}, since a
+count of person-time that does not say what it counts cannot be read
+against another study's. Naming the number heads the column outright, as
+\code{person_time = c("Person-years (per 1,000)" = 1000)}. The unit reaches the
+figure, \code{\link[=summary]{summary()}} and the HTML report alike; the estimates themselves are
+untouched, \code{person_time} being how the column is written and not what was
+fitted.}
+
 \item{layout}{How the figure is drawn: the name of a style, as
 \code{layout = "jama"}, or a layout built by \code{\link[=foresty_layout]{foresty_layout()}} when something
 about it has to be changed. The styles are \code{"classic"}, \code{"jama"},
@@ -143,6 +166,12 @@ and the journal styles draw none, a caption being where a journal puts
 that.}
 
 \item{subtitle}{Plot subtitle. \code{NULL}, the default, draws none.}
+
+\item{xlab}{The label under the plot, which by default names the measure and
+the outcome, as \code{"Adjusted odds ratio for asthma"}. A string is drawn as it
+was given -- \code{xlab = "Odds ratio (95\% CI), NO2 per 10 ug/m3"} -- and \code{NA}
+draws none. Renaming only the outcome is what \code{outcome} is for; this
+replaces the whole line.}
 
 \item{html}{Whether to write the HTML report. \code{FALSE}, the default, writes
 nothing, so nothing leaves the session unless it is asked for. \code{TRUE}
@@ -202,12 +231,22 @@ not turn on which test was chosen.
 
 The likelihood ratio test is computed from the likelihood, so it has no
 robust form: it takes no account of a variance passed through \code{vcov} or
-\code{cluster}. A quasi-likelihood family and a GEE have no likelihood to take it
-over at all. Where it cannot be taken, or where it would not match the
-intervals drawn beside it, the Wald test is reported in its place and
-\code{foresty} says so; ask for one by name and you are given that one or an
-error. For a linear model it is the chi-square form rather than the exact F
-test, which is what the Wald test gives there.
+\code{cluster}. Where it would not match the intervals drawn beside it for that
+reason, the Wald test is reported in its place and \code{foresty} says so; ask for
+the likelihood ratio test by name there and it is given, with a warning that
+it does not match them.
+
+A model with no likelihood at all is a different case, and no likelihood
+ratio test is reported for one however it is asked for. A GEE is the one that
+comes up: it estimates its coefficients from estimating equations rather than
+from a likelihood, and its standard errors are the sandwich ones from the
+start, so the joint Wald test is the test of it. A quasi-likelihood family is
+the same case. \code{test = "lrt"} on either is an error naming the reason rather
+than a number that would look like a likelihood ratio test and not be one;
+the default and \code{test = "both"} report the Wald test and say that they did.
+
+For a linear model the likelihood ratio test is the chi-square form rather
+than the exact F test, which is what the Wald test gives there.
 }
 
 \section{Adjusting the figure}{

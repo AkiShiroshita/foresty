@@ -38,7 +38,7 @@
 #'
 #' How big a difference in the exposure each estimate is for -- one unit, an
 #' interquartile range, an increment you name, its two ends either way round,
-#' one quantile of it to another, two values you name -- is asked once for each
+#' the first to the third quantile, two values you name -- is asked once for each
 #' continuous exposure rather than once for all of them, since two exposures
 #' rarely want the same answer. The lowest and highest values it takes are
 #' written under the choice, and are where naming two values starts from.
@@ -47,6 +47,13 @@
 #' `"no2 (per IQR, 8.44)"` -- since a reader comparing two figures across a
 #' screen should not have to know that a row saying nothing means one.
 #'
+#' Which way round the comparison runs is written with an arrow rather than as
+#' "from ... to ...", since that is the part a reader gets wrong: `Lowest value
+#' -> highest value` is the effect of being at the top of the exposure rather
+#' than the bottom, and the reverse of it is the same estimate the other way up,
+#' which is how a protective effect is drawn as one. The two boxes that name two
+#' values are headed the same way.
+#'
 #' From one quantile to another is not the interquartile range, though it
 #' begins at the quartiles: the range is a width, and an effect per one of it
 #' is a step along a slope, whereas the quantiles are two values of the
@@ -54,6 +61,30 @@
 #' splined exposure, which has no single slope to report a width per, and the
 #' two probabilities can be set to anything -- the 10th against the 90th, the
 #' median against the top decile -- rather than only 0.25 and 0.75.
+#'
+#' @section Figure style names:
+#'
+#' The rows, the axis and the columns of a figure are named after columns of a
+#' data set, and a column is called what the data set calls it. **Figure style**
+#' renames the outcome -- which is otherwise taken from the left of your
+#' formula, `asthma_ever_dx` and all -- replaces the label under the plot
+#' outright, and names each selected exposure. A model carrying person-time is
+#' also asked what unit to count it in, 1,000 or 100,000 being how a paper
+#' reports a rate and six figures beside the plot being width the plot could
+#' have had.
+#'
+#' @section A model too slow to redraw:
+#'
+#' Every change to a control refits the model once per pair of menus, and while
+#' that is happening the app looks exactly as it did before, so a line saying
+#' that it is working is shown above the tabs and the figure on the screen is
+#' the previous one until it goes.
+#'
+#' On a model where that wait is not seconds but minutes, **Write the R code
+#' only** stops it: nothing is fitted and nothing is drawn, the menus and the
+#' style controls go on working, and the **R code** tab goes on writing the call
+#' they come to, which is what to paste into the script and run once. The other
+#' tabs report on models the app fitted and say so instead.
 #'
 #' @section Colours and the panel:
 #'
@@ -266,6 +297,10 @@ fy_app_column_choices <- function(info) {
 
 # The interface ---------------------------------------------------------------
 
+# The arrow the controls say a direction with, by its code point so that the
+# file stays plain ASCII.
+fy_arrow <- "\u2192"
+
 # A section of the sidebar that opens and shuts. There are some forty controls
 # behind these panels and no more than a handful of them is wanted at once, so
 # the ones that are not being used are folded away rather than scrolled past.
@@ -294,14 +329,66 @@ fy_app_css <- function() {
     ".fy-note{color:#5b6570;font-size:90%;margin:-4px 0 10px 0}",
     ".fy-exposure{border-left:3px solid #dfe3e8;padding-left:10px;",
     "margin-bottom:12px}",
-    ".fy-exposure>strong{display:block;margin-bottom:4px}"
+    ".fy-exposure>strong{display:block;margin-bottom:4px}",
+    # What the app says while it is working. It sits above the figures rather
+    # than over them, so that the figure being replaced stays readable while
+    # the next one is being fitted.
+    ".fy-waiting{display:flex;align-items:center;gap:10px;",
+    "border:1px solid #cfd8e3;border-radius:6px;background:#eef3f9;",
+    "color:#33475b;padding:10px 14px;margin-bottom:14px;font-weight:600}",
+    ".fy-spinner{width:14px;height:14px;border-radius:50%;",
+    "border:2px solid #b6c6d8;border-top-color:#33475b;flex:none;",
+    "animation:fy-spin 0.9s linear infinite}",
+    ".fy-slow-advice{display:none;margin-top:8px;font-weight:400}",
+    "@keyframes fy-spin{to{transform:rotate(360deg)}}",
+    # A device that would rather not see it move.
+    "@media (prefers-reduced-motion:reduce){.fy-spinner{animation:none}}"
+  )
+}
+
+# What the app says while it is fitting a model and drawing a figure.
+#
+# A model with an interaction term added is refitted for every pair of menus,
+# and on a large one that is seconds rather than milliseconds, during which the
+# app looks exactly as it did before: the old figure is still on the screen and
+# nothing says that it is the old one. So Shiny's own busy flag is shown as a
+# line saying so. It needs no package and no callback -- the class is on <html>
+# whenever the server has work outstanding.
+fy_app_waiting <- function() {
+  shiny::tagList(
+    shiny::tags$script(shiny::HTML("(function() {
+      var timer;
+      $(document).on('shiny:busy', function() {
+        clearTimeout(timer); $('#fy-slow-advice').hide();
+        timer = setTimeout(function() { $('#fy-slow-advice').show(); }, 10000);
+      });
+      $(document).on('shiny:idle', function() {
+        clearTimeout(timer); $('#fy-slow-advice').hide();
+      });
+    })();")),
+    shiny::conditionalPanel(
+      condition = "$('html').hasClass('shiny-busy')",
+      shiny::div(
+        class = "fy-waiting",
+        shiny::div(class = "fy-spinner"),
+        shiny::div(
+          "Fitting the model and drawing the figure -- waiting... Anything ",
+          "already on the screen is the previous one.",
+          shiny::div(
+            id = "fy-slow-advice", class = "fy-slow-advice",
+            "This model is taking a while. For a large data set, consider ",
+            "copying the R code and running it outside Shiny."
+          )
+        )
+      )
+    )
   )
 }
 
 fy_app_ui <- function(info, variables, fit_name) {
   shiny::fluidPage(
     shiny::tags$head(shiny::tags$style(shiny::HTML(fy_app_css()))),
-    shiny::titlePanel(paste0("foresty: ", info$measure_label)),
+    shiny::titlePanel("foresty"),
     shiny::sidebarLayout(
       shiny::sidebarPanel(
         width = 3,
@@ -385,7 +472,34 @@ fy_app_ui <- function(info, variables, fit_name) {
             "no_subtitle",
             "Draw no subtitle (the \"Exposure: ...\" line under the title)",
             value = FALSE
-          )
+          ),
+          # Names are part of how the finished figure looks, so keep them with
+          # the other figure-wide styling choices rather than with estimation.
+          # The exposure is renamed where it is chosen -- foresty_main() takes
+          # `exposure = c(NO2 = "no2")` -- so there is a box per exposure, in
+          # this Figure style panel. The outcome and the axis belong to the
+          # whole figure and are asked once.
+          shiny::div(class = "fy-note", paste0(
+            "The outcome is taken from the left of your formula, which is the ",
+            "name of a column and rarely what a figure should say the effect ",
+            "is an effect on. Each selected exposure can be renamed here."
+          )),
+          shiny::fluidRow(
+            shiny::column(6, shiny::textInput(
+              "outcome",
+              if (is.na(info$outcome %||% NA)) {
+                "What to call the outcome"
+              } else {
+                paste0("What to call the outcome (empty for \"", info$outcome,
+                       "\")")
+              }
+            )),
+            shiny::column(6, shiny::uiOutput("exposure_labels"))
+          ),
+          shiny::uiOutput("modifier_labels"),
+          shiny::textInput("xlab", "Label under the plot (empty for the default)",
+                           placeholder = fy_axis_label(info, TRUE)),
+          fy_app_person_time_control(info)
         ),
 
         fy_app_panel(
@@ -438,6 +552,7 @@ fy_app_ui <- function(info, variables, fit_name) {
       ),
       shiny::mainPanel(
         width = 9,
+        fy_app_waiting(),
         shiny::tabsetPanel(
           shiny::tabPanel(
             "Plot",
@@ -503,6 +618,29 @@ fy_app_scale_control <- function(info) {
                "drawn about 0"))
     ),
     selected = "ratio"
+  )
+}
+
+# The unit person-time is counted in, for a model that carries any.
+#
+# A cohort of a few hundred thousand person-years puts six figures in a column
+# beside the plot and takes that width from it, and a rate is reported per
+# 1,000 or per 100,000 in a paper anyway. A model with no time behind it -- a
+# logistic regression -- has no such column and is asked nothing.
+fy_app_person_time_control <- function(info) {
+  if (is.na(info$person_time)) {
+    return(NULL)
+  }
+  shiny::tagList(
+    shiny::numericInput(
+      "person_time", "Count person-time in units of", value = 1, min = 0,
+      step = 1000
+    ),
+    shiny::div(class = "fy-note", paste0(
+      "1 is the total, which is ", fy_format_count(info$person_time),
+      " here. 1000 draws thousands of person-time and heads the column ",
+      "\"Person-time (per 1,000)\"."
+    ))
   )
 }
 
@@ -577,19 +715,29 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
       "difference to name."
     )))
   } else {
-    choices <- c("One unit" = "unit",
-                 "One interquartile range" = "iqr",
-                 "An increment I name" = "number")
+    # Which way round the comparison runs is the thing a reader gets wrong, and
+    # "from ... to ..." spread over a line of prose is where they get it wrong,
+    # so the two ends are written with an arrow between them and read at a
+    # glance: lowest -> highest is the effect of being at the top rather than
+    # the bottom, and the other way round is that same estimate inverted.
+    choices <- c("One unit increase" = "unit",
+                 "One interquartile range increase" = "iqr",
+                 "An increment increase I name" = "number")
     if (!is.null(range)) {
-      choices <- c(choices,
-                   "From its lowest value to its highest" = "range",
-                   "From its highest value to its lowest" = "range_reverse",
-                   "From one quantile of it to another" = "quantile")
+      choices <- c(
+        choices,
+        # Written by its code point so that the file stays plain ASCII.
+        stats::setNames(
+          c("range", "quantile"),
+          c("Lowest value to Highest value",
+            paste0("First quartile ", fy_arrow, " Third quartile"))
+        )
+      )
     }
     choices <- c(choices, "Two values I name" = "at")
     c(
       list(
-        shiny::radioButtons(
+        shiny::selectInput(
           kind, "The difference each estimate is for",
           choices = choices, selected = kept(kind, "unit")
         ),
@@ -598,6 +746,13 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
           shiny::numericInput(paste0("contrast_", id), "Effect per",
                               value = kept(paste0("contrast_", id), 10))
         ),
+        shiny::conditionalPanel(
+          paste0("input.", kind, " != 'at'"),
+          shiny::checkboxInput(
+            paste0("contrast_reverse_", id),
+            "Reverse the direction", value = kept(paste0("contrast_reverse_", id), FALSE)
+          )
+        ),
         # The two probabilities rather than the two values: 0.25 and 0.75 are
         # the quartiles, and any other pair -- 0.1 and 0.9, 0.5 and 0.9 -- is
         # the same question asked further out.
@@ -605,29 +760,38 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
           paste0("input.", kind, " == 'quantile'"),
           shiny::fluidRow(
             shiny::column(6, shiny::numericInput(
-              paste0("quantile_low_", id), "Lower quantile",
+              paste0("quantile_low_", id), "First quartile",
               value = kept(paste0("quantile_low_", id), 0.25),
               min = 0, max = 1, step = 0.05
             )),
             shiny::column(6, shiny::numericInput(
-              paste0("quantile_high_", id), "Upper quantile",
+              paste0("quantile_high_", id),
+              paste0(fy_arrow, " Third quartile"),
               value = kept(paste0("quantile_high_", id), 0.75),
               min = 0, max = 1, step = 0.05
             ))
           )
         ),
+        # Two boxes headed "From" and "To" are read as two numbers, and which
+        # of them the estimate is the effect of moving to is what a reader has
+        # to know. The arrow is on the second so that the pair reads as one
+        # thing: 4.102 -> 38.72.
         shiny::conditionalPanel(
           paste0("input.", kind, " == 'at'"),
           shiny::fluidRow(
             shiny::column(6, shiny::numericInput(
-              paste0("at_from_", id), "From",
+              paste0("at_from_", id), "Value",
               value = kept(paste0("at_from_", id), lowest)
             )),
             shiny::column(6, shiny::numericInput(
-              paste0("at_to_", id), "To",
+              paste0("at_to_", id), paste0(fy_arrow, " To value"),
               value = kept(paste0("at_to_", id), highest)
             ))
-          )
+          ),
+          shiny::div(class = "fy-note", paste0(
+            "The estimate is the effect of ", exposure, " being the second ",
+            "rather than the first."
+          ))
         )
       ),
       ends
@@ -635,6 +799,7 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
   }
 
   colour_hex <- paste0("colour_hex_", id)
+  label <- paste0("label_", id)
   shiny::div(
     class = "fy-exposure",
     shiny::tags$strong(exposure),
@@ -647,6 +812,38 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
                        placeholder = "#B24745")
     ),
     difference
+  )
+}
+
+# Names shown on the finished figure are Figure style controls.  They keep the
+# same input IDs as before, so a name remains in place if exposure controls are
+# rebuilt after the selection changes.
+fy_app_exposure_labels_ui <- function(exposure, id, input) {
+  label <- paste0("label_", id)
+  kept <- function(name, default) shiny::isolate(input[[name]]) %||% default
+  shiny::div(
+    shiny::textInput(label, paste0("What to call ", exposure, " on the figure"),
+                     value = kept(label, ""), placeholder = exposure)
+  )
+}
+
+# The groups of rows in an interaction figure are its modifier's levels.  They
+# are names on the finished figure just like the outcome and exposure are.
+fy_app_modifier_labels_ui <- function(modifier, id, info, input) {
+  x <- tryCatch(fy_variable(info, modifier), error = function(e) NULL)
+  levels <- levels(droplevels(as.factor(x)))
+  kept <- function(name, default) shiny::isolate(input[[name]]) %||% default
+  shiny::div(
+    class = "fy-exposure",
+    shiny::tags$strong(paste0("Subgroup names: ", modifier)),
+    lapply(seq_along(levels), function(i) {
+      shiny::textInput(
+        paste0("level_label_", id, "_", i),
+        paste0("What to call ", levels[i], " on the figure"),
+        value = kept(paste0("level_label_", id, "_", i), ""),
+        placeholder = levels[i]
+      )
+    })
   )
 }
 
@@ -673,10 +870,28 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
                            input, range = variables$range[[v]])
       }))
     })
+    output$exposure_labels <- shiny::renderUI({
+      vars <- fy_app_chosen(input$exposure)
+      if (!length(vars)) {
+        return(shiny::div(class = "fy-note", "Choose an exposure."))
+      }
+      shiny::tagList(lapply(vars, function(v) {
+        fy_app_exposure_labels_ui(v, variables$ids[[v]], input)
+      }))
+    })
+    output$modifier_labels <- shiny::renderUI({
+      vars <- fy_app_chosen(input$modifier)
+      if (!length(vars)) return(NULL)
+      shiny::tagList(lapply(vars, function(v) {
+        fy_app_modifier_labels_ui(v, variables$ids[[v]], info, input)
+      }))
+    })
     # The panel these live in is shut until it is wanted, and an output inside
     # something shut is suspended, so it is told not to be: the controls have
     # to exist for the figure to know what they say.
     shiny::outputOptions(output, "exposure_controls", suspendWhenHidden = FALSE)
+    shiny::outputOptions(output, "exposure_labels", suspendWhenHidden = FALSE)
+    shiny::outputOptions(output, "modifier_labels", suspendWhenHidden = FALSE)
 
     figures <- shiny::reactive({
       chosen <- pairs()
@@ -1004,13 +1219,14 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
   modifier <- pair$modifier
   fit_symbol <- as.name(ctx$fit_name)
 
+  named <- fy_app_exposure_arg(input, pair$exposure, ctx)
   args <- list()
   if (is.null(modifier)) {
     args[[1L]] <- call("list", fit_symbol)
-    args$exposure <- pair$exposure
+    args$exposure <- named
   } else {
     args[[1L]] <- fit_symbol
-    args$exposure <- pair$exposure
+    args$exposure <- named
     args$interaction <- modifier
   }
 
@@ -1018,6 +1234,10 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
   if (identical(input$scale, "log")) args$exponentiate <- FALSE
   if (!fy_app_same(input$ci_level, 0.95)) args$ci_level <- input$ci_level
   args <- c(args, fy_app_contrast_args(input, pair$exposure, ctx))
+  if (!is.null(modifier)) {
+    level_labels <- fy_app_level_labels_arg(input, modifier, ctx)
+    if (!is.null(level_labels)) args$level_labels <- level_labels
+  }
 
   # The test belongs to the interaction, and its default is the one the package
   # picks.
@@ -1033,6 +1253,34 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
 
   fn <- if (is.null(modifier)) quote(foresty_main) else quote(foresty_interaction)
   as.call(c(fn, args))
+}
+
+# What this exposure is called on the figure, as the argument that says it.
+#
+# The label is written where the exposure is chosen -- `exposure = c(NO2 =
+# "no2")` -- rather than in a `labels` vector of its own, because that is one
+# thing to paste into a script instead of two, and it is how the package's own
+# examples name an exposure. Nothing is written where the box was left empty.
+fy_app_exposure_arg <- function(input, exposure, ctx) {
+  id <- ctx$variables$ids[[exposure]]
+  if (is.null(id)) {
+    return(exposure)
+  }
+  label <- input[[paste0("label_", id)]]
+  if (is.null(label) || !nzchar(trimws(label))) {
+    return(exposure)
+  }
+  stats::setNames(exposure, trimws(label))
+}
+
+# The same thing as a `labels` vector, for the places that ask the package what
+# a row will say rather than telling it.
+fy_app_label_of <- function(input, exposure, ctx) {
+  named <- fy_app_exposure_arg(input, exposure, ctx)
+  if (is.null(names(named))) {
+    return(NULL)
+  }
+  stats::setNames(names(named), unname(named))
 }
 
 # Which difference in the exposure the estimate is of, for this exposure.
@@ -1051,6 +1299,7 @@ fy_app_contrast_args <- function(input, exposure, ctx) {
     return(list())
   }
   kind <- input[[paste0("contrast_kind_", id)]] %||% "unit"
+  reverse <- isTRUE(input[[paste0("contrast_reverse_", id)]])
   range <- variables$range[[exposure]]
   if (identical(kind, "at")) {
     return(list(at = call(
@@ -1066,11 +1315,11 @@ fy_app_contrast_args <- function(input, exposure, ctx) {
   # exposed -- and which is the one comparison a splined exposure can be asked
   # for without naming two numbers. Reversed, it is the same estimate the other
   # way up, which is how a protective effect is drawn as one.
-  if (identical(kind, "range") || identical(kind, "range_reverse")) {
+  if (identical(kind, "range")) {
     if (is.null(range)) {
       return(list())
     }
-    at <- if (identical(kind, "range")) range else rev(range)
+    at <- if (reverse) rev(range) else range
     return(list(at = call("c", at[[1L]], at[[2L]])))
   }
   # Two quantiles of the exposure, which is a different question from the
@@ -1087,16 +1336,37 @@ fy_app_contrast_args <- function(input, exposure, ctx) {
     if (is.null(at)) {
       return(list())
     }
+    if (reverse) at <- rev(at)
     return(list(at = call("c", at[[1L]], at[[2L]])))
   }
   if (identical(kind, "iqr")) {
+    if (reverse) {
+      x <- tryCatch(fy_variable(ctx$info, exposure), error = function(e) NULL)
+      return(list(contrast = -stats::IQR(x, na.rm = TRUE)))
+    }
     return(list(contrast = "iqr"))
   }
   value <- input[[paste0("contrast_", id)]]
   if (identical(kind, "number")) {
-    return(list(contrast = fy_app_number(value, 1)))
+    value <- fy_app_number(value, 1)
+    return(list(contrast = if (reverse) -value else value))
   }
-  list(contrast = 1)
+  list(contrast = if (reverse) -1 else 1)
+}
+
+# The named vector supplied to `level_labels`, written only where a subgroup
+# was renamed.  The level itself remains the vector name; the input is its
+# display value.
+fy_app_level_labels_arg <- function(input, modifier, ctx) {
+  id <- ctx$variables$ids[[modifier]]
+  x <- tryCatch(fy_variable(ctx$info, modifier), error = function(e) NULL)
+  levels <- levels(droplevels(as.factor(x)))
+  values <- vapply(seq_along(levels), function(i) {
+    trimws(input[[paste0("level_label_", id, "_", i)]] %||% "")
+  }, character(1))
+  if (!any(nzchar(values))) return(NULL)
+  values[!nzchar(values)] <- levels[!nzchar(values)]
+  as.call(c(quote(c), stats::setNames(as.list(values), levels)))
 }
 
 # The two values a pair of quantiles comes to, in the data the model was fitted
@@ -1152,7 +1422,7 @@ fy_app_subtitle <- function(exposure, input, ctx) {
 }
 
 # The exposure as the figure names it, the comparison behind it included --
-# "no2 (per IQR, 8.44)", "no2 (38.72 vs 4.102)" -- taken from the package
+# "no2 (per IQR, 8.44)", "no2 (4.102 -> 38.72)" -- taken from the package
 # rather than written again here.
 fy_app_exposure_label <- function(exposure, input, ctx) {
   args <- fy_app_contrast_args(input, exposure, ctx)
@@ -1160,7 +1430,8 @@ fy_app_exposure_label <- function(exposure, input, ctx) {
     fy_exposure_display(
       ctx$info, exposure,
       contrast = args$contrast,
-      at = if (is.null(args$at)) NULL else c(args$at[[2L]], args$at[[3L]])
+      at = if (is.null(args$at)) NULL else c(args$at[[2L]], args$at[[3L]]),
+      labels = fy_app_label_of(input, exposure, ctx)
     ),
     error = function(e) exposure
   )
@@ -1247,7 +1518,7 @@ fy_app_colour_by_args <- function(input) {
 # calls that draw one. The layout is the one part of it that can differ between
 # the figures of one screen, since the colour belongs to the exposure.
 fy_app_figure_args <- function(input, colour = NULL) {
-  args <- fy_app_table_args(input)
+  args <- c(fy_app_table_args(input), fy_app_naming_args(input))
   layout <- fy_app_layout_call(input, colour)
   if (!is.null(layout)) args$layout <- layout
   c(args, fy_app_title_args(input))
@@ -1258,6 +1529,24 @@ fy_app_table_args <- function(input) {
   if (!isTRUE(input$table)) args$table <- FALSE
   if (length(input$columns)) {
     args$columns <- as.call(c(quote(c), as.list(input$columns)))
+  }
+  args
+}
+
+# What the figure calls the outcome and the axis, and the unit its person-time
+# is counted in. All three belong to the whole figure rather than to one
+# exposure, and each is left out of the call where the box beside it was left
+# alone.
+fy_app_naming_args <- function(input) {
+  args <- list()
+  if (nzchar(trimws(input$outcome %||% ""))) {
+    args$outcome <- trimws(input$outcome)
+  }
+  if (nzchar(trimws(input$xlab %||% ""))) {
+    args$xlab <- trimws(input$xlab)
+  }
+  if (!fy_app_same(input$person_time, 1)) {
+    args$person_time <- fy_app_number(input$person_time, 1)
   }
   args
 }
@@ -1441,7 +1730,7 @@ fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
   if (identical(input$scale, "log")) common$exponentiate <- FALSE
   if (!fy_app_same(input$ci_level, 0.95)) common$ci_level <- input$ci_level
   common <- c(common, if (coloured) {
-    fy_app_table_args(input)
+    c(fy_app_table_args(input), fy_app_naming_args(input))
   } else {
     fy_app_figure_args(input)
   })
@@ -1465,11 +1754,15 @@ fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
 # figure and nothing else.
 fy_app_specs_lines <- function(pairs, input, ctx, coloured = FALSE) {
   items <- vapply(pairs, function(pair) {
-    args <- list(exposure = pair$exposure)
+    args <- list(exposure = fy_app_exposure_arg(input, pair$exposure, ctx))
     if (!is.null(pair$modifier)) {
       args$interaction <- pair$modifier
     }
-    args <- c(args, fy_app_contrast_args(input, pair$exposure, ctx))
+  args <- c(args, fy_app_contrast_args(input, pair$exposure, ctx))
+  if (!is.null(pair$modifier)) {
+    level_labels <- fy_app_level_labels_arg(input, pair$modifier, ctx)
+    if (!is.null(level_labels)) args$level_labels <- level_labels
+  }
     subtitle <- fy_app_subtitle(pair$exposure, input, ctx)
     if (!is.null(subtitle)) {
       args$subtitle <- subtitle
@@ -1698,10 +1991,12 @@ fy_app_model_report <- function(fit, fit_name, states, input, ctx) {
   cat("  them.\n\n")
   cat("  It calls car::linearHypothesis.default() rather than\n")
   cat("  car::linearHypothesis(), and passes the hypothesis as a numeric\n")
-  cat("  matrix rather than as a character formula. Ordinary dispatch fails\n")
-  cat("  for an rms::cph() fit and sends an rms::ols() to the lm method, and\n")
-  cat("  neither takes the degrees of freedom worked out here; and rms names\n")
-  cat("  a coefficient `x * g=Male`, which car's formula parser cannot read.\n")
+  cat("  matrix rather than as a character formula. The method a fit would\n")
+  cat("  dispatch to has its own idea of which coefficients, which covariance\n")
+  cat("  and how many degrees of freedom to use, and would quietly use the\n")
+  cat("  model's own where a robust variance was asked for; and a coefficient\n")
+  cat("  may be named anything a fitting function likes, which car's formula\n")
+  cat("  parser reads only some of.\n")
   invisible(NULL)
 }
 
@@ -1786,11 +2081,12 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
 # rather than something close to it, which is what makes it worth reading.
 #
 # That is why it says `car::linearHypothesis.default()` and not
-# `car::linearHypothesis()`: ordinary dispatch fails for an rms::cph() fit and
-# sends an rms::ols() to the lm method, and neither takes the degrees of
-# freedom foresty computed. The hypothesis is a numeric matrix rather than a
-# character formula for the same reason -- rms names a coefficient `x * g=Male`
-# and car's parser cannot read it.
+# `car::linearHypothesis()`: the method a fit dispatches to takes the model's
+# own coefficients, covariance and degrees of freedom, which are not the ones
+# the figure was drawn from where a robust variance was asked for. The
+# hypothesis is a numeric matrix rather than a character formula for a related
+# reason -- a coefficient may be named anything, and car's parser reads only
+# some of those.
 fy_app_say_code <- function(lines, indent) {
   pad <- strrep(" ", indent)
   cat(paste0(ifelse(nzchar(lines), paste0(pad, lines), ""), collapse = "\n"),
@@ -1870,31 +2166,13 @@ fy_app_data_name <- function(fit) {
 # The design matrix of those two rows, built as the fitting function builds its
 # own.
 #
-# For a base R fit that means going back through model.frame() with the levels
-# and the contrast coding the model was fitted under, so that the `predvars` of
-# the terms object are used and a basis such as ns(no2, 3) is reproduced with
-# the knots it was fitted with rather than recomputed from two rows. rms builds
-# its design through predict(type = "x") instead, and leaves the intercept out
-# of it while keeping it in coef().
+# That means going back through model.frame() with the levels and the contrast
+# coding the model was fitted under, so that the `predvars` of the terms object
+# are used and a basis such as ns(no2, 3) or poly(maternal_age, 2) is reproduced
+# with the knots and the centring it was fitted with rather than recomputed from
+# two rows.
 fy_app_design_lines <- function(info, fit_name) {
   aliased <- length(info$kept) < info$n_full
-  if (inherits(info$fit, "rms")) {
-    out <- c(
-      paste0("X <- as.matrix(predict(", fit_name,
-             ", newdata = rows, type = \"x\"))"),
-      "# rms leaves the intercept out of its design matrix and keeps it in",
-      "# coef(), so the column is put back where the model has one.",
-      paste0("if (names(coef(", fit_name,
-             "))[1] %in% c(\"(Intercept)\", \"Intercept\")) {"),
-      "  X <- cbind(`(Intercept)` = 0, X)",
-      "}"
-    )
-    if (aliased) {
-      out <- c(out, paste0("X <- X[, c(", paste(info$kept, collapse = ", "),
-                           "), drop = FALSE]   # the aliased ones dropped"))
-    }
-    return(out)
-  }
   out <- c(
     paste0("tt <- delete.response(terms(", fit_name, "))"),
     paste0("mf <- model.frame(tt, data = rows, xlev = ", fit_name,

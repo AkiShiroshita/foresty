@@ -168,3 +168,55 @@ test_that("the heading over the row labels can be renamed or dropped", {
   expect_true("Pollutant" %in% fy_panel_text(x[[1]]))
   expect_false("Exposure" %in% fy_panel_text(x[[1]]))
 })
+
+# What things are called ------------------------------------------------------
+
+test_that("the outcome can be named, and is named everywhere it appears", {
+  x <- foresty_main(list(fy_test_logistic()), exposure = "no2",
+                    outcome = "incident asthma")
+
+  expect_equal(fy_result(x)$measure_label, "Odds ratio for incident asthma")
+  expect_equal(fy_axis_text(x), "Adjusted odds ratio for incident asthma")
+  expect_match(gsub("\n", " ", fy_title(x), fixed = TRUE),
+               "Adjusted odds ratio for incident asthma associated with no2")
+
+  # And on the interaction figure, whose title is built out of the same phrase.
+  y <- foresty_interaction(fy_test_logistic(), exposure = "no2",
+                           interaction = "sex", outcome = "incident asthma")
+  expect_match(gsub("\n", " ", fy_title(y), fixed = TRUE),
+               "^Adjusted odds ratio for incident asthma associated with no2")
+})
+
+test_that("naming no outcome leaves the measure on its own", {
+  x <- foresty_main(list(fy_test_logistic()), exposure = "no2", outcome = NA)
+  expect_equal(fy_result(x)$measure_label, "Odds ratio")
+  expect_equal(fy_axis_text(x), "Adjusted odds ratio")
+  expect_false(grepl("asthma", fy_title(x), fixed = TRUE))
+})
+
+test_that("the label under the plot can be replaced or left off", {
+  x <- foresty_main(list(fy_test_logistic()), exposure = "no2",
+                    xlab = "Odds ratio (95% CI)")
+  expect_equal(fy_axis_text(x), "Odds ratio (95% CI)")
+
+  # The title is the package's own either way: xlab is the axis and nothing
+  # else.
+  expect_match(fy_title(x), "asthma")
+
+  none <- foresty_main(list(fy_test_logistic()), exposure = "no2", xlab = NA)
+  expect_null(ggplot2::ggplot_build(fy_forest_of(none))$plot$labels$x)
+})
+
+test_that("a combined figure takes the outcome and the axis too", {
+  fit <- fy_test_logistic()
+  overall <- foresty_main(list(fit), exposure = "no2")
+  by_sex <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
+
+  x <- foresty_combine(Overall = overall, Sex = by_sex,
+                       outcome = "incident asthma")
+  expect_match(fy_axis_text(x), "for incident asthma", fixed = TRUE)
+  expect_match(fy_title(x), "incident asthma")
+
+  y <- foresty_combine(Overall = overall, Sex = by_sex, xlab = "OR (95% CI)")
+  expect_equal(fy_axis_text(y), "OR (95% CI)")
+})

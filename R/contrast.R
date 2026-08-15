@@ -4,10 +4,7 @@
 # difference between two rows of the model's own design matrix, one with the
 # exposure at its baseline and one with the exposure at the value being
 # compared, everything else held equal. Every column that does not involve the
-# exposure cancels, so the difference is exactly the exposure effect, and the
-# result is correct whatever contrast coding, spline basis or naming convention
-# the fitting function used. This is what allows an rms fit, whose coefficients
-# are named `x * g=Male`, to be handled by the same code as a glm.
+# exposure cancels, so the difference is exactly the exposure effect.
 
 # Terms involving the exposure, split into its own effect and its interactions.
 fy_exposure_terms <- function(info, exposure) {
@@ -36,34 +33,23 @@ fy_interacting_vars <- function(info, exposure) {
 
 # The design matrix rows for `newdata`, aligned to info$coef by position.
 #
-# rms fits have to be asked through predict(type = "x"), which returns the
-# design matrix without its intercept column; base R fits are rebuilt from the
-# terms object. Either way the result is matched to the coefficient vector by
-# position after the intercept column is reconciled, because the column names
-# agree with the coefficient names for base R fits but not for rms fits.
+# The matrix is rebuilt from the fit's own terms object and matched to the
+# coefficient vector by position, once the intercept column has been reconciled.
 fy_design_matrix <- function(info, newdata) {
   fit <- info$fit
-  if (inherits(fit, "rms")) {
-    mm <- stats::predict(fit, newdata = newdata, type = "x")
-    mm <- as.matrix(mm)
-  } else {
-    tt <- stats::delete.response(stats::terms(fit))
-    # The terms object carries `predvars`, which records the knots and centring
-    # chosen when the model was fitted. Going back through model.frame() makes
-    # model.matrix() use them, so a basis such as ns(no2, 3) is reproduced as
-    # it was fitted rather than recomputed from these two rows.
-    frame <- stats::model.frame(tt, data = newdata, xlev = fy_xlevels(fit),
-                                na.action = stats::na.pass)
-    mm <- stats::model.matrix(tt, data = frame,
-                              contrasts.arg = fy_contrasts(fit))
-  }
+  tt <- stats::delete.response(stats::terms(fit))
+  # The terms object carries `predvars`, which records the knots and centring
+  # chosen when the model was fitted. Going back through model.frame() makes
+  # model.matrix() use them, so a basis such as ns(no2, 3) or poly(age, 2) is
+  # reproduced as it was fitted rather than recomputed from these two rows.
+  frame <- stats::model.frame(tt, data = newdata, xlev = fy_xlevels(fit),
+                              na.action = stats::na.pass)
+  mm <- stats::model.matrix(tt, data = frame,
+                            contrasts.arg = fy_contrasts(fit))
 
   if (ncol(mm) == info$n_full + 1L && fy_is_intercept_column(colnames(mm)[1L])) {
     # The fit carries no intercept, as survival fits do not.
     mm <- mm[, -1L, drop = FALSE]
-  } else if (ncol(mm) == info$n_full - 1L && info$has_intercept) {
-    # rms omits the intercept from its design matrix but keeps it in coef().
-    mm <- cbind(0, mm)
   }
 
   if (ncol(mm) != info$n_full) {
@@ -128,7 +114,7 @@ fy_reference_index <- function(info) {
 # recoverable from the source data.
 fy_variable <- function(info, name) {
   from_frame <- info$mf[[name]]
-  if (!is.null(from_frame) && !inherits(from_frame, "rms") && !is.matrix(from_frame)) {
+  if (!is.null(from_frame) && !is.matrix(from_frame)) {
     return(from_frame)
   }
   if (!is.null(info$data)) {
@@ -285,7 +271,7 @@ fy_exposure_values <- function(info, exposure, contrast = NULL, at = NULL) {
       list(list(
         from = at[[1L]], to = at[[2L]],
         level = NA_character_,
-        contrast_label = paste0(at[[2L]], " vs ", at[[1L]]),
+        contrast_label = paste0(at[[1L]], " \u2192 ", at[[2L]]),
         reference = FALSE
       )),
       explicit = TRUE

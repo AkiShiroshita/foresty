@@ -130,7 +130,7 @@ test_that("a likelihood ratio test is refused where there is no likelihood", {
   expect_error(
     foresty_interaction(quasi, exposure = "no2", interaction = "sex",
                         test = "lrt"),
-    "reports no likelihood"
+    "no likelihood ratio test can be taken"
   )
 
   # Robust standard errors are not what the likelihood ratio test is taken
@@ -171,7 +171,7 @@ test_that("the likelihood ratio test is the default, and falls back to Wald", {
   expect_message(
     fallback <- foresty_interaction(quasi, exposure = "no2",
                                     interaction = "sex"),
-    "reports no likelihood"
+    "quasi-likelihood family has no likelihood"
   )
   expect_named(fy_result(fallback)$interaction_tests, "wald")
 
@@ -184,4 +184,36 @@ test_that("the likelihood ratio test is the default, and falls back to Wald", {
     "the joint Wald test is reported instead"
   )
   expect_named(fy_result(robust)$interaction_tests, "wald")
+})
+
+test_that("a GEE is never given a likelihood ratio test of the interaction", {
+  skip_if_not_installed("geepack")
+  d <- foresty_cohort
+  d$id <- seq_len(nrow(d))
+  fit <- geepack::geeglm(asthma ~ no2 + sex + maternal_age, id = id,
+                         family = binomial, data = d, corstr = "independence")
+
+  # Left to itself, foresty reports the Wald test and says why.
+  expect_message(
+    x <- foresty_interaction(fit, exposure = "no2", interaction = "sex"),
+    "estimating equations"
+  )
+  expect_equal(fy_test(x)$test, "Wald chi-square")
+
+  # Asked for by name it is refused rather than approximated by something else
+  # under that heading.
+  expect_error(
+    foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                        test = "lrt"),
+    "no likelihood ratio test"
+  )
+
+  # Both is the one that can be given, said once.
+  expect_message(
+    both <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                                test = "both")
+  )
+  tests <- fy_result(both)$interaction_tests
+  expect_length(tests, 1L)
+  expect_equal(tests[[1L]]$test, "Wald chi-square")
 })

@@ -269,7 +269,15 @@ test_that("an exposure is asked about with the values it actually takes", {
 
   html <- as.character(fy_app_exposure_ui("no2", "no2", TRUE, list(),
                                           range = variables$range[["no2"]]))
-  expect_match(html, "lowest value to its highest", fixed = TRUE)
+  # Which way round the comparison runs is written with an arrow, since
+  # "from ... to ..." spread over a line of prose is where a reader gets it
+  # wrong.
+  expect_match(html, "Lowest value to Highest value",
+               fixed = TRUE)
+  expect_match(html, "Reverse the direction", fixed = TRUE)
+  expect_match(html, paste0(fy_arrow, " To value"), fixed = TRUE)
+  expect_match(html, paste0("First quartile ", fy_arrow, " Third quartile"),
+               fixed = TRUE)
   expect_match(html, paste0("runs from ", ends[1L], " to ", ends[2L]),
                fixed = TRUE)
   # The colours are offered by their place in the palette as well as by name.
@@ -299,18 +307,20 @@ test_that("the two ends of an exposure are a difference it can be reported for",
     # nothing without them.
     expect_match(
       as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
-      paste0(range[2L], " vs ", range[1L]), fixed = TRUE
+      paste0(range[1L], " \u2192 ", range[2L]), fixed = TRUE
     )
 
     # The other way up is the same comparison reversed, which is how a
     # protective effect is drawn as one.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            contrast_kind_no2 = "range_reverse"))
+                            contrast_kind_no2 = "range",
+                            contrast_reverse_no2 = TRUE))
     expect_match(output$code,
                  paste0("at = c(", range[2L], ", ", range[1L], ")"),
                  fixed = TRUE)
     expect_null(figure()$error)
+
   })
 })
 
@@ -337,7 +347,7 @@ test_that("two quantiles of an exposure are a difference it can be reported for"
     expect_null(figure()$error)
     expect_match(
       as.character(fy_result(figure()$value)$estimates$variable_label[1L]),
-      paste0(quartiles[2L], " vs ", quartiles[1L]), fixed = TRUE
+      paste0(quartiles[1L], " \u2192 ", quartiles[2L]), fixed = TRUE
     )
 
     # And any other pair, since which two quantiles are compared is the reader's
@@ -359,6 +369,15 @@ test_that("two quantiles of an exposure are a difference it can be reported for"
                             quantile_low_no2 = 0.25, quantile_high_no2 = 4))
     expect_false(grepl("at = ", output$code, fixed = TRUE))
     expect_null(figure()$error)
+
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            contrast_kind_no2 = "quantile",
+                            quantile_low_no2 = 0.25, quantile_high_no2 = 0.75,
+                            contrast_reverse_no2 = TRUE))
+    expect_match(output$code,
+                 paste0("at = c(", quartiles[2L], ", ", quartiles[1L], ")"),
+                 fixed = TRUE)
   })
 })
 
@@ -989,5 +1008,49 @@ test_that("what foresty says while it works is shown, not swallowed", {
     state <- figure()
     expect_null(state$error)
     expect_true(any(grepl("already contains", state$notes)))
+  })
+})
+
+# What things are called, and a model too slow to redraw ----------------------
+
+test_that("the outcome, the axis and the person-time unit reach the call", {
+  skip_if_not_installed("shiny")
+  d <- foresty_cohort
+  set.seed(1)
+  d$follow_up <- stats::runif(nrow(d), 1, 5)
+  d$male <- as.numeric(d$sex == "Male")
+  rate <- glm(asthma ~ no2 + male + offset(log(follow_up)), family = poisson,
+              data = d)
+  app <- foresty_app(rate, launch = FALSE)
+
+  shiny::testServer(app, {
+    # Nothing is written where the boxes were left alone.
+    do.call(session$setInputs, fy_app_defaults(modifier = "male",
+                                               overall = FALSE))
+    expect_false(grepl("outcome", output$code, fixed = TRUE))
+    expect_false(grepl("xlab", output$code, fixed = TRUE))
+    expect_false(grepl("person_time", output$code, fixed = TRUE))
+
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            outcome = "incident asthma",
+                            xlab = "Rate ratio (95% CI)",
+                            person_time = 1000,
+                            label_no2 = "NO2, ug/m3"))
+    code <- output$code
+    expect_match(code, "outcome = \"incident asthma\"", fixed = TRUE)
+    expect_match(code, "xlab = \"Rate ratio (95% CI)\"", fixed = TRUE)
+    expect_match(code, "person_time = 1000", fixed = TRUE)
+    # The exposure is renamed where it is named, which is one thing to paste
+    # into a script rather than two.
+    expect_match(code, "`NO2, ug/m3` = \"no2\"", fixed = TRUE)
+
+    # And the figure is drawn with them.
+    expect_null(figure()$error)
+    result <- fy_result(figure()$value)
+    expect_equal(result$measure_label, "Incidence rate ratio for incident asthma")
+    expect_equal(result$person_time$unit, 1000)
+    expect_match(as.character(result$estimates$variable_label[1L]),
+                 "NO2, ug/m3", fixed = TRUE)
   })
 })
