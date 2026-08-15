@@ -71,6 +71,14 @@ test_that("the columns are offered in words rather than by argument name", {
   expect_false("person_time" %in% choices)
 })
 
+test_that("a narrow panel scrolls the figure rather than squeezing the plot", {
+  # Text columns take fixed centimetres; the plot takes what they leave. If the
+  # on-screen device followed the browser width, a narrow window would shrink
+  # the axis between those columns. The figure is drawn at the export size and
+  # the panel scrolls past it instead.
+  expect_match(fy_app_css(), "fy-figure\\{[^}]*overflow-x:auto", perl = TRUE)
+})
+
 test_that("person-time is offered, and drawn, where the model carries it", {
   d <- foresty_cohort
   set.seed(1)

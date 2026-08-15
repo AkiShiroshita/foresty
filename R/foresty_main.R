@@ -101,9 +101,9 @@
 #'   count of person-time that does not say what it counts cannot be read
 #'   against another study's. Naming the number heads the column outright, as
 #'   `person_time = c("Person-years (per 1,000)" = 1000)`. The unit reaches the
-#'   figure, [summary()] and the HTML report alike; the estimates themselves are
-#'   untouched, `person_time` being how the column is written and not what was
-#'   fitted.
+#'   figure, [summary()] and the HTML report alike. It does not refit the model
+#'   or change its estimates, confidence intervals, or p-values: `person_time`
+#'   controls only how the person-time column is written.
 #' @param ci_level Confidence level of the intervals. Defaults to `0.95`.
 #' @param contrast For a continuous exposure, the increment the effect is
 #'   reported per. `NULL`, the default, is one unit and is not written on the

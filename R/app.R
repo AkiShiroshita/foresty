@@ -327,7 +327,9 @@ fy_app_css <- function() {
     ".fy-panel[open]>summary{border-bottom:1px solid #eceff2}",
     ".fy-panel-body{padding:10px 10px 2px 10px}",
     ".fy-panel-body .form-group{margin-bottom:10px}",
-    ".fy-figure{margin-bottom:24px}",
+    # The figure is drawn at the export size; if the panel is narrower the
+    # page scrolls rather than squeezing the plot between fixed-width columns.
+    ".fy-figure{margin-bottom:24px;overflow-x:auto}",
     ".fy-figure h4{font-weight:600;margin:4px 0 6px 0}",
     ".fy-buttons .btn{margin:0 6px 6px 0}",
     ".fy-note{color:#5b6570;font-size:90%;margin:-4px 0 10px 0}",
@@ -1023,11 +1025,14 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
       if (!length(items)) NULL else shiny::tagList(items)
     })
 
-    # One plot output per figure, each as tall as the export is, so that what is
-    # on the screen is the shape of what comes out of the buttons.
+    # One plot output per figure, each as wide and as tall as the export is, so
+    # that what is on the screen is the shape of what comes out of the buttons.
+    # Height alone used to be matched; the width then followed the browser and
+    # the fixed-width text columns ate the plot. A narrow panel scrolls instead.
     output$plots <- shiny::renderUI({
       figs <- display()
       shiny::req(length(figs) > 0L)
+      width <- paste0(round(fy_app_number(input$width, 10) * 96), "px")
       height <- paste0(round(fy_app_number(input$height, 6) * 96), "px")
       headings <- attr(figs, "headings")
       # A screenful is a dozen; the rest are still drawn, and still go into the
@@ -1039,7 +1044,7 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
         shiny::div(
           class = "fy-figure",
           if (!is.null(headings)) shiny::h4(headings[i]) else NULL,
-          shiny::plotOutput(paste0("plot_", i), height = height)
+          shiny::plotOutput(paste0("plot_", i), width = width, height = height)
         )
       })
       if (hidden > 0L) {

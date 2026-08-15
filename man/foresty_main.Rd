@@ -125,9 +125,9 @@ thousands of person-years and heads it \code{"Person-time (per 1,000)"}, since a
 count of person-time that does not say what it counts cannot be read
 against another study's. Naming the number heads the column outright, as
 \code{person_time = c("Person-years (per 1,000)" = 1000)}. The unit reaches the
-figure, \code{\link[=summary]{summary()}} and the HTML report alike; the estimates themselves are
-untouched, \code{person_time} being how the column is written and not what was
-fitted.}
+figure, \code{\link[=summary]{summary()}} and the HTML report alike. It does not refit the model
+or change its estimates, confidence intervals, or p-values: \code{person_time}
+controls only how the person-time column is written.}
 
 \item{layout}{How the figure is drawn: the name of a style, as
 \code{layout = "jama"}, or a layout built by \code{\link[=foresty_layout]{foresty_layout()}} when something
