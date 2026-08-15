@@ -30,6 +30,81 @@ test_that("a continuous modifier is refused, with the remedy in the message", {
   )
 })
 
+test_that("a numeric modifier taking three values is refused, however coded", {
+  # Codes are the tempting case: the model fitted them as a straight line, so
+  # three rows would be constrained to equal steps while looking freely
+  # estimated, and the test would keep its single degree of freedom.
+  d <- foresty_cohort
+  d$urban_code <- as.numeric(d$urbanicity)
+  fit <- glm(asthma ~ no2 + urban_code + maternal_age, family = binomial,
+             data = d)
+  expect_error(
+    foresty_interaction(fit, exposure = "no2", interaction = "urban_code"),
+    "takes 3 values in this model"
+  )
+})
+
+test_that("a numeric modifier taking two values is read as those subgroups", {
+  # A flag coded 0 and 1 enters the model through the one coefficient a
+  # two-level factor gives, so it is the same model and must give the same
+  # numbers rather than an error telling the caller to refit it as a factor.
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  numeric_fit <- glm(asthma ~ no2 + male + maternal_smoking + maternal_age,
+                     family = binomial, data = d)
+
+  flag <- foresty_interaction(numeric_fit, exposure = "no2",
+                              interaction = "male")
+  by_sex <- foresty_interaction(fy_test_logistic(), exposure = "no2",
+                                interaction = "sex")
+
+  est <- fy_est(flag)
+  expect_equal(nrow(est), 2L)
+  expect_equal(est$estimate, fy_est(by_sex)$estimate, tolerance = 1e-8)
+  expect_equal(est$conf.low, fy_est(by_sex)$conf.low, tolerance = 1e-8)
+  expect_equal(fy_test(flag)$p.value, fy_test(by_sex)$p.value,
+               tolerance = 1e-8)
+  expect_equal(fy_test(flag)$df, fy_test(by_sex)$df)
+
+  # The values are the levels, in numeric order, and the counts behind the rows
+  # are the rows of that subgroup.
+  expect_equal(as.character(est$modifier_label), c("0", "1"))
+  expect_equal(est$n, c(sum(d$male == 0), sum(d$male == 1)))
+
+  # Nothing invents "No" and "Yes" for it, since 0 and 1 are as often two
+  # groups as they are an absence and a presence; `level_labels` names them.
+  named <- foresty_interaction(numeric_fit, exposure = "no2",
+                              interaction = c(Sex = "male"),
+                              level_labels = c("0" = "Female", "1" = "Male"))
+  expect_equal(as.character(fy_est(named)$modifier_label),
+               c("Female", "Male"))
+})
+
+test_that("a numeric modifier taking two values other than 0 and 1 works", {
+  # The rule is that the modifier has two values, not that they are 0 and 1:
+  # the contrast is taken at the values themselves, so it is exact either way.
+  d <- foresty_cohort
+  d$dose <- ifelse(d$sex == "Male", 20, 10)
+  fit <- glm(asthma ~ no2 * dose + maternal_age, family = binomial, data = d)
+
+  # The interaction is in the formula already, so that `coef(fit)` below is the
+  # model the estimates came out of; foresty says it is using it as it stands.
+  est <- fy_est(suppressMessages(
+    foresty_interaction(fit, exposure = "no2", interaction = "dose",
+                        exponentiate = FALSE)
+  ))
+  expect_equal(as.character(est$modifier_label), c("10", "20"))
+
+  # The effect at dose 20 is the sum of the exposure coefficient and twenty
+  # times the interaction, which is what the model says and what a caller
+  # would otherwise have to work out by hand.
+  b <- stats::coef(fit)
+  expect_equal(est$estimate,
+               c(b[["no2"]] + 10 * b[["no2:dose"]],
+                 b[["no2"]] + 20 * b[["no2:dose"]]),
+               tolerance = 1e-8)
+})
+
 test_that("a modifier that is not in the model is refused", {
   expect_error(
     foresty_interaction(fy_test_logistic(), exposure = "no2",
@@ -131,6 +206,17 @@ test_that("an exposure expanded into columns before the fit says what to do", {
   expect_error(
     foresty_main(list(fit), exposure = "no2", at = c(10, 20)),
     "Put the basis in the formula"
+  )
+
+  # The same basis kept as one matrix column is a variable of the model by
+  # name, and contrasting two values of it would be contrasting two values of
+  # nothing, so it is refused where it is named rather than further down.
+  wide <- foresty_cohort
+  wide$no2_basis <- basis
+  matrix_fit <- glm(asthma ~ no2_basis + sex, family = binomial, data = wide)
+  expect_error(
+    foresty_main(list(matrix_fit), exposure = "no2_basis", at = c(10, 20)),
+    "matrix of 3 columns"
   )
 })
 

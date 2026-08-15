@@ -13,12 +13,66 @@ First release.
   `foresty_interaction()` as there are modifiers, each a block of rows under a
   heading of its own, with the interaction p-value beside each block. Nothing
   is refitted; every row is the row it was drawn from.
+* `contrast` writes the increment beside the exposure wherever the exposure is
+  named, the title included, and writes it whenever it was named: `contrast =
+  10` draws `"NO2 (per 10)"` and `contrast = 1` draws `"NO2 (per 1)"`. The
+  default is `NULL`, which is the same one unit said nothing about, so a figure
+  nobody asked the question of still reads `"NO2"`.
+* `contrast = "iqr"` reports the effect per interquartile range of the
+  exposure, taken from the data the model was fitted to. The range it came to
+  is written beside the exposure, as `"NO2 (per IQR, 8.44)"`, since an effect
+  per interquartile range cannot be compared with anything unless the figure
+  says which range that was.
+* `foresty_app()` opens a Shiny app on a model you have already fitted, so the
+  exposures, the modifiers and the layout can be chosen from menus. Both menus
+  take as many variables as you select and every pair of them is drawn, with
+  the overall effect a checkbox of its own so that it can be asked for beside
+  the subgroups; where there is more than one figure the app offers to combine
+  them through `foresty_combine()`, one figure per exposure. The colour an
+  exposure is drawn in and how big a difference in it each estimate is for are
+  asked once per exposure rather than once for all of them, since a pollutant
+  is reported per interquartile range and an age per decade; the two ends of an
+  exposure, either way round, are among the differences it can be reported for,
+  and the range it takes is written under the choice. Two quantiles of the
+  exposure are another -- the quartiles to begin with and any pair of
+  probabilities you set -- which is not the interquartile range: that is a
+  width, and an effect per one of it is a step along a slope, whereas two
+  quantiles are two values and are compared as such, so a splined exposure can
+  be reported between them. Every figure says
+  which exposure it is of under its own title, which is a line that can be
+  turned off on its own where the title says it already. Whether the figure is
+  drawn in one colour or a colour per category of its rows, and whether those
+  colours come from a palette or from hex codes typed beside it, are chosen
+  there too; the colour one figure is drawn in can be typed as a hex code as
+  well, which is how a figure is drawn to match colours no menu holds. Its
+  **Models** tab writes out,
+  in R, how each figure was arrived at -- the `update()` that added the
+  interaction term, the `car::linearHypothesis.default()` call each subgroup
+  estimate is, and the test reported beside them -- and its **summary(fit)**
+  tab holds the model you fitted and every model the app fitted from it, each
+  block headed with the outcome, the exposure and the effect modifier the
+  figure under it is of. What the **Models** tab writes is meant to be run: the
+  same two rows of data, the same design matrix built as the fitting function
+  builds its own, the same coefficients and covariance, the same error degrees
+  of freedom and the same test, so that pasting it beside the model reproduces
+  the numbers on the figure rather than approximating them. Its **R code**
+  tab writes the code that drew what is beside it, as one call for one pair and
+  as a loop over the pairs for several. That code is what it evaluated, so the
+  figures can be moved back into a script and the app stays a way of finding a
+  figure rather than a way of producing one nobody can reproduce. The figures
+  download as PNG and as SVG, one file per figure where they were not combined,
+  the reports as one HTML page per model, and the objects themselves as an
+  `.rds` file holding a named list, so that the estimates behind them can be
+  gone on with. `shiny` is suggested, not required.
 * `foresty_report()` writes a self-contained HTML page holding the model, the
   subgroup estimates, the joint interaction test, the full coefficient table
   and the forest plot. `foresty_main()` and `foresty_interaction()` write the
   same page as the figure is made, through `html = TRUE`, which names the file
   for the variables it is about. Nothing is written unless it is asked for, so
-  nothing leaves the session on its own.
+  nothing leaves the session on its own. The page names the model as a methods
+  section names it -- "Logistic regression model", not "glm, lm" -- and the
+  figure on it is drawn tall enough for its rows to be read and embedded at the
+  size the page shows it at, since a forest plot is read from its numbers.
 * The result is a `ggplot2` object, so layers, scales and themes are added to
   it with `+`, and with `&` to reach the table beside the plot as well. The
   estimates travel with the figure, so `summary()`, `as.data.frame()`,
@@ -43,7 +97,9 @@ First release.
 These are known gaps rather than oversights, and are candidates for later
 releases.
 
-* Continuous effect modifiers. Categorize with `cut()` first.
+* Continuous effect modifiers, meaning those taking three or more values.
+  Categorize with `cut()` first. A numeric modifier taking exactly two values
+  is not one of these and is drawn as the two subgroups it is.
 * More than one effect modifier per call to `foresty_interaction()`. Call it
   once per modifier and put the results together with `foresty_combine()`.
 * Exposures entered as splines, unless `at` gives the two values to contrast,
@@ -175,6 +231,22 @@ releases.
   `"jama"`, `"nejm"`, `"lancet"`, `"bmj"` and `"revman"`. The styles set the
   colours, the marks, the rules, which side the numbers go on, and how the
   numbers and p-values are written; anything they set can be overridden.
+* `colour_by` draws the rows in colours of their own rather than the figure in
+  one: `"category"` gives every category a colour -- the levels of a
+  categorical exposure, the subgroups of the modifier -- and a category keeps
+  its colour wherever it appears, so a combined figure reads across its blocks;
+  `"row"` gives every row one. `colours` says which colours, as the name of a
+  ColorBrewer palette or as the colours themselves, and `foresty_colours()`
+  builds one starting from a chosen place in a palette, so that a single colour
+  can be asked for as the third of Dark2 rather than as a hex code. The
+  reference level of a categorical exposure stays hollow either way, and no
+  legend is drawn: the rows are labelled already.
+* `theme` draws the plot on one of `ggplot2`'s themes -- `"bw"`, `"minimal"`,
+  `"classic"` and the rest, or a theme object -- for its background, its border
+  and its grid. It is the plot's theme, not the figure's: the columns of
+  numbers beside it are a table and keep their own. Everything the layout sets
+  is applied over it, so `grid` remains the one thing that says whether a grid
+  is drawn.
 * The figure is drawn on one shared scale across its panels, rather than a
   discrete scale in the plot and a continuous one beside it, so a number sits
   at exactly the height of the interval it belongs to. The rules, the shading
@@ -272,6 +344,34 @@ releases.
   so that a figure reports a log odds ratio read against zero rather than an
   odds ratio read against one. `tidy()` and `summary()` follow it, and figures
   drawn on the two scales cannot be combined onto one axis.
+* The app takes a fitted model rather than data, and does not fit one for you.
+  Which model to fit is the part of the analysis that belongs in a script, and
+  the estimates a forest plot reports come out of a fit's coefficients and
+  covariance matrix, so there is nothing to draw until the model exists. What
+  the app is for is the fiddling: `foresty_layout()` alone has some thirty
+  arguments, and finding the figure a journal wants by editing a call and
+  re-running it is slow. It offers no control that changes the type of a
+  variable either, since that means fitting a different model; a variable that
+  cannot be a modifier is listed under a heading saying so, and the guard's own
+  sentence -- the one naming `cut()` -- is shown where the figure would have
+  been, in front of the choice rather than behind it.
+* A modifier stored as a number but taking only two values is drawn rather than
+  refused. What made a continuous modifier worth refusing was that it has no
+  levels to draw rows for, and a flag coded 0 and 1 -- which is how a flag
+  usually reaches a regression -- has two: it entered the model through the one
+  coefficient a two-level factor would have given, so the subgroup estimates,
+  the intervals and the joint test are the same to the last digit whether or
+  not it was wrapped in `factor()`. Being sent away to refit an identical model
+  was the commonest way of meeting the guard. Three or more values are still
+  refused, and the message now says how many were found and that two would have
+  been taken: the model fitted those as a straight line, so the rows would be
+  constrained to equal steps while appearing to have been estimated freely, and
+  the test would keep the one degree of freedom a figure of three rows implies
+  it has spent. Such a modifier is a refit the caller asks for, not one
+  `foresty` performs. The rows of a numeric modifier are labelled with its
+  values, `0` and `1`, since 0 and 1 are as often two groups as they are an
+  absence and a presence; name them with `level_labels = c("0" = "Female", "1"
+  = "Male")`.
 * `lme4::lmer()` and `lme4::glmer()` are supported. Neither worked before: an
   S4 fit cannot be subsetted, and the package asked every fit for elements it
   keeps in a slot, which was an error rather than a missing value. What such a

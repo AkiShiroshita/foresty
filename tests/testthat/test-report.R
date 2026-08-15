@@ -150,6 +150,67 @@ test_that("a report of a linear model reports differences, not ratios", {
   expect_false(grepl("Odds ratio", html, fixed = TRUE))
 })
 
+test_that("the page names the model rather than the class of the object", {
+  skip_if_not_installed("gt")
+  file <- fy_temp_html()
+  on.exit(unlink(file), add = TRUE)
+  foresty_report(foresty_main(list(fy_test_logistic()), exposure = "no2"),
+                 file = file)
+  html <- paste(readLines(file, warn = FALSE), collapse = "\n")
+
+  # A reader checking the page against a methods section is looking for the
+  # model, not for the function that fitted it.
+  expect_match(html, "Logistic regression model", fixed = TRUE)
+  expect_false(grepl(">glm, lm<", html, fixed = TRUE))
+
+  # Every column of numbers is headed with the confidence level, so a row of
+  # its own saying it again is not there.
+  expect_false(grepl("Confidence level", html, fixed = TRUE))
+  expect_match(html, "95% CI", fixed = TRUE)
+})
+
+test_that("each kind of model is named as that kind of model", {
+  d <- foresty_cohort
+  expect_equal(fy_model_name(fy_test_logistic()), "Logistic regression model")
+  expect_equal(fy_model_name(fy_test_linear()), "Linear regression model")
+  expect_equal(
+    fy_model_name(glm(asthma ~ no2, family = poisson, data = d)),
+    "Poisson regression model"
+  )
+  expect_equal(
+    fy_model_name(glm(asthma ~ no2 + offset(log(followup_years)),
+                      family = poisson, data = d)),
+    "Poisson rate model"
+  )
+  expect_equal(
+    fy_model_name(glm(asthma ~ no2, family = binomial(link = "log"), data = d)),
+    "Log-binomial regression model"
+  )
+  # A model this package has never heard of is still named something, and what
+  # fitted it is the only honest thing left to say.
+  expect_match(fy_model_name(structure(list(), class = "brms_fit")),
+               "brms_fit model")
+})
+
+test_that("the figure on the page is drawn tall enough to be read", {
+  # Ten inches wide and two and a half tall is a strip rather than a forest
+  # plot: the rows are what a reader is there for, and the height is what sets
+  # them apart.
+  one <- foresty_main(list(fy_test_logistic()), exposure = "no2")
+  expect_gte(fy_plot_height(one), 3)
+
+  # A figure of many rows is taller still, half an inch apiece.
+  many <- foresty_main(
+    list(glm(asthma ~ urbanicity + sex, family = binomial,
+             data = foresty_cohort)),
+    exposure = "urbanicity"
+  )
+  expect_gte(fy_plot_height(many), fy_plot_height(one))
+
+  # A height asked for is the height drawn.
+  expect_equal(fy_plot_height(one, height = 3), 3)
+})
+
 test_that("only a foresty object can be reported", {
   expect_error(foresty_report(list(a = 1), file = tempfile()),
                "foresty_interaction")

@@ -51,6 +51,68 @@ test_that("the colour of the estimates is the one the layout was given", {
   expect_true(all(points$colour == "#B24745"))
 })
 
+test_that("the rows are drawn in a colour apiece when the layout asks", {
+  fit <- fy_test_logistic()
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                           layout = foresty_layout("classic",
+                                                   colour_by = "category"))
+  points <- fy_marks(x)
+
+  # One colour per subgroup, from Dark2, and the interval drawn in the colour
+  # of the mark on it.
+  expect_equal(sort(unique(points$fill)), sort(foresty_colours("Dark2")[1:2]))
+  expect_equal(points$colour, points$fill)
+  expect_equal(sort(unique(fy_bars(x)$colour)),
+               sort(foresty_colours("Dark2")[1:2]))
+
+  # The reference level of a categorical exposure is hollow whatever the
+  # figure is coloured by: it was not estimated.
+  y <- foresty_main(list(fit), exposure = "maternal_smoking",
+                    layout = foresty_layout("classic", colour_by = "category",
+                                            colours = "Set1"))
+  marks <- fy_marks(y)
+  expect_true("white" %in% marks$fill)
+  expect_true(foresty_colours("Set1")[2] %in% marks$fill)
+
+  # And a figure that asked for none of this is drawn exactly as it was.
+  expect_true(all(fy_marks(foresty_interaction(fit, exposure = "no2",
+                                               interaction = "sex"))$fill ==
+                    "black"))
+})
+
+test_that("a palette is named, or the colours are given, or neither", {
+  expect_length(foresty_colours("Dark2"), 8L)
+  expect_equal(foresty_colours("Dark2", start = 3)[1L],
+               foresty_colours("Dark2")[3L])
+  # Starting late wraps round rather than running out.
+  expect_equal(sort(foresty_colours("Dark2", start = 7)),
+               sort(foresty_colours("Dark2")))
+  expect_length(foresty_colours("Set2", n = 12), 12L)
+
+  expect_equal(fy_layout_colours(NULL), foresty_colours("Dark2"))
+  expect_equal(fy_layout_colours("Set1"), foresty_colours("Set1"))
+  expect_equal(fy_layout_colours(c("red", "blue")), c("red", "blue"))
+  expect_error(foresty_layout("classic", colours = "Viridis"), "palette")
+})
+
+test_that("the plot can be drawn on a ggplot2 theme of its own", {
+  fit <- fy_test_logistic()
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                           layout = foresty_layout("classic", theme = "bw"))
+  expect_silent(print(x))
+
+  # The theme reaches the plot, and the grid stays the layout's to say.
+  built <- ggplot2::ggplot_build(x)
+  panel <- if (inherits(x, "patchwork")) x[[length(x)]] else x
+  theme <- ggplot2::ggplot_build(panel)$plot$theme
+  expect_s3_class(theme$panel.background, "element_rect")
+  expect_s3_class(theme$panel.grid.major.x, "element_blank")
+
+  expect_error(foresty_layout("classic", theme = "sepia"), "ggplot2 theme")
+  expect_s3_class(foresty_layout("classic", theme = ggplot2::theme_bw()),
+                  "foresty_layout")
+})
+
 test_that("p-values are written the way the journal asks", {
   expect_equal(fy_format_p(c(0.0004, 0.0231, 0.005, 0.995, NA)),
                c("<0.001", "0.023", "0.005", "0.995", ""))
