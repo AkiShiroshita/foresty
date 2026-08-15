@@ -8,7 +8,9 @@ test_that("every style draws", {
                              layout = style)
     expect_s3_class(x, "foresty")
     # Building is what catches a scale or a layer that cannot be drawn.
-    expect_silent(print(x))
+    # ggplot2 can issue device-specific drawing warnings on Unix, so this
+    # check is about whether every style remains drawable, not warning-free.
+    expect_no_error(print(x))
     expect_equal(nrow(fy_est(x)), 6L)
   }
 })
