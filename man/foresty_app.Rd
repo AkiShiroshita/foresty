@@ -66,7 +66,7 @@ effects of different exposures are not read against each other.
 
 How big a difference in the exposure each estimate is for -- one unit, an
 interquartile range, an increment you name, its two ends either way round,
-one quantile of it to another, two values you name -- is asked once for each
+the first to the third quantile, two values you name -- is asked once for each
 continuous exposure rather than once for all of them, since two exposures
 rarely want the same answer. The lowest and highest values it takes are
 written under the choice, and are where naming two values starts from.
@@ -76,10 +76,14 @@ named, one unit included -- \code{"no2 (per 1)"}, \code{"no2 (per 10)"},
 screen should not have to know that a row saying nothing means one.
 
 Which way round the comparison runs is written with an arrow rather than as
-"from ... to ...", since that is the part a reader gets wrong: \verb{Lowest value -> highest value} is the effect of being at the top of the exposure rather
-than the bottom, and the reverse of it is the same estimate the other way up,
-which is how a protective effect is drawn as one. The two boxes that name two
-values are headed the same way.
+"from ... to ...", since that is the part a reader gets wrong: \verb{Lowest value -> Highest value} is the effect of being at the top of the exposure rather
+than the bottom, and \strong{Reverse the direction} turns it into the same
+estimate the other way up, which is how a protective effect is drawn as one.
+The two boxes that name two values are headed the same way, and so is the
+figure: two values compared are written beside the exposure as
+\code{"no2 (4.102 -> 38.72)"} rather than as "38.72 vs 4.102", which says which
+two values were compared without saying which of them the estimate is the
+effect of moving to.
 
 From one quantile to another is not the interquartile range, though it
 begins at the quartiles: the range is a width, and an effect per one of it
@@ -90,18 +94,17 @@ two probabilities can be set to anything -- the 10th against the 90th, the
 median against the top decile -- rather than only 0.25 and 0.75.
 }
 
-\section{What things are called}{
+\section{Figure style names}{
 
 
 The rows, the axis and the columns of a figure are named after columns of a
-data set, and a column is called what the data set calls it. \strong{What things
-are called} renames the outcome -- which is otherwise taken from the left of
-your formula, \code{asthma_ever_dx} and all -- and replaces the label under the
-plot outright; each exposure is renamed in its own box under \strong{Each
-exposure}, where the unit goes too, since \code{foresty} cannot know what the
-numbers in a column mean. A model carrying person-time is also asked what
-unit to count it in, 1,000 or 100,000 being how a paper reports a rate and
-six figures beside the plot being width the plot could have had.
+data set, and a column is called what the data set calls it. \strong{Figure style}
+renames the outcome -- which is otherwise taken from the left of your
+formula, \code{asthma_ever_dx} and all -- replaces the label under the plot
+outright, and names each selected exposure. A model carrying person-time is
+also asked what unit to count it in, 1,000 or 100,000 being how a paper
+reports a rate and six figures beside the plot being width the plot could
+have had.
 }
 
 \section{A model too slow to redraw}{

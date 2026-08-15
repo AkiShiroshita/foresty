@@ -19,7 +19,8 @@ foresty_report(
 
 \item{file}{Path to write to. A \code{.html} extension is added if missing.}
 
-\item{title}{Page title. The default names the exposure and the modifier.}
+\item{title}{Browser page title. The default names the exposure and the
+modifier; it is not displayed in the report body.}
 
 \item{model}{Which model to report the coefficients of, when the figure
 covers several. The default reports every one of them.}

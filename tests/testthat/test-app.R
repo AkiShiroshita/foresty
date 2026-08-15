@@ -272,7 +272,7 @@ test_that("an exposure is asked about with the values it actually takes", {
   # Which way round the comparison runs is written with an arrow, since
   # "from ... to ..." spread over a line of prose is where a reader gets it
   # wrong.
-  expect_match(html, "Lowest value to Highest value",
+  expect_match(html, paste0("Lowest value ", fy_arrow, " Highest value"),
                fixed = TRUE)
   expect_match(html, "Reverse the direction", fixed = TRUE)
   expect_match(html, paste0(fy_arrow, " To value"), fixed = TRUE)

@@ -101,7 +101,7 @@ be compared with anything unless the figure says which range that was.
 its levels.}
 
 \item{at}{The two values of the exposure to contrast, as \code{c(from, to)}.
-Which two they were is written beside the exposure, as \code{"NO2 (20 vs 10)"},
+Which two they were is written beside the exposure, as \code{"NO2 (10 -> 20)"},
 wherever the exposure is named: every row of a figure is that same
 comparison taken within another subgroup, so it is said once rather than
 on each of them. An exposure entered as a spline, or in any other way that
@@ -115,8 +115,8 @@ the two values are two of its levels.}
 own. \code{"robust"} gives the heteroskedasticity-consistent sandwich estimator
 (\code{HC1}), and \code{"HC0"} to \code{"HC4"} name one exactly; both come from the
 \code{sandwich} package. A function is called on the fit, and a matrix is used
-as it stands. For a Cox model refit with \code{robust = TRUE}, and for an \code{rms}
-fit use \code{\link[rms:robcov]{rms::robcov()}}; a fit that is already robust is used as it is.}
+as it stands. For a Cox model refit with \code{robust = TRUE}; a fit that is
+already robust is used as it is.}
 
 \item{cluster}{Cluster-robust standard errors, passed to
 \code{\link[sandwich:vcovCL]{sandwich::vcovCL()}}. It says which observations belong together, so it

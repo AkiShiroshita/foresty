@@ -28,7 +28,7 @@ foresty_main(
 }
 \arguments{
 \item{fits}{A list of fitted models. Models fitted by \code{\link[stats:glm]{stats::glm()}},
-\code{\link[stats:lm]{stats::lm()}}, the \code{survival} package and the \code{rms} package are supported,
+\code{\link[stats:lm]{stats::lm()}} and the \code{survival} package are supported,
 as is any fit supplying \code{coef()}, \code{vcov()} and a model frame.}
 
 \item{exposure}{Name of the exposure variable in each model, as a character
@@ -82,7 +82,7 @@ be compared with anything unless the figure says which range that was.
 its levels.}
 
 \item{at}{The two values of the exposure to contrast, as \code{c(from, to)}.
-Which two they were is written beside the exposure, as \code{"NO2 (20 vs 10)"},
+Which two they were is written beside the exposure, as \code{"NO2 (10 -> 20)"},
 wherever the exposure is named: every row of a figure is that same
 comparison taken within another subgroup, so it is said once rather than
 on each of them. An exposure entered as a spline, or in any other way that
@@ -96,8 +96,8 @@ the two values are two of its levels.}
 own. \code{"robust"} gives the heteroskedasticity-consistent sandwich estimator
 (\code{HC1}), and \code{"HC0"} to \code{"HC4"} name one exactly; both come from the
 \code{sandwich} package. A function is called on the fit, and a matrix is used
-as it stands. For a Cox model refit with \code{robust = TRUE}, and for an \code{rms}
-fit use \code{\link[rms:robcov]{rms::robcov()}}; a fit that is already robust is used as it is.}
+as it stands. For a Cox model refit with \code{robust = TRUE}; a fit that is
+already robust is used as it is.}
 
 \item{cluster}{Cluster-robust standard errors, passed to
 \code{\link[sandwich:vcovCL]{sandwich::vcovCL()}}. It says which observations belong together, so it
@@ -193,11 +193,8 @@ foresty_main(list(fit), exposure = "no2", at = c(10, 20))
 }\if{html}{\out{</div>}}
 
 The basis has to be built inside the formula, by \code{splines::ns()},
-\code{splines::bs()}, \code{stats::poly()}, \code{\link[rms:rcs]{rms::rcs()}} or any other function of the
-variable, because the contrast is taken between two rows of the model's own
-design matrix and those two rows are built by evaluating the formula at the
-two values. That is what makes the answer agree with \code{\link[rms:contrast]{rms::contrast()}} on an
-\code{rms} fit and with a difference of two \code{\link[stats:predict]{stats::predict()}} calls on a \code{glm}.
+\code{splines::bs()}, \code{stats::poly()} or another function of the variable, so the
+two design-matrix rows can be evaluated at the two values.
 
 A basis computed before the fit and entered as columns of its own --
 \code{Hmisc::rcspline.eval()} written into \code{spline1}, \code{spline2}, \code{spline3} and
@@ -208,7 +205,7 @@ the model refuses, saying that it is not in the model. Put the basis in the
 formula instead, which fits exactly the same model:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{knots <- quantile(d$age, probs = c(0.05, 0.35, 0.65, 0.95))
-fit <- glm(y ~ rms::rcs(age, knots) + sex, family = binomial, data = d)
+fit <- glm(y ~ splines::ns(age, 4) + sex, family = binomial, data = d)
 foresty_main(list(fit), exposure = "age", at = c(30, 60))
 }\if{html}{\out{</div>}}
 }

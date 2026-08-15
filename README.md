@@ -16,7 +16,11 @@ It also makes **publication-ready** forest plots easy to produce, with a
 Shiny app for exploring the results interactively and an **HTML report**
 that documents the model behind them.
 
+![](man/figures/demo.png)
+
 ## Try it first
+
+![](man/figures/ui.png)
 
 Installation:
 

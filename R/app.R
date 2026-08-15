@@ -49,10 +49,14 @@
 #'
 #' Which way round the comparison runs is written with an arrow rather than as
 #' "from ... to ...", since that is the part a reader gets wrong: `Lowest value
-#' -> highest value` is the effect of being at the top of the exposure rather
-#' than the bottom, and the reverse of it is the same estimate the other way up,
-#' which is how a protective effect is drawn as one. The two boxes that name two
-#' values are headed the same way.
+#' -> Highest value` is the effect of being at the top of the exposure rather
+#' than the bottom, and **Reverse the direction** turns it into the same
+#' estimate the other way up, which is how a protective effect is drawn as one.
+#' The two boxes that name two values are headed the same way, and so is the
+#' figure: two values compared are written beside the exposure as
+#' `"no2 (4.102 -> 38.72)"` rather than as "38.72 vs 4.102", which says which
+#' two values were compared without saying which of them the estimate is the
+#' effect of moving to.
 #'
 #' From one quantile to another is not the interquartile range, though it
 #' begins at the quartiles: the range is a width, and an effect per one of it
@@ -729,7 +733,7 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
         # Written by its code point so that the file stays plain ASCII.
         stats::setNames(
           c("range", "quantile"),
-          c("Lowest value to Highest value",
+          c(paste0("Lowest value ", fy_arrow, " Highest value"),
             paste0("First quartile ", fy_arrow, " Third quartile"))
         )
       )
@@ -836,6 +840,12 @@ fy_app_modifier_labels_ui <- function(modifier, id, info, input) {
   shiny::div(
     class = "fy-exposure",
     shiny::tags$strong(paste0("Subgroup names: ", modifier)),
+    shiny::textInput(
+      paste0("modifier_label_", id),
+      paste0("What to call ", modifier, " on the figure"),
+      value = kept(paste0("modifier_label_", id), ""),
+      placeholder = modifier
+    ),
     lapply(seq_along(levels), function(i) {
       shiny::textInput(
         paste0("level_label_", id, "_", i),
@@ -1227,7 +1237,7 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
   } else {
     args[[1L]] <- fit_symbol
     args$exposure <- named
-    args$interaction <- modifier
+    args$interaction <- fy_app_modifier_arg(input, modifier, ctx)
   }
 
   if (!is.null(ctx$measure)) args$measure <- ctx$measure
@@ -1271,6 +1281,17 @@ fy_app_exposure_arg <- function(input, exposure, ctx) {
     return(exposure)
   }
   stats::setNames(exposure, trimws(label))
+}
+
+# The modifier is named where its subgroup labels are edited.  Naming it in
+# `interaction` lets foresty use the same name for the subgroup heading, title
+# and HTML report.
+fy_app_modifier_arg <- function(input, modifier, ctx) {
+  id <- ctx$variables$ids[[modifier]]
+  if (is.null(id)) return(modifier)
+  label <- input[[paste0("modifier_label_", id)]]
+  if (is.null(label) || !nzchar(trimws(label))) return(modifier)
+  stats::setNames(modifier, trimws(label))
 }
 
 # The same thing as a `labels` vector, for the places that ask the package what
@@ -1756,7 +1777,7 @@ fy_app_specs_lines <- function(pairs, input, ctx, coloured = FALSE) {
   items <- vapply(pairs, function(pair) {
     args <- list(exposure = fy_app_exposure_arg(input, pair$exposure, ctx))
     if (!is.null(pair$modifier)) {
-      args$interaction <- pair$modifier
+      args$interaction <- fy_app_modifier_arg(input, pair$modifier, ctx)
     }
   args <- c(args, fy_app_contrast_args(input, pair$exposure, ctx))
   if (!is.null(pair$modifier)) {

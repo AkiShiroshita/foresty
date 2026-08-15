@@ -10,4 +10,12 @@
 ^\.quarto$
 ^Rplots\.pdf$
 ^[^/]*\.html$
+^[^/]*\.rds$
 ^\.claude$
+^\.Rhistory$
+^\.RData$
+^Rbuildignore\.txt$
+^cran-comments\.md$
+^.*\.tar\.gz$
+^CRAN-SUBMISSION$
+^revdep$
