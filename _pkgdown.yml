@@ -27,3 +27,6 @@ reference:
   - title: Data
     contents:
       - foresty_cohort
+  - title: Package
+    contents:
+      - foresty-package

@@ -16,6 +16,7 @@
 ^\.RData$
 ^Rbuildignore\.txt$
 ^cran-comments\.md$
+^TODO\.md$
 ^.*\.tar\.gz$
 ^CRAN-SUBMISSION$
 ^revdep$

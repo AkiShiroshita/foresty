@@ -25,6 +25,10 @@ knitr::opts_chunk$set(
 
 <img src="man/figures/logo.png" alt="Logo of foresty" align="right" height="120" />
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 Visualize interaction effects with publication-ready forest plots.
 
 An interaction p-value tells you whether the effect differs between subgroups,
@@ -36,7 +40,11 @@ It also makes **publication-ready** forest plots easy to produce, with a Shiny a
 for exploring the results interactively and an **HTML report** that documents the
 model behind them.
 
+![](man/figures/demo.png)
+
 ## Try it first
+
+![](man/figures/ui.png)
 
 Installation:
 
@@ -72,7 +80,8 @@ exploration becomes a reproducible script.
 
 ## Use it in R
 
-`foresty` has three main functions (see the vignettes for details):
+`foresty` has three main functions (see `vignette("getting-started")` for
+details):
 
 1. **`foresty_main()`** — draws the effect of one or more exposures from models
    you have already fitted.
@@ -99,7 +108,7 @@ Styles are approximations of journal layouts rather than official journal
 templates.
 
 The output can be customized further with ordinary
-`ggplot2` layers, and it can be passed to `summary()`, `predct()`, `broom::tidy()`, and
+`ggplot2` layers, and it can be passed to `summary()`, `predict()`, `broom::tidy()`, and
 `broom::glance()`, etc. 
 
 ## Supported models
@@ -146,7 +155,8 @@ interactions**.
   English-language proofreading. The design, decisions and final
   responsibility remain the author's.
   
-- Subgroup-specific effect sizes are computed through [car](https://github.com/bprice2652/car_repo).
+- Subgroup-specific effect sizes are computed through
+  [car](https://CRAN.R-project.org/package=car).
 
 - The forest plot designs took their cues from [meta](https://github.com/guido-s/meta).
 
