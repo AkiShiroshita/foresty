@@ -55,7 +55,7 @@ head(predict(x, type = "response"))
 #> 0.2041944 0.1448737 0.2940672 0.1463728 0.1130710 0.1893753 
 formula(x)
 #> asthma ~ no2 + sex + no2:sex
-#> <environment: 0x55c002b37ff0>
+#> <environment: 0x55fe4fe46c38>
 nobs(x)
 #> [1] 4000
 ```
