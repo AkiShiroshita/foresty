@@ -22,6 +22,7 @@ reference:
       - foresty_app
   - title: Working with the result
     contents:
+      - print.foresty
       - summary.foresty
       - foresty-tidiers
       - foresty-model-methods
