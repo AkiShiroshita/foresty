@@ -30,6 +30,8 @@ Useful links:
 
 - <https://github.com/AkiShiroshita/foresty>
 
+- <https://akishiroshita.github.io/foresty/>
+
 - Report bugs at <https://github.com/AkiShiroshita/foresty/issues>
 
 ## Author
@@ -40,3 +42,5 @@ holder\]
 Authors:
 
 - Akihiro Shiroshita <akihirokun8@gmail.com> \[copyright holder\]
+
+- Yuki Kataoka <youkiti@gmail.com>

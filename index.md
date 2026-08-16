@@ -127,7 +127,7 @@ interactions**.
 ## Use it in R
 
 `foresty` has four main functions (see
-[`vignette("getting-started")`](https://akishiroshita.github.io/foresty/articles/getting-started.md)
+[`vignette("forest")`](https://akishiroshita.github.io/foresty/articles/forest.md)
 for details):
 
 1.  **[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)**
