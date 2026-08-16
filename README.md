@@ -124,7 +124,7 @@ interactions**.
 
 ## Use it in R
 
-`foresty` has four main functions (see `vignette("getting-started")` for
+`foresty` has four main functions (see `vignette("forest")` for
 details):
 
 1.  **`foresty_main()`** — draws the effect of one or more exposures

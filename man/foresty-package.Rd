@@ -14,6 +14,7 @@ An interaction p-value says whether two exposures depart from a common model, no
 Useful links:
 \itemize{
   \item \url{https://github.com/AkiShiroshita/foresty}
+  \item \url{https://akishiroshita.github.io/foresty/}
   \item Report bugs at \url{https://github.com/AkiShiroshita/foresty/issues}
 }
 
@@ -24,6 +25,7 @@ Useful links:
 Authors:
 \itemize{
   \item Akihiro Shiroshita \email{akihirokun8@gmail.com} [copyright holder]
+  \item Yuki Kataoka \email{youkiti@gmail.com}
 }
 
 }
