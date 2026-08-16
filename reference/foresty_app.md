@@ -13,7 +13,13 @@ into your script.
 ## Usage
 
 ``` r
-foresty_app(fit, measure = NULL, launch = interactive(), ...)
+foresty_app(
+  fit,
+  measure = NULL,
+  launch = interactive(),
+  launch.browser = TRUE,
+  ...
+)
 ```
 
 ## Arguments
@@ -39,11 +45,20 @@ foresty_app(fit, measure = NULL, launch = interactive(), ...)
   and [`shiny::runApp()`](https://rdrr.io/pkg/shiny/man/runApp.html)
   want.
 
+- launch.browser:
+
+  Passed to
+  [`shiny::runApp()`](https://rdrr.io/pkg/shiny/man/runApp.html).
+  `TRUE`, the default, opens the app in the system browser as soon as it
+  starts, rather than leaving a URL to be clicked or drawing it into the
+  viewer pane of an IDE. `FALSE` starts it and says where it is, which
+  is what a remote session or a scripted screenshot wants.
+
 - ...:
 
   Passed to
   [`shiny::runApp()`](https://rdrr.io/pkg/shiny/man/runApp.html), so
-  that `port` and `launch.browser` can be set.
+  that `port` and `host` can be set.
 
 ## Value
 
@@ -115,6 +130,31 @@ the two probabilities can be set to anything – the 10th against the
 90th, the median against the top decile – rather than only 0.25 and
 0.75.
 
+## One reference group instead of one per subgroup
+
+A subgroup figure reads each subgroup against its own reference level,
+so the rows of one subgroup are not comparisons with the rows of
+another. Where the exposure and the modifier both have levels there is a
+second question: what every combination of the two comes to against one
+of them, which is the table of groups against a baseline group a paper
+reports. **Model** asks it once per effect modifier chosen – *Compare
+every combination of the exposure and ... with one group* – and the
+menus under the box say which combination the rest are read against: a
+level of the modifier, and a level of each exposure that has levels.
+
+Every row is then that whole cell – this level of the exposure, this
+level of the modifier – against the one chosen, all of it out of the
+same interaction model, and the cell chosen is drawn as the reference it
+is. The p-value beside the rows is the same joint test of the
+interaction either way: it asks whether the effect of the exposure
+depends on the modifier, and it is not a test of the rows. See the
+`reference` argument of
+[`foresty_interaction()`](https://akishiroshita.github.io/foresty/reference/foresty_interaction.md).
+
+A continuous exposure has no levels to combine, so a pair with one is
+drawn as it always was whatever the box says: its rows are the effect of
+a difference in the exposure rather than groups of people.
+
 ## Figure style names
 
 The rows, the axis and the columns of a figure are named after columns
@@ -168,11 +208,21 @@ is the summary of the model you fitted and of every model the app fitted
 from it by adding an interaction term. Both tabs head each block with
 the outcome, the exposure and the effect modifier the figure under it is
 of, since a coefficient table says none of them. **R code** is the code
-that drew what is beside it, deparsed rather than reconstructed, so it
-cannot drift from what you are looking at; several pairs are written as
-a loop over the pairs rather than as one call apiece. It names the model
-with the name you passed to `foresty_app()`, so pasting it into a script
-next to that model works as it stands.
+twice over. *With foresty* is the code that drew what is beside it,
+deparsed rather than reconstructed, so it cannot drift from what you are
+looking at; several pairs are written as a loop over the pairs rather
+than as one call apiece. It names the model with the name you passed to
+`foresty_app()`, so pasting it into a script next to that model works as
+it stands. *How to calculate effect estimates for each subgroup* is
+where those numbers come from, in base R and the `car` package with
+nothing from this package in them: the interaction term, the linear
+combination of the coefficients each subgroup estimate is, and the joint
+test reported beside them. It is there for a reader deciding whether to
+take the dependency at all, and for one who would rather see what is
+being done on their behalf than take it on trust. It comes to the
+estimates on the Plot tab exactly – the same design matrix, the same
+coefficients and covariance, the same degrees of freedom and the same
+test – and draws nothing: drawing them is what the call above it is for.
 
 ## What comes out
 

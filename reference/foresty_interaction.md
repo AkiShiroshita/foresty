@@ -17,6 +17,7 @@ foresty_interaction(
   exponentiate = TRUE,
   labels = NULL,
   level_labels = NULL,
+  reference = NULL,
   outcome = NULL,
   ci_level = 0.95,
   contrast = NULL,
@@ -99,6 +100,16 @@ foresty_interaction(
   Named character vector giving the label to draw for a level of the
   modifier, as `c(F = "Female", M = "Male")`, or
   `c("0" = "No", "1" = "Yes")` for a modifier coded as a flag.
+
+- reference:
+
+  The one combination of the exposure and the modifier every row is
+  compared with, as a named character vector naming a level of each:
+  `reference = c(ecog = "0-1", egfr = "Negative")`. `TRUE` takes the
+  first level of each. `NULL`, the default, compares nothing across
+  subgroups: each row is the effect of the exposure inside its own
+  subgroup. Both variables must be categorical for a combination of them
+  to be a group at all. See *One reference group for the whole figure*.
 
 - outcome:
 
@@ -201,8 +212,9 @@ foresty_interaction(
   outright, as `person_time = c("Person-years (per 1,000)" = 1000)`. The
   unit reaches the figure,
   [`summary()`](https://rdrr.io/r/base/summary.html) and the HTML report
-  alike; the estimates themselves are untouched, `person_time` being how
-  the column is written and not what was fitted.
+  alike. It does not refit the model or change its estimates, confidence
+  intervals, or p-values: `person_time` controls only how the
+  person-time column is written.
 
 - layout:
 
@@ -271,6 +283,34 @@ interaction terms. Every subgroup therefore shares one estimate of the
 covariate effects, and the interaction can be tested. The combinations
 and their tests are computed by
 [`car::linearHypothesis()`](https://rdrr.io/pkg/car/man/linearHypothesis.html).
+
+## One reference group for the whole figure
+
+By default every row is the effect of the exposure inside one subgroup,
+so each subgroup is read against its own reference level and the rows of
+one subgroup are not comparisons with the rows of another. Where the
+exposure and the modifier are both categorical there is a second
+question a figure can answer: what every combination of the two comes to
+against one of them. `reference` asks it.
+`reference = c(ecog = "0-1", egfr = "Negative")` names the one
+combination the rest are compared with, and each row is then that whole
+cell – this level of the exposure and this level of the modifier –
+against that cell, all of it out of the same interaction model. The cell
+named carries no estimate of its own and is drawn as the reference it
+is.
+
+The two figures answer different questions and the difference is worth
+being clear about. Without `reference`, a row says how much the exposure
+matters in that subgroup, and the interaction test beside the rows says
+whether those effects differ. With it, a row says how far that
+combination of the two variables is from one chosen combination, which
+is what a table of six groups against one baseline group reports, and
+the interaction test beside them is the same test of the same
+coefficients: it still asks whether the effect of the exposure depends
+on the modifier, and it is not a test of the rows.
+
+`reference = TRUE` takes the first level of each, which is the cell a
+model takes as its own baseline.
 
 ## Testing the interaction
 
@@ -374,6 +414,14 @@ foresty_interaction(fit, exposure = "no2", interaction = "maternal_smoking")
 # reported side by side.
 foresty_interaction(fit, exposure = c(NO2 = "no2"),
                     interaction = c(Sex = "sex"), test = "both")
+
+
+# Every combination of two categorical variables against one of them, which
+# is the other question a two-way table of groups asks.
+fit2 <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+            data = foresty_cohort)
+foresty_interaction(fit2, exposure = "urbanicity", interaction = "sex",
+                    reference = c(urbanicity = "Rural", sex = "Female"))
 
 
 # The subgroup estimates, the numbers behind them and the test of the

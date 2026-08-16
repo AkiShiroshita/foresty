@@ -41,7 +41,13 @@
 <div class="section level3">
 <h3 id="features-0-0-1">Features<a class="anchor" aria-label="anchor" href="#features-0-0-1"></a></h3>
 <ul><li>
-<code><a href="../reference/foresty_app.html">foresty_app()</a></code> provides a Shiny interface for interactively selecting exposures, modifiers, contrasts, colours, and plot layouts.</li>
+<code><a href="../reference/foresty_app.html">foresty_app()</a></code> provides a Shiny interface for interactively selecting exposures, modifiers, contrasts, colours, and plot layouts. It opens in the system browser by default; pass <code>launch.browser = FALSE</code> to have it print its address instead.</li>
+<li>The application wears the same <code>bslib</code> “flatly” interface as the <code>ggstratify</code> package – grey title bar, green tabs, a sidebar of accordion panels – so that the two are read as one pair of tools.</li>
+<li>Its <strong>R code</strong> tab writes the code twice over: the <code>foresty</code> call that drew the figures, and, under <em>How to calculate effect estimates for each subgroup</em>, where those numbers come from in base R and the <code>car</code> package with nothing from this package in them – the interaction term, the linear combination of the coefficients each subgroup estimate is, and the joint test reported beside them. It comes to the estimates on the Plot tab exactly and draws nothing.</li>
+<li>
+<code>reference</code> in <code><a href="../reference/foresty_interaction.html">foresty_interaction()</a></code> reads every combination of a categorical exposure and a categorical modifier against one combination of them – <code>reference = c(ecog = "0-1", egfr_mutation = "Negative")</code> – rather than reading each subgroup against its own reference level, which is the table of groups against a baseline group a paper reports. The <strong>Model</strong> panel of <code><a href="../reference/foresty_app.html">foresty_app()</a></code> offers it once per effect modifier, with menus naming the group.</li>
+<li>
+<code><a href="../reference/foresty_data.html">foresty_data()</a></code> draws the same figure – the forest plot and the table of numbers beside it, aligned row for row, in any of the journal styles – from estimates you already have: a <code>data.frame</code>, <code>tibble</code> or <code>data.table</code> with one row per row of the figure. It is the entry point for numbers that did not come out of a model this package can read: a meta-analysis, a table being redrawn from a paper, a model fitted by something else. The columns holding the estimate and its interval are found by name where they are not named, so a frame from <code>broom::tidy(conf.int = TRUE)</code> needs nothing said about it. <code>group</code> blocks the rows into subgroups, <code>emphasis</code> marks the overall row drawn apart from them, and <code>interaction_p</code> is written once per block, so the figure <code><a href="../reference/foresty_app.html">foresty_app()</a></code> draws can be reproduced from its numbers alone.</li>
 <li>
 <code><a href="../reference/foresty_main.html">foresty_main()</a></code> creates forest plots for exposure effects from fitted models.</li>
 <li>
@@ -54,6 +60,7 @@
 <li>Interaction tests can use Wald, likelihood ratio, or both tests. GEE and quasi-likelihood models use the Wald test.</li>
 <li>Results are returned as <code>ggplot2</code> objects and can be further customized with standard <code>ggplot2</code> syntax.</li>
 <li>Forest plot layouts can be customized through <code><a href="../reference/foresty_layout.html">foresty_layout()</a></code>, with predefined styles including <code>"classic"</code>, <code>"jama"</code>, <code>"nejm"</code>, <code>"lancet"</code>, <code>"bmj"</code>, and <code>"revman"</code>.</li>
+<li>The plot keeps a share of the figure when the table beside it is wide, so that a survival model reporting N, events and person-time does not squeeze the axis into a row of overprinted numbers. The share is set by <code>min_plot_width</code> in <code><a href="../reference/foresty_layout.html">foresty_layout()</a></code>.</li>
 <li>
 <code><a href="../reference/foresty_report.html">foresty_report()</a></code> and the <code>html</code> argument provide self-contained HTML reports containing the model results, interaction tests, coefficient tables, and forest plots.</li>
 <li>Results can be exported as PNG or SVG figures and as <code>.rds</code> objects.</li>

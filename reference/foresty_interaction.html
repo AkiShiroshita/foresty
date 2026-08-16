@@ -62,6 +62,7 @@ self-contained HTML page carrying the joint test of the interaction.</p>
 <span>  exponentiate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  level_labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  reference <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  outcome <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  contrast <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -140,6 +141,16 @@ chosen – <code>exposure = c(NO2 = "no2")</code> – comes to the same thing.</
 <dd><p>Named character vector giving the label to draw for a
 level of the modifier, as <code>c(F = "Female", M = "Male")</code>, or
 <code>c("0" = "No", "1" = "Yes")</code> for a modifier coded as a flag.</p></dd>
+
+
+<dt id="arg-reference">reference<a class="anchor" aria-label="anchor" href="#arg-reference"></a></dt>
+<dd><p>The one combination of the exposure and the modifier every
+row is compared with, as a named character vector naming a level of each:
+<code>reference = c(ecog = "0-1", egfr = "Negative")</code>. <code>TRUE</code> takes the first
+level of each. <code>NULL</code>, the default, compares nothing across subgroups: each
+row is the effect of the exposure inside its own subgroup. Both variables
+must be categorical for a combination of them to be a group at all. See
+<em>One reference group for the whole figure</em>.</p></dd>
 
 
 <dt id="arg-outcome">outcome<a class="anchor" aria-label="anchor" href="#arg-outcome"></a></dt>
@@ -236,9 +247,9 @@ thousands of person-years and heads it <code>"Person-time (per 1,000)"</code>, s
 count of person-time that does not say what it counts cannot be read
 against another study's. Naming the number heads the column outright, as
 <code>person_time = c("Person-years (per 1,000)" = 1000)</code>. The unit reaches the
-figure, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and the HTML report alike; the estimates themselves are
-untouched, <code>person_time</code> being how the column is written and not what was
-fitted.</p></dd>
+figure, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and the HTML report alike. It does not refit the model
+or change its estimates, confidence intervals, or p-values: <code>person_time</code>
+controls only how the person-time column is written.</p></dd>
 
 
 <dt id="arg-layout">layout<a class="anchor" aria-label="anchor" href="#arg-layout"></a></dt>
@@ -302,6 +313,32 @@ the other levels it is the exposure term plus the relevant interaction
 terms. Every subgroup therefore shares one estimate of the covariate
 effects, and the interaction can be tested. The combinations and their
 tests are computed by <code><a href="https://rdrr.io/pkg/car/man/linearHypothesis.html" class="external-link">car::linearHypothesis()</a></code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="one-reference-group-for-the-whole-figure">One reference group for the whole figure<a class="anchor" aria-label="anchor" href="#one-reference-group-for-the-whole-figure"></a></h2>
+
+
+
+<p>By default every row is the effect of the exposure inside one subgroup, so
+each subgroup is read against its own reference level and the rows of one
+subgroup are not comparisons with the rows of another. Where the exposure and
+the modifier are both categorical there is a second question a figure can
+answer: what every combination of the two comes to against one of them.
+<code>reference</code> asks it. <code>reference = c(ecog = "0-1", egfr = "Negative")</code> names
+the one combination the rest are compared with, and each row is then that
+whole cell – this level of the exposure and this level of the modifier –
+against that cell, all of it out of the same interaction model. The cell
+named carries no estimate of its own and is drawn as the reference it is.</p>
+<p>The two figures answer different questions and the difference is worth being
+clear about. Without <code>reference</code>, a row says how much the exposure matters in
+that subgroup, and the interaction test beside the rows says whether those
+effects differ. With it, a row says how far that combination of the two
+variables is from one chosen combination, which is what a table of six groups
+against one baseline group reports, and the interaction test beside them is
+the same test of the same coefficients: it still asks whether the effect of
+the exposure depends on the modifier, and it is not a test of the rows.</p>
+<p><code>reference = TRUE</code> takes the first level of each, which is the cell a model
+takes as its own baseline.</p>
     </div>
     <div class="section level2">
     <h2 id="testing-the-interaction">Testing the interaction<a class="anchor" aria-label="anchor" href="#testing-the-interaction"></a></h2>
@@ -402,11 +439,19 @@ applied to the table of numbers beside the plot will spoil it. Use <code>+</code
 <span class="r-in"><span>                    interaction <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Sex <span class="op">=</span> <span class="st">"sex"</span><span class="op">)</span>, test <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="foresty_interaction-3.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Every combination of two categorical variables against one of them, which</span></span></span>
+<span class="r-in"><span><span class="co"># is the other question a two-way table of groups asks.</span></span></span>
+<span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span><span class="op">(</span><span class="va">asthma</span> <span class="op">~</span> <span class="va">urbanicity</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">maternal_age</span>, family <span class="op">=</span> <span class="va">binomial</span>,</span></span>
+<span class="r-in"><span>            data <span class="op">=</span> <span class="va">foresty_cohort</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">foresty_interaction</span><span class="op">(</span><span class="va">fit2</span>, exposure <span class="op">=</span> <span class="st">"urbanicity"</span>, interaction <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
+<span class="r-in"><span>                    reference <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>urbanicity <span class="op">=</span> <span class="st">"Rural"</span>, sex <span class="op">=</span> <span class="st">"Female"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="foresty_interaction-4.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The subgroup estimates, the numbers behind them and the test of the</span></span></span>
 <span class="r-in"><span><span class="co"># interaction, in the layout of a journal.</span></span></span>
 <span class="r-in"><span><span class="fu">foresty_interaction</span><span class="op">(</span><span class="va">fit</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, interaction <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
 <span class="r-in"><span>                    layout <span class="op">=</span> <span class="st">"jama"</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="foresty_interaction-4.png" alt="" width="700" height="433"></span>
+<span class="r-plt img"><img src="foresty_interaction-5.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

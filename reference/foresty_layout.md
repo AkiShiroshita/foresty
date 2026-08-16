@@ -50,6 +50,7 @@ foresty_layout(
   arrows = NULL,
   arrows_position = NULL,
   plot_width = NULL,
+  min_plot_width = NULL,
   auto_labels = NULL
 )
 ```
@@ -283,6 +284,20 @@ foresty_layout(
   it that share of the figure whatever the figure is drawn at, and the
   columns of text share the rest. A number of centimetres, or a
   [`grid::unit()`](https://rdrr.io/r/grid/unit.html), fixes it exactly.
+
+- min_plot_width:
+
+  The least of the figure the plot is allowed to be left with, as a
+  fraction. What the columns of text leave depends on the width the
+  figure is drawn at, which is not known while it is being built, so a
+  wide table – a survival model carrying N, events and person-time – can
+  leave the plot a centimetre and squash the axis under it into a row of
+  overprinted numbers. This is the floor: where the columns of text
+  would leave the plot less than this share of the width it is being
+  drawn at, the plot is given that share and the columns of text share
+  the rest in proportion to what they hold. `0` turns the floor off and
+  lets the plot have whatever is left, however little that is. It has no
+  effect where `plot_width` says outright how wide the plot is.
 
 - auto_labels:
 

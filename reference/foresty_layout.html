@@ -92,6 +92,7 @@ one here and change any part of it.</p>
 <span>  arrows <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  arrows_position <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plot_width <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  min_plot_width <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auto_labels <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -319,6 +320,20 @@ figure widens the plot and nothing else. A fraction, as <code>0.6</code>, gives 
 that share of the figure whatever the figure is drawn at, and the columns
 of text share the rest. A number of centimetres, or a <code><a href="https://rdrr.io/r/grid/unit.html" class="external-link">grid::unit()</a></code>,
 fixes it exactly.</p></dd>
+
+
+<dt id="arg-min-plot-width">min_plot_width<a class="anchor" aria-label="anchor" href="#arg-min-plot-width"></a></dt>
+<dd><p>The least of the figure the plot is allowed to be left
+with, as a fraction. What the columns of text leave depends on the width
+the figure is drawn at, which is not known while it is being built, so a
+wide table – a survival model carrying N, events and person-time – can
+leave the plot a centimetre and squash the axis under it into a row of
+overprinted numbers. This is the floor: where the columns of text would
+leave the plot less than this share of the width it is being drawn at, the
+plot is given that share and the columns of text share the rest in
+proportion to what they hold. <code>0</code> turns the floor off and lets the plot
+have whatever is left, however little that is. It has no effect where
+<code>plot_width</code> says outright how wide the plot is.</p></dd>
 
 
 <dt id="arg-auto-labels">auto_labels<a class="anchor" aria-label="anchor" href="#arg-auto-labels"></a></dt>

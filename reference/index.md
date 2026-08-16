@@ -8,6 +8,8 @@
   : Exposure effect within each level of an effect modifier
 - [`foresty_combine()`](https://akishiroshita.github.io/foresty/reference/foresty_combine.md)
   : Combine several foresty figures into one forest plot
+- [`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md)
+  : Draw a forest plot and its table from a data frame of estimates
 
 ## Layout
 
@@ -28,6 +30,10 @@
 
 ## Working with the result
 
+- [`print(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  [`plot(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  [`grid.draw(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  : Draw a forest plot
 - [`summary(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/summary.foresty.md)
   [`print(`*`<summary.foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/summary.foresty.md)
   : Summarize a foresty figure

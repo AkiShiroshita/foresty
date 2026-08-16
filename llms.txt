@@ -50,25 +50,12 @@ range, two quantiles of it, an increment of your own — adjust the figure
 style, and produce forest plots and reports without having to remember
 the plotting code.
 
-It also writes out the **R code that drew the figures**, so interactive
-exploration becomes a reproducible script.
-
-## Use it in R
-
-`foresty` has three main functions (see
-[`vignette("getting-started")`](https://akishiroshita.github.io/foresty/articles/getting-started.md)
-for details):
-
-1.  **[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)**
-    — draws the effect of one or more exposures from models you have
-    already fitted.
-2.  **[`foresty_interaction()`](https://akishiroshita.github.io/foresty/reference/foresty_interaction.md)**
-    — the core of the package: it adds the exposure × modifier
-    interaction to a fitted model, estimates the exposure effect within
-    each level of the modifier, and tests the interaction.
-3.  **[`foresty_combine()`](https://akishiroshita.github.io/foresty/reference/foresty_combine.md)**
-    — puts an overall estimate and several subgroup analyses into one
-    publication-ready figure.
+It opens in your browser, and its **R code** tab writes the code twice
+over: the `foresty` call that drew the figures, and — under *How to
+calculate effect estimates for each subgroup* — where those numbers come
+from, in base R and the `car` package with nothing from this package in
+them. So interactive exploration becomes a reproducible script either
+way.
 
 ## Publication-ready styles
 
@@ -137,6 +124,61 @@ interactions**.
   effects from one model containing the interaction rather than fitting
   separate models within each subgroup.
 
+## Use it in R
+
+`foresty` has four main functions (see
+[`vignette("getting-started")`](https://akishiroshita.github.io/foresty/articles/getting-started.md)
+for details):
+
+1.  **[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)**
+    — draws the effect of one or more exposures from models you have
+    already fitted.
+2.  **[`foresty_interaction()`](https://akishiroshita.github.io/foresty/reference/foresty_interaction.md)**
+    — the core of the package: it adds the exposure × modifier
+    interaction to a fitted model, estimates the exposure effect within
+    each level of the modifier, and tests the interaction.
+3.  **[`foresty_combine()`](https://akishiroshita.github.io/foresty/reference/foresty_combine.md)**
+    — puts an overall estimate and several subgroup analyses into one
+    publication-ready figure.
+4.  **[`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md)**
+    — draws the same figure from estimates you already have: a data
+    frame, tibble or data.table with one row per row of the figure, for
+    numbers that did not come out of a model `foresty` can read.
+
+## More flexible way
+
+Do you want to adjust for multiplicity (e.g., using the false discovery
+rate)? Do you want to perform multiple imputation and present pooled,
+subgroup-specific estimates? Of course, you can! Prepare the data you
+want to present and use
+[`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md).
+
+``` r
+
+subgroups <- data.frame(
+  subgroup  = c("Overall", "Female", "Male", "Under 35", "35 and over"),
+  block     = c("Overall", "Sex", "Sex", "Maternal age", "Maternal age"),
+  overall   = c(TRUE, FALSE, FALSE, FALSE, FALSE),
+  estimate  = c(1.24, 1.05, 1.48, 1.11, 1.39),
+  conf.low  = c(1.08, 0.86, 1.21, 0.90, 1.14),
+  conf.high = c(1.42, 1.28, 1.81, 1.37, 1.69),
+  n         = c(4000, 2009, 1991, 1832, 2168),
+  events    = c(802, 327, 475, 341, 461),
+  p_int     = c(NA, 0.012, NA, 0.106, NA)
+)
+
+library(foresty)
+
+foresty_data(
+  subgroups,
+  label = "subgroup", group = "block", emphasis = "overall",
+  interaction_p = "p_int",
+  measure = "OR", outcome = "asthma", adjusted = TRUE
+)
+```
+
+![](reference/figures/README-unnamed-chunk-3-1.png)
+
 ## Acknowledgements
 
 - Claude Code (Anthropic’s Claude Opus 5) assisted with adding notes,
@@ -147,7 +189,7 @@ interactions**.
   [car](https://CRAN.R-project.org/package=car).
 
 - The forest plot designs took their cues from
-  [meta](https://github.com/guido-s/meta).
+  [meta](https://CRAN.R-project.org/package=meta).
 
 ## License
 
@@ -163,6 +205,8 @@ GPL-3.
   : Exposure effect within each level of an effect modifier
 - [`foresty_combine()`](https://akishiroshita.github.io/foresty/reference/foresty_combine.md)
   : Combine several foresty figures into one forest plot
+- [`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md)
+  : Draw a forest plot and its table from a data frame of estimates
 
 ## Layout
 
@@ -183,6 +227,10 @@ GPL-3.
 
 ## Working with the result
 
+- [`print(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  [`plot(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  [`grid.draw(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/print.foresty.md)
+  : Draw a forest plot
 - [`summary(`*`<foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/summary.foresty.md)
   [`print(`*`<summary.foresty>`*`)`](https://akishiroshita.github.io/foresty/reference/summary.foresty.md)
   : Summarize a foresty figure

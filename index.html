@@ -64,6 +64,8 @@
 </h1>
 </div>
 <p><img src="reference/figures/logo.png" alt="Logo of foresty" align="right" height="120"></p>
+<!-- badges: start -->
+
 <p>Visualize interaction effects with publication-ready forest plots.</p>
 <p>An interaction p-value tells you whether the effect differs between subgroups, but not <strong>which subgroup shows the effect, in which direction, or by how much</strong>. <code>foresty</code> puts the interaction test and the subgroup estimates side by side, making interaction effects easier to interpret and report.</p>
 <p>It also makes <strong>publication-ready</strong> forest plots easy to produce, with a Shiny app for exploring the results interactively and an <strong>HTML report</strong> that documents the model behind them.</p>
@@ -88,20 +90,7 @@
 <span></span>
 <span><span class="fu"><a href="reference/foresty_app.html">foresty_app</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p>The app lets you select exposures and effect modifiers, choose how big a difference in the exposure each estimate is for — an interquartile range, two quantiles of it, an increment of your own — adjust the figure style, and produce forest plots and reports without having to remember the plotting code.</p>
-<p>It also writes out the <strong>R code that drew the figures</strong>, so interactive exploration becomes a reproducible script.</p>
-</div>
-<div class="section level2">
-<h2 id="use-it-in-r">Use it in R<a class="anchor" aria-label="anchor" href="#use-it-in-r"></a>
-</h2>
-<p><code>foresty</code> has three main functions (see <code><a href="articles/getting-started.html">vignette("getting-started")</a></code> for details):</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong><code><a href="reference/foresty_main.html">foresty_main()</a></code></strong> — draws the effect of one or more exposures from models you have already fitted.</li>
-<li>
-<strong><code><a href="reference/foresty_interaction.html">foresty_interaction()</a></code></strong> — the core of the package: it adds the exposure × modifier interaction to a fitted model, estimates the exposure effect within each level of the modifier, and tests the interaction.</li>
-<li>
-<strong><code><a href="reference/foresty_combine.html">foresty_combine()</a></code></strong> — puts an overall estimate and several subgroup analyses into one publication-ready figure.</li>
-</ol>
+<p>It opens in your browser, and its <strong>R code</strong> tab writes the code twice over: the <code>foresty</code> call that drew the figures, and — under <em>How to calculate effect estimates for each subgroup</em> — where those numbers come from, in base R and the <code>car</code> package with nothing from this package in them. So interactive exploration becomes a reproducible script either way.</p>
 </div>
 <div class="section level2">
 <h2 id="publication-ready-styles">Publication-ready styles<a class="anchor" aria-label="anchor" href="#publication-ready-styles"></a>
@@ -196,12 +185,54 @@
 </ul>
 </div>
 <div class="section level2">
+<h2 id="use-it-in-r">Use it in R<a class="anchor" aria-label="anchor" href="#use-it-in-r"></a>
+</h2>
+<p><code>foresty</code> has four main functions (see <code><a href="articles/getting-started.html">vignette("getting-started")</a></code> for details):</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong><code><a href="reference/foresty_main.html">foresty_main()</a></code></strong> — draws the effect of one or more exposures from models you have already fitted.</li>
+<li>
+<strong><code><a href="reference/foresty_interaction.html">foresty_interaction()</a></code></strong> — the core of the package: it adds the exposure × modifier interaction to a fitted model, estimates the exposure effect within each level of the modifier, and tests the interaction.</li>
+<li>
+<strong><code><a href="reference/foresty_combine.html">foresty_combine()</a></code></strong> — puts an overall estimate and several subgroup analyses into one publication-ready figure.</li>
+<li>
+<strong><code><a href="reference/foresty_data.html">foresty_data()</a></code></strong> — draws the same figure from estimates you already have: a data frame, tibble or data.table with one row per row of the figure, for numbers that did not come out of a model <code>foresty</code> can read.</li>
+</ol>
+</div>
+<div class="section level2">
+<h2 id="more-flexible-way">More flexible way<a class="anchor" aria-label="anchor" href="#more-flexible-way"></a>
+</h2>
+<p>Do you want to adjust for multiplicity (e.g., using the false discovery rate)? Do you want to perform multiple imputation and present pooled, subgroup-specific estimates? Of course, you can! Prepare the data you want to present and use <code><a href="reference/foresty_data.html">foresty_data()</a></code>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">subgroups</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  subgroup  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Overall"</span>, <span class="st">"Female"</span>, <span class="st">"Male"</span>, <span class="st">"Under 35"</span>, <span class="st">"35 and over"</span><span class="op">)</span>,</span>
+<span>  block     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Overall"</span>, <span class="st">"Sex"</span>, <span class="st">"Sex"</span>, <span class="st">"Maternal age"</span>, <span class="st">"Maternal age"</span><span class="op">)</span>,</span>
+<span>  overall   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">FALSE</span>, <span class="cn">FALSE</span>, <span class="cn">FALSE</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>  estimate  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.24</span>, <span class="fl">1.05</span>, <span class="fl">1.48</span>, <span class="fl">1.11</span>, <span class="fl">1.39</span><span class="op">)</span>,</span>
+<span>  conf.low  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.08</span>, <span class="fl">0.86</span>, <span class="fl">1.21</span>, <span class="fl">0.90</span>, <span class="fl">1.14</span><span class="op">)</span>,</span>
+<span>  conf.high <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.42</span>, <span class="fl">1.28</span>, <span class="fl">1.81</span>, <span class="fl">1.37</span>, <span class="fl">1.69</span><span class="op">)</span>,</span>
+<span>  n         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4000</span>, <span class="fl">2009</span>, <span class="fl">1991</span>, <span class="fl">1832</span>, <span class="fl">2168</span><span class="op">)</span>,</span>
+<span>  events    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">802</span>, <span class="fl">327</span>, <span class="fl">475</span>, <span class="fl">341</span>, <span class="fl">461</span><span class="op">)</span>,</span>
+<span>  p_int     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fl">0.012</span>, <span class="cn">NA</span>, <span class="fl">0.106</span>, <span class="cn">NA</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/AkiShiroshita/foresty" class="external-link">foresty</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/foresty_data.html">foresty_data</a></span><span class="op">(</span></span>
+<span>  <span class="va">subgroups</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"subgroup"</span>, group <span class="op">=</span> <span class="st">"block"</span>, emphasis <span class="op">=</span> <span class="st">"overall"</span>,</span>
+<span>  interaction_p <span class="op">=</span> <span class="st">"p_int"</span>,</span>
+<span>  measure <span class="op">=</span> <span class="st">"OR"</span>, outcome <span class="op">=</span> <span class="st">"asthma"</span>, adjusted <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-unnamed-chunk-3-1.png" style="width:100.0%"></p>
+</div>
+<div class="section level2">
 <h2 id="acknowledgements">Acknowledgements<a class="anchor" aria-label="anchor" href="#acknowledgements"></a>
 </h2>
 <ul>
 <li><p>Claude Code (Anthropic’s Claude Opus 5) assisted with adding notes, testing and English-language proofreading. The design, decisions and final responsibility remain the author’s.</p></li>
 <li><p>Subgroup-specific effect sizes are computed through <a href="https://CRAN.R-project.org/package=car" class="external-link">car</a>.</p></li>
-<li><p>The forest plot designs took their cues from <a href="https://github.com/guido-s/meta" class="external-link">meta</a>.</p></li>
+<li><p>The forest plot designs took their cues from <a href="https://CRAN.R-project.org/package=meta" class="external-link">meta</a>.</p></li>
 </ul>
 </div>
 <div class="section level2">
@@ -240,7 +271,12 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
