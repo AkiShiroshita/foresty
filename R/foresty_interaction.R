@@ -22,6 +22,31 @@
 #' effects, and the interaction can be tested. The combinations and their
 #' tests are computed by [car::linearHypothesis()].
 #'
+#' @section One reference group for the whole figure:
+#'
+#' By default every row is the effect of the exposure inside one subgroup, so
+#' each subgroup is read against its own reference level and the rows of one
+#' subgroup are not comparisons with the rows of another. Where the exposure and
+#' the modifier are both categorical there is a second question a figure can
+#' answer: what every combination of the two comes to against one of them.
+#' `reference` asks it. `reference = c(ecog = "0-1", egfr = "Negative")` names
+#' the one combination the rest are compared with, and each row is then that
+#' whole cell -- this level of the exposure and this level of the modifier --
+#' against that cell, all of it out of the same interaction model. The cell
+#' named carries no estimate of its own and is drawn as the reference it is.
+#'
+#' The two figures answer different questions and the difference is worth being
+#' clear about. Without `reference`, a row says how much the exposure matters in
+#' that subgroup, and the interaction test beside the rows says whether those
+#' effects differ. With it, a row says how far that combination of the two
+#' variables is from one chosen combination, which is what a table of six groups
+#' against one baseline group reports, and the interaction test beside them is
+#' the same test of the same coefficients: it still asks whether the effect of
+#' the exposure depends on the modifier, and it is not a test of the rows.
+#'
+#' `reference = TRUE` takes the first level of each, which is the cell a model
+#' takes as its own baseline.
+#'
 #' @section Testing the interaction:
 #'
 #' The p-value beside the subgroups is the joint test that every exposure by
@@ -82,6 +107,13 @@
 #' @param level_labels Named character vector giving the label to draw for a
 #'   level of the modifier, as `c(F = "Female", M = "Male")`, or
 #'   `c("0" = "No", "1" = "Yes")` for a modifier coded as a flag.
+#' @param reference The one combination of the exposure and the modifier every
+#'   row is compared with, as a named character vector naming a level of each:
+#'   `reference = c(ecog = "0-1", egfr = "Negative")`. `TRUE` takes the first
+#'   level of each. `NULL`, the default, compares nothing across subgroups: each
+#'   row is the effect of the exposure inside its own subgroup. Both variables
+#'   must be categorical for a combination of them to be a group at all. See
+#'   *One reference group for the whole figure*.
 #' @param test How the interaction is tested: `"lrt"`, the default, is the
 #'   likelihood ratio test against the same model without the interaction
 #'   terms; `"wald"` is the joint Wald test of those terms; `"both"` reports
@@ -126,6 +158,13 @@
 #' foresty_interaction(fit, exposure = c(NO2 = "no2"),
 #'                     interaction = c(Sex = "sex"), test = "both")
 #'
+#' # Every combination of two categorical variables against one of them, which
+#' # is the other question a two-way table of groups asks.
+#' fit2 <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+#'             data = foresty_cohort)
+#' foresty_interaction(fit2, exposure = "urbanicity", interaction = "sex",
+#'                     reference = c(urbanicity = "Rural", sex = "Female"))
+#'
 #' # The subgroup estimates, the numbers behind them and the test of the
 #' # interaction, in the layout of a journal.
 #' foresty_interaction(fit, exposure = "no2", interaction = "sex",
@@ -139,6 +178,7 @@ foresty_interaction <- function(fit,
                                 exponentiate = TRUE,
                                 labels = NULL,
                                 level_labels = NULL,
+                                reference = NULL,
                                 outcome = NULL,
                                 ci_level = 0.95,
                                 contrast = NULL,
@@ -197,11 +237,17 @@ foresty_interaction <- function(fit,
   }
 
   modifier_levels <- levels(droplevels(as.factor(info$mf[[interaction]])))
+  reference_cell <- fy_reference_cell(reference, info, exposure, interaction,
+                                      modifier_levels, contrast = contrast,
+                                      at = at)
   values <- fy_exposure_values(info, exposure, contrast = contrast, at = at)
 
   estimates <- do.call(rbind, lapply(modifier_levels, function(lv) {
-    out <- fy_exposure_estimates(info, exposure, values, ci_level = ci_level,
-                                 modifier = interaction, modifier_level = lv)
+    out <- fy_exposure_estimates(
+      info, exposure, fy_mark_reference(values, reference_cell, lv),
+      ci_level = ci_level, modifier = interaction, modifier_level = lv,
+      reference_cell = reference_cell
+    )
     out$modifier_level <- lv
     out
   }))
@@ -237,12 +283,27 @@ foresty_interaction <- function(fit,
   # The exposure is named as the rows name it, which is with the comparison
   # behind it -- "no2 (per 10)", "no2 (10 -> 20)" -- since every row of the
   # figure is that comparison taken within another subgroup.
-  title <- fy_resolve_title(title, layout, paste0(
-    fy_effect_phrase(info, adjusted,
-                     fy_and(unique(as.character(estimates$variable_label)))),
-    " within each level of ", modifier_label,
-    ", from one model containing their interaction term"
-  ))
+  exposure_label <- fy_and(unique(as.character(estimates$variable_label)))
+  title <- fy_resolve_title(title, layout, if (is.null(reference_cell)) {
+    paste0(
+      fy_effect_phrase(info, adjusted, exposure_label),
+      " within each level of ", modifier_label,
+      ", from one model containing their interaction term"
+    )
+  } else {
+    # A row of this figure is a combination of the two variables rather than an
+    # effect of the exposure, so the title names the combination it is read
+    # against: a reader who cannot see which cell is the reference cannot read
+    # any of the others.
+    paste0(
+      fy_axis_label(info, adjusted), " for every combination of ",
+      exposure_label, " and ", modifier_label, ", each compared with ",
+      exposure_label, " ", reference_cell$exposure_level, " and ",
+      modifier_label, " ",
+      fy_apply_labels(reference_cell$modifier_level, level_labels),
+      ", from one model containing their interaction term"
+    )
+  })
 
   plot <- fy_forest_plot(
     estimates,
@@ -267,6 +328,7 @@ foresty_interaction <- function(fit,
     exposure = exposure,
     modifier = interaction,
     modifier_display = modifier_label,
+    reference_cell = reference_cell,
     interaction_test = tests[[1L]],
     interaction_tests = tests,
     measure = info$measure,
@@ -346,6 +408,112 @@ fy_check_modifier <- function(info, interaction) {
     )
   }
   invisible(TRUE)
+}
+
+# The one combination of the exposure and the modifier the whole figure is read
+# against, as the two levels it is, or NULL where the figure is the ordinary one
+# of an effect within each subgroup.
+#
+# It is a group only where both variables have levels to make a group out of. A
+# continuous exposure has none: its row is a slope rather than a cell of a
+# table, and there is no combination of it with anything to compare with another
+# combination. That is refused rather than approximated at some value of it,
+# since a figure whose rows are the effect of moving along a continuous exposure
+# and whose title says they are compared with one group would be read wrongly.
+fy_reference_cell <- function(reference, info, exposure, interaction,
+                              modifier_levels, contrast = NULL, at = NULL) {
+  if (is.null(reference) || isFALSE(reference)) {
+    return(NULL)
+  }
+  x <- fy_variable(info, exposure)
+  if (!fy_is_categorical(x)) {
+    stop(
+      "`reference` names one combination of \"", exposure, "\" and \"",
+      interaction, "\", and \"", exposure,
+      "\" is continuous, so it has no levels to combine: its rows are the ",
+      "effect of a difference in it rather than groups of people. Drop ",
+      "`reference` for the effect of \"", exposure,
+      "\" within each subgroup, or categorize it with cut() and refit.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(at) || !is.null(contrast)) {
+    stop(
+      "`reference` and ", if (is.null(at)) "`contrast`" else "`at`",
+      " both say which comparisons are made, so only one of them can be ",
+      "given: `reference` compares every level of \"", exposure,
+      "\" in every subgroup with one combination of the two variables.",
+      call. = FALSE
+    )
+  }
+
+  exposure_levels <- levels(droplevels(as.factor(x)))
+  wanted <- if (isTRUE(reference)) {
+    # The cell the model itself takes as its baseline, which is where a reader
+    # who has not decided yet should start.
+    stats::setNames(c(exposure_levels[[1L]], modifier_levels[[1L]]),
+                    c(exposure, interaction))
+  } else {
+    fy_reference_levels(reference, exposure, interaction)
+  }
+
+  chosen <- function(variable, given, levels) {
+    if (given %in% levels) {
+      return(given)
+    }
+    stop(
+      "\"", given, "\" is not a level of \"", variable,
+      "\" in the data this model was fitted to. Its levels are ",
+      paste0("\"", levels, "\"", collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+  list(
+    exposure_level = chosen(exposure, wanted[[exposure]], exposure_levels),
+    modifier_level = chosen(interaction, wanted[[interaction]], modifier_levels)
+  )
+}
+
+# `reference` as the two levels it names. Named for the variables it is about,
+# since a bare pair of levels does not say which of them belongs to which
+# variable and a figure drawn from the wrong way round would look right.
+fy_reference_levels <- function(reference, exposure, interaction) {
+  said <- paste0(
+    "`reference` names a level of \"", exposure, "\" and a level of \"",
+    interaction, "\", as `reference = c(", exposure, " = \"...\", ",
+    interaction, " = \"...\")`, or TRUE for the first level of each"
+  )
+  if (!is.character(reference) && !is.factor(reference) &&
+      !is.numeric(reference)) {
+    stop(said, "; it is ", paste(class(reference), collapse = "/"), ".",
+         call. = FALSE)
+  }
+  out <- stats::setNames(as.character(reference), names(reference))
+  if (length(out) != 2L) {
+    stop(said, "; it names ", length(out),
+         if (length(out) == 1L) " level." else " levels.", call. = FALSE)
+  }
+  if (is.null(names(out)) || !setequal(names(out), c(exposure, interaction))) {
+    stop(said, ".", call. = FALSE)
+  }
+  out
+}
+
+# Which row of a subgroup is the reference one. Without a reference cell that is
+# the exposure's own first level, taken again inside every subgroup, and the
+# values carry it already; with one it is a single row of the whole figure, so
+# every other subgroup has none.
+fy_mark_reference <- function(values, reference_cell, modifier_level) {
+  if (is.null(reference_cell)) {
+    return(values)
+  }
+  here <- identical(as.character(modifier_level),
+                    as.character(reference_cell$modifier_level))
+  lapply(values, function(v) {
+    v$reference <- here && identical(as.character(v$level),
+                                     as.character(reference_cell$exposure_level))
+    v
+  })
 }
 
 # The tests of the interaction the caller asked for, in the order they are

@@ -158,6 +158,86 @@ test_that("a categorical exposure crossed with a modifier gives every pairing", 
   expect_equal(sum(est$n), nrow(foresty_cohort))
 })
 
+test_that("`reference` reads every combination against one of them", {
+  fit <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+             data = foresty_cohort)
+  x <- foresty_interaction(fit, exposure = "urbanicity", interaction = "sex",
+                           reference = c(urbanicity = "Rural", sex = "Female"))
+  est <- fy_est(x)
+
+  # The same six rows as before, but one reference among them rather than one
+  # per subgroup: every other row is a comparison with that one.
+  expect_equal(nrow(est), 6L)
+  expect_equal(est$reference, c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE))
+  expect_equal(est$estimate[1], 1)
+  expect_true(is.na(est$conf.low[1]))
+  expect_true(all(is.finite(est$estimate[-1])))
+  expect_equal(sum(est$n), nrow(foresty_cohort))
+
+  # And the numbers are the coefficients of the interaction model added up by
+  # hand: Urban and Male against Rural and Female is the exposure term, the
+  # modifier term and the interaction term together.
+  b <- coef(glm(asthma ~ urbanicity * sex + maternal_age, family = binomial,
+                data = foresty_cohort))
+  expect_equal(
+    est$estimate[est$modifier_level == "Male" & est$level == "Urban"],
+    unname(exp(b["urbanicityUrban"] + b["sexMale"] +
+                 b["urbanicityUrban:sexMale"])),
+    tolerance = 1e-8
+  )
+
+  # The test beside the rows is the test of the interaction, which the choice
+  # of reference group has nothing to do with.
+  plain <- foresty_interaction(fit, exposure = "urbanicity",
+                               interaction = "sex")
+  expect_equal(fy_test(x)$p.value, fy_test(plain)$p.value)
+})
+
+test_that("`reference = TRUE` takes the first level of each", {
+  fit <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+             data = foresty_cohort)
+  named <- fy_est(foresty_interaction(
+    fit, exposure = "urbanicity", interaction = "sex",
+    reference = c(urbanicity = "Rural", sex = "Female")
+  ))
+  expect_equal(fy_est(foresty_interaction(fit, exposure = "urbanicity",
+                                          interaction = "sex",
+                                          reference = TRUE))$estimate,
+               named$estimate)
+})
+
+test_that("a reference group needs two variables with levels, named", {
+  fit <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+             data = foresty_cohort)
+
+  # A continuous exposure has no levels to combine with anything, and the
+  # refusal says what to do instead rather than reporting a slope as a group.
+  expect_error(
+    foresty_interaction(fy_test_logistic(), exposure = "no2",
+                        interaction = "sex", reference = TRUE),
+    "continuous"
+  )
+  # A level that is not one of the variable's, and a pair that does not say
+  # which level belongs to which variable.
+  expect_error(
+    foresty_interaction(fit, exposure = "urbanicity", interaction = "sex",
+                        reference = c(urbanicity = "Nowhere", sex = "Female")),
+    "not a level"
+  )
+  expect_error(
+    foresty_interaction(fit, exposure = "urbanicity", interaction = "sex",
+                        reference = c("Rural", "Female")),
+    "names a level"
+  )
+  # `at` says which comparison is made as well, and one of them would have to
+  # be ignored.
+  expect_error(
+    foresty_interaction(fit, exposure = "urbanicity", interaction = "sex",
+                        reference = TRUE, at = c("Rural", "Urban")),
+    "only one of them"
+  )
+})
+
 test_that("labels rename variables and modifier levels", {
   est <- fy_est(foresty_interaction(
     fy_test_logistic(), exposure = "no2", interaction = "sex",

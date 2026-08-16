@@ -158,6 +158,17 @@
 #'   that share of the figure whatever the figure is drawn at, and the columns
 #'   of text share the rest. A number of centimetres, or a [grid::unit()],
 #'   fixes it exactly.
+#' @param min_plot_width The least of the figure the plot is allowed to be left
+#'   with, as a fraction. What the columns of text leave depends on the width
+#'   the figure is drawn at, which is not known while it is being built, so a
+#'   wide table -- a survival model carrying N, events and person-time -- can
+#'   leave the plot a centimetre and squash the axis under it into a row of
+#'   overprinted numbers. This is the floor: where the columns of text would
+#'   leave the plot less than this share of the width it is being drawn at, the
+#'   plot is given that share and the columns of text share the rest in
+#'   proportion to what they hold. `0` turns the floor off and lets the plot
+#'   have whatever is left, however little that is. It has no effect where
+#'   `plot_width` says outright how wide the plot is.
 #' @param auto_labels Whether [foresty_interaction()] writes its own title and
 #'   subtitle. The journal styles leave them off, since that text belongs in
 #'   the caption; a title passed by hand is always drawn.
@@ -224,6 +235,7 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
                            arrows = NULL,
                            arrows_position = NULL,
                            plot_width = NULL,
+                           min_plot_width = NULL,
                            auto_labels = NULL) {
   out <- if (inherits(style, "foresty_layout")) {
     style
@@ -258,7 +270,7 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
     ci_brackets = ci_brackets, column_gap = column_gap, xlim = xlim,
     arrows = arrows,
     arrows_position = arrows_position, plot_width = plot_width,
-    auto_labels = auto_labels
+    min_plot_width = min_plot_width, auto_labels = auto_labels
   )
   for (nm in names(given)) {
     if (!is.null(given[[nm]])) {
@@ -395,6 +407,11 @@ fy_layout_defaults <- function() {
     arrows = NULL,
     arrows_position = "bottom",
     plot_width = NULL,
+    # A quarter is about the least a plot can be and still be a plot rather than
+    # a decoration. Higher, and the columns of text are squeezed enough on a
+    # crowded figure that one heading runs into the next, which is the same
+    # problem moved rather than solved; see fy_floor_plot_width().
+    min_plot_width = 0.25,
     auto_labels = TRUE
   )
 }
@@ -528,6 +545,7 @@ fy_check_layout <- function(layout) {
   checkmate::assert_number(layout$interval_width, lower = 0)
   checkmate::assert_number(layout$digits, lower = 0, upper = 8)
   checkmate::assert_number(layout$column_gap, lower = 0, upper = 20)
+  checkmate::assert_number(layout$min_plot_width, lower = 0, upper = 0.9)
   checkmate::assert_flag(layout$grid)
   checkmate::assert_flag(layout$axis_line)
   checkmate::assert_flag(layout$band)

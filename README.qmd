@@ -31,14 +31,15 @@ knitr::opts_chunk$set(
 
 Visualize interaction effects with publication-ready forest plots.
 
-An interaction p-value tells you whether the effect differs between subgroups,
-but not **which subgroup shows the effect, in which direction, or by how much**.
-`foresty` puts the interaction test and the subgroup estimates side by side,
-making interaction effects easier to interpret and report.
+An interaction p-value tells you whether the effect differs between
+subgroups, but not **which subgroup shows the effect, in which
+direction, or by how much**. `foresty` puts the interaction test and the
+subgroup estimates side by side, making interaction effects easier to
+interpret and report.
 
-It also makes **publication-ready** forest plots easy to produce, with a Shiny app
-for exploring the results interactively and an **HTML report** that documents the
-model behind them.
+It also makes **publication-ready** forest plots easy to produce, with a
+Shiny app for exploring the results interactively and an **HTML report**
+that documents the model behind them.
 
 ![](man/figures/demo.png)
 
@@ -75,21 +76,11 @@ difference in the exposure each estimate is for — an interquartile range, two
 quantiles of it, an increment of your own — adjust the figure style, and
 produce forest plots and reports without having to remember the plotting code.
 
-It also writes out the **R code that drew the figures**, so interactive
-exploration becomes a reproducible script.
-
-## Use it in R
-
-`foresty` has three main functions (see `vignette("getting-started")` for
-details):
-
-1. **`foresty_main()`** — draws the effect of one or more exposures from models
-   you have already fitted.
-2. **`foresty_interaction()`** — the core of the package: it adds the exposure ×
-   modifier interaction to a fitted model, estimates the exposure effect within
-   each level of the modifier, and tests the interaction.
-3. **`foresty_combine()`** — puts an overall estimate and several subgroup
-   analyses into one publication-ready figure.
+It opens in your browser, and its **R code** tab writes the code twice over:
+the `foresty` call that drew the figures, and — under *How to calculate effect
+estimates for each subgroup* — where those numbers come from, in base R and the
+`car` package with nothing from this package in them. So interactive
+exploration becomes a reproducible script either way.
 
 ## Publication-ready styles
 
@@ -148,6 +139,53 @@ interactions**.
 * **No separate subgroup refitting.** `foresty` estimates subgroup effects from
   one model containing the interaction rather than fitting separate models
   within each subgroup.
+  
+## Use it in R
+
+`foresty` has four main functions (see `vignette("getting-started")`
+for details):
+
+1.  **`foresty_main()`** — draws the effect of one or more exposures
+    from models you have already fitted.
+2.  **`foresty_interaction()`** — the core of the package: it adds the
+    exposure × modifier interaction to a fitted model, estimates the
+    exposure effect within each level of the modifier, and tests the
+    interaction.
+3.  **`foresty_combine()`** — puts an overall estimate and several
+    subgroup analyses into one publication-ready figure.
+4.  **`foresty_data()`** — draws the same figure from estimates you
+    already have: a data frame, tibble or data.table with one row per row
+    of the figure, for numbers that did not come out of a model `foresty`
+    can read.
+    
+## More flexible way
+
+Do you want to adjust for multiplicity (e.g., using the false discovery rate)?
+Do you want to perform multiple imputation and present pooled, subgroup-specific estimates?
+Of course, you can! Prepare the data you want to present and use `foresty_data()`.
+
+```{r}
+subgroups <- data.frame(
+  subgroup  = c("Overall", "Female", "Male", "Under 35", "35 and over"),
+  block     = c("Overall", "Sex", "Sex", "Maternal age", "Maternal age"),
+  overall   = c(TRUE, FALSE, FALSE, FALSE, FALSE),
+  estimate  = c(1.24, 1.05, 1.48, 1.11, 1.39),
+  conf.low  = c(1.08, 0.86, 1.21, 0.90, 1.14),
+  conf.high = c(1.42, 1.28, 1.81, 1.37, 1.69),
+  n         = c(4000, 2009, 1991, 1832, 2168),
+  events    = c(802, 327, 475, 341, 461),
+  p_int     = c(NA, 0.012, NA, 0.106, NA)
+)
+
+library(foresty)
+
+foresty_data(
+  subgroups,
+  label = "subgroup", group = "block", emphasis = "overall",
+  interaction_p = "p_int",
+  measure = "OR", outcome = "asthma", adjusted = TRUE
+)
+```
 
 ## Acknowledgements
 
@@ -158,7 +196,7 @@ interactions**.
 - Subgroup-specific effect sizes are computed through
   [car](https://CRAN.R-project.org/package=car).
 
-- The forest plot designs took their cues from [meta](https://github.com/guido-s/meta).
+- The forest plot designs took their cues from [meta](https://CRAN.R-project.org/package=meta).
 
 ## License
 

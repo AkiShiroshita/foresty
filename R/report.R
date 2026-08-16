@@ -193,6 +193,12 @@ fy_model_table <- function(info, result, exposure) {
   if (!is.null(result$modifier)) {
     rows[["Effect modifier"]] <- result$modifier
   }
+  # Which cell the rows are read against, where they are read against one cell
+  # rather than each against its own subgroup's reference level. A table of
+  # combinations cannot be read without it.
+  if (!is.null(result$reference_cell)) {
+    rows[["Reference group"]] <- fy_reference_phrase(result)
+  }
   rows[["Effect measure"]] <- result$measure_label
   rows[["Standard errors"]] <- if (isTRUE(result$robust)) "Robust" else "Model-based"
   # The confidence level is not among them: every column of numbers on the page
@@ -348,16 +354,15 @@ fy_plot_html <- function(x, width = 10, height = NULL) {
   path <- tempfile(fileext = ".png")
   on.exit(unlink(path), add = TRUE)
 
-  # The figure carries the foresty class, which ggsave() has no device for, so
-  # it is written as the plain plot it also is.
-  plain <- x
-  class(plain) <- setdiff(class(plain), "foresty")
-  attr(plain, "foresty") <- NULL
-
+  # Written as the figure itself rather than as the plain plot it also is, so
+  # that the page shows what the screen and the exports show: the floor on the
+  # width of the plot is applied by grid.draw.foresty(), which stripping the
+  # class would step around.
+  #
   # 200 dpi rather than 150: the page is read on screens that draw two device
   # pixels to the CSS pixel, and a forest plot is read from its numbers.
   ok <- try(
-    ggplot2::ggsave(path, plot = plain, width = width, height = height,
+    ggplot2::ggsave(path, plot = x, width = width, height = height,
                     dpi = 200, units = "in"),
     silent = TRUE
   )

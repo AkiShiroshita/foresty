@@ -20,3 +20,5 @@
 ^.*\.tar\.gz$
 ^CRAN-SUBMISSION$
 ^revdep$
+^pkgdown$
+^[^/]*\.csv$

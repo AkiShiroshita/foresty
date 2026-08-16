@@ -166,12 +166,17 @@ fy_compose <- function(panels, forest_at, layout, title = NULL,
     widths = widths
   )
 
+  # How little of the figure the plot may be left with, carried on the figure
+  # because it can only be acted on when the figure is drawn and the width it
+  # is being drawn at is known. See fy_floor_plot_width().
+  attr(out, "fy_min_plot_width") <- layout$min_plot_width
+
   # The title belongs to the figure rather than to the plot in the middle of
   # it, which is where it would sit if it were the forest's own.
   if (is.null(title) && is.null(subtitle)) {
     return(out)
   }
-  out + patchwork::plot_annotation(
+  annotated <- out + patchwork::plot_annotation(
     title = title, subtitle = subtitle,
     theme = ggplot2::theme(
       plot.title = ggplot2::element_text(
@@ -185,6 +190,10 @@ fy_compose <- function(panels, forest_at, layout, title = NULL,
       )
     )
   )
+  # `+` rebuilds the object and drops what it was carrying, so the floor is put
+  # back on the figure that is returned rather than on the one it was made from.
+  attr(annotated, "fy_min_plot_width") <- layout$min_plot_width
+  annotated
 }
 
 # How the width of the figure is divided.
@@ -967,14 +976,23 @@ fy_row_labels_for <- function(estimates) {
 fy_x_scale <- function(null_value, limits, layout) {
   breaks <- function(range) {
     default <- scales::breaks_pretty(n = 4)(range)
-    out <- sort(unique(c(null_value, default[default != null_value])))
+    # A break that rounds to the null is the null: `!=` on doubles let
+    # breaks_pretty()'s own 1 through beside the one added here, and the two
+    # were drawn one on top of the other as a thickened label.
+    keep <- abs(default - null_value) > 1e-8 * max(1, abs(null_value))
+    out <- sort(c(null_value, default[keep]))
     out[out >= range[1L] & out <= range[2L]]
   }
   ggplot2::scale_x_continuous(
     limits = limits,
     breaks = breaks,
-    labels = function(x) fy_format_number(x, layout$digits,
-                                          layout$decimal_mark),
+    labels = function(x) fy_axis_labels(x, layout),
+    # A plot squeezed narrow by the table beside it has room for fewer labels
+    # than the breaks come to, and how many is only known once the figure is
+    # drawn, so ggplot2 is left to drop the ones that would overprint rather
+    # than a number of breaks being guessed at here. The floor on the width of
+    # the plot keeps that from being most of them; see fy_floor_plot_width().
+    guide = ggplot2::guide_axis(check.overlap = TRUE),
     expand = if (is.null(limits)) {
       ggplot2::expansion(mult = 0.05)
     } else {
@@ -1037,13 +1055,23 @@ fy_table_columns <- function(estimates, estimate_header,
     header <- fy_wrap_heading(estimate_header)
   }
   out[[header]] <- estimate
-  # The reference level has no p-value, having not been estimated.
-  out[[layout$headings$p]] <- ifelse(
-    estimates$reference, "",
-    fy_format_p(estimates$p.value, layout$p_format, layout$decimal_mark)
-  )
-  out[[layout$headings$n]] <- fy_format_count(estimates$n)
-  keys <- c("estimate", "p", "n")
+  keys <- "estimate"
+  # A column no row supplies says nothing, and an empty column in the table
+  # takes width from the plot. Every model-driven figure carries a p-value and
+  # a count for each row; a figure drawn from a table of numbers by
+  # foresty_data() carries whichever the table held.
+  if (!all(is.na(estimates$p.value))) {
+    # The reference level has no p-value, having not been estimated.
+    out[[layout$headings$p]] <- ifelse(
+      estimates$reference, "",
+      fy_format_p(estimates$p.value, layout$p_format, layout$decimal_mark)
+    )
+    keys <- c(keys, "p")
+  }
+  if (!all(is.na(estimates$n))) {
+    out[[layout$headings$n]] <- fy_format_count(estimates$n)
+    keys <- c(keys, "n")
+  }
 
   if (!all(is.na(estimates$events))) {
     out[[layout$headings$events]] <- fy_format_count(estimates$events)
@@ -1139,6 +1167,25 @@ fy_ci_separator <- function(estimates, layout) {
   }
   values <- c(estimates$estimate, estimates$conf.low, estimates$conf.high)
   if (any(!is.na(values) & values < 0)) " to " else "-"
+}
+
+# The numbers under the axis, written to as few decimals as tell the breaks
+# apart rather than to the figure's own.
+#
+# The breaks are round numbers, chosen by scales::breaks_pretty(): 0.4 to 1.2 by
+# 0.2 needs one decimal, and writing them to the two the estimates are written
+# to -- "0.40", "0.60" -- makes every label a third wider for nothing. Width is
+# what the axis is short of on a figure whose table has taken most of it, and
+# labels a third narrower are labels that go on being read where the wider ones
+# would have had to be dropped.
+fy_axis_labels <- function(x, layout) {
+  finite <- x[is.finite(x)]
+  digits <- 0L
+  while (digits < layout$digits &&
+         anyDuplicated(round(finite, digits))) {
+    digits <- digits + 1L
+  }
+  fy_format_number(x, digits, layout$decimal_mark)
 }
 
 # Formatting ------------------------------------------------------------------

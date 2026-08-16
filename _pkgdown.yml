@@ -9,6 +9,7 @@ reference:
       - foresty_main
       - foresty_interaction
       - foresty_combine
+      - foresty_data
   - title: Layout
     contents:
       - foresty_layout

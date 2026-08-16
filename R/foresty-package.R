@@ -3,6 +3,7 @@
 
 ## usethis namespace: start
 #' @importFrom ggplot2 .data
+#' @importFrom grid grid.draw
 #' @importFrom stats coef vcov formula nobs predict model.frame
 ## usethis namespace: end
 NULL

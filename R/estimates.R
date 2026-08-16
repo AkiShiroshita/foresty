@@ -5,9 +5,11 @@
 # is handled once.
 
 fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
-                                  modifier = NULL, modifier_level = NULL) {
+                                  modifier = NULL, modifier_level = NULL,
+                                  reference_cell = NULL) {
   L <- fy_contrast_matrix(info, exposure, values, modifier = modifier,
-                          modifier_level = modifier_level)
+                          modifier_level = modifier_level,
+                          reference_cell = reference_cell)
   estimated <- if (is.null(L)) NULL else fy_lincom(info, L, ci_level = ci_level)
 
   null_value <- if (info$exponentiate) 1 else 0
@@ -95,6 +97,18 @@ fy_exposure_display <- function(info, exposure, contrast = NULL, at = NULL,
     stringsAsFactors = FALSE
   )
   fy_row_labels(estimates, labels)$variable_label[[1L]]
+}
+
+# The one combination every row of the figure is compared with, said in the two
+# variables it is a combination of, so that it can be read without the figure
+# beside it: "urbanicity = Rural and sex = Female".
+fy_reference_phrase <- function(result) {
+  cell <- result$reference_cell
+  if (is.null(cell)) {
+    return(NULL)
+  }
+  paste0(result$exposure, " = ", cell$exposure_level, " and ",
+         result$modifier, " = ", cell$modifier_level)
 }
 
 # 10 rather than 10.0, 0.5 rather than 0.500.

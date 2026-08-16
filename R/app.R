@@ -66,6 +66,30 @@
 #' two probabilities can be set to anything -- the 10th against the 90th, the
 #' median against the top decile -- rather than only 0.25 and 0.75.
 #'
+#' @section One reference group instead of one per subgroup:
+#'
+#' A subgroup figure reads each subgroup against its own reference level, so the
+#' rows of one subgroup are not comparisons with the rows of another. Where the
+#' exposure and the modifier both have levels there is a second question: what
+#' every combination of the two comes to against one of them, which is the table
+#' of groups against a baseline group a paper reports. **Model** asks it once per
+#' effect modifier chosen -- *Compare every combination of the exposure and ...
+#' with one group* -- and the menus under the box say which combination the rest
+#' are read against: a level of the modifier, and a level of each exposure that
+#' has levels.
+#'
+#' Every row is then that whole cell -- this level of the exposure, this level
+#' of the modifier -- against the one chosen, all of it out of the same
+#' interaction model, and the cell chosen is drawn as the reference it is. The
+#' p-value beside the rows is the same joint test of the interaction either way:
+#' it asks whether the effect of the exposure depends on the modifier, and it is
+#' not a test of the rows. See the `reference` argument of
+#' [foresty_interaction()].
+#'
+#' A continuous exposure has no levels to combine, so a pair with one is drawn
+#' as it always was whatever the box says: its rows are the effect of a
+#' difference in the exposure rather than groups of people.
+#'
 #' @section Figure style names:
 #'
 #' The rows, the axis and the columns of a figure are named after columns of a
@@ -116,11 +140,21 @@
 #' and of every model the app fitted from it by adding an interaction term.
 #' Both tabs head each block with the outcome, the exposure and the effect
 #' modifier the figure under it is of, since a coefficient table says none of
-#' them. **R code** is the code that drew what is beside it, deparsed rather
-#' than reconstructed, so it cannot drift from what you are looking at; several
-#' pairs are written as a loop over the pairs rather than as one call apiece. It
-#' names the model with the name you passed to `foresty_app()`, so pasting it
-#' into a script next to that model works as it stands.
+#' them. **R code** is the code twice over. *With foresty* is the code that
+#' drew what is beside it, deparsed rather than reconstructed, so it cannot
+#' drift from what you are looking at; several pairs are written as a loop over
+#' the pairs rather than as one call apiece. It names the model with the name
+#' you passed to `foresty_app()`, so pasting it into a script next to that
+#' model works as it stands. *How to calculate effect estimates for each
+#' subgroup* is where those numbers come from, in base R and the `car` package
+#' with nothing from this package in them: the interaction term, the linear
+#' combination of the coefficients each subgroup estimate is, and the joint
+#' test reported beside them. It is there for a reader deciding whether to take
+#' the dependency at all, and for one who would rather see what is being done
+#' on their behalf than take it on trust. It comes to the estimates on the Plot
+#' tab exactly -- the same design matrix, the same coefficients and covariance,
+#' the same degrees of freedom and the same test -- and draws nothing: drawing
+#' them is what the call above it is for.
 #'
 #' @section What comes out:
 #'
@@ -141,8 +175,13 @@
 #' @param launch Whether to start the app. `TRUE` in an interactive session.
 #'   `FALSE` returns the Shiny app object without running it, which is what
 #'   tests and `shiny::runApp()` want.
-#' @param ... Passed to [shiny::runApp()], so that `port` and `launch.browser`
-#'   can be set.
+#' @param launch.browser Passed to [shiny::runApp()]. `TRUE`, the default,
+#'   opens the app in the system browser as soon as it starts, rather than
+#'   leaving a URL to be clicked or drawing it into the viewer pane of an IDE.
+#'   `FALSE` starts it and says where it is, which is what a remote session or
+#'   a scripted screenshot wants.
+#' @param ... Passed to [shiny::runApp()], so that `port` and `host` can be
+#'   set.
 #'
 #' @return The Shiny app object, invisibly when the app was run.
 #'
@@ -159,8 +198,11 @@
 #' }
 #'
 #' @export
-foresty_app <- function(fit, measure = NULL, launch = interactive(), ...) {
+foresty_app <- function(fit, measure = NULL, launch = interactive(),
+                        launch.browser = TRUE, ...) {
   fy_require("shiny", "run the app")
+  fy_require("bslib", "run the app")
+  checkmate::assert_flag(launch.browser)
 
   # The name the caller knows the model by, so that the code the app writes is
   # code that runs in the caller's session rather than code mentioning a `fit`
@@ -186,7 +228,7 @@ foresty_app <- function(fit, measure = NULL, launch = interactive(), ...) {
   if (!isTRUE(launch)) {
     return(app)
   }
-  invisible(shiny::runApp(app, ...))
+  invisible(shiny::runApp(app, launch.browser = launch.browser, ...))
 }
 
 # What each variable of the model can be asked to do.
@@ -224,20 +266,47 @@ fy_app_variables <- function(info) {
     !is.null(x) && is.numeric(x) && !fy_is_categorical(x)
   }, logical(1))]
 
+  # A variable with levels of its own, which is what a combination of two of
+  # them can be made out of: one reference group for a whole figure is a level
+  # of the exposure and a level of the modifier, and a continuous exposure has
+  # neither. A flag stored as 0 and 1 is not one of these -- it is a number the
+  # model fitted as a number -- so it can be the modifier, whose levels are its
+  # two values, but not the exposure of such a comparison.
+  categorical <- vars[vapply(vars, function(v) {
+    x <- tryCatch(fy_variable(info, v), error = function(e) NULL)
+    !is.null(x) && fy_is_categorical(x)
+  }, logical(1))]
+
   ids <- stats::setNames(
     make.unique(gsub("[^A-Za-z0-9]+", "_", vars), sep = "_"),
     vars
   )
 
+  modifier <- vars[is.na(refusal)]
   list(
     all = vars,
     exposure = exposure,
-    modifier = vars[is.na(refusal)],
+    modifier = modifier,
     continuous = continuous,
+    categorical = categorical,
+    levels = fy_app_levels(info, union(modifier, categorical)),
     range = fy_app_ranges(info, continuous),
     ids = ids,
     refusal = refusal
   )
+}
+
+# The levels of each variable that has them, which is what the menus naming a
+# reference group are filled from. They are taken as the figure takes them, so
+# that a level offered in a menu is a level a row can be drawn for.
+fy_app_levels <- function(info, vars) {
+  stats::setNames(lapply(vars, function(v) {
+    x <- tryCatch(fy_variable(info, v), error = function(e) NULL)
+    if (is.null(x) || (is.matrix(x) && ncol(x) > 1L)) {
+      return(character(0))
+    }
+    levels(droplevels(as.factor(x)))
+  }), vars)
 }
 
 # The lowest and the highest value each continuous variable takes in the data
@@ -308,31 +377,39 @@ fy_arrow <- "\u2192"
 # A section of the sidebar that opens and shuts. There are some forty controls
 # behind these panels and no more than a handful of them is wanted at once, so
 # the ones that are not being used are folded away rather than scrolled past.
-# `details` is the browser's own, needing neither a package nor a callback.
-fy_app_panel <- function(title, ..., open = FALSE) {
-  shiny::tags$details(
-    class = "fy-panel",
-    open = if (isTRUE(open)) NA else NULL,
-    shiny::tags$summary(title),
-    shiny::div(class = "fy-panel-body", ...)
-  )
+# Which of them start open is the accordion's business rather than the panel's,
+# so a panel is only its title and what is inside it.
+fy_app_panel <- function(title, ...) {
+  bslib::accordion_panel(title, ...)
 }
 
+# The look is the one `ggstratify` wears, and for the same reason: the two are
+# read as one pair of tools, so a reader who has used the other should not have
+# to learn where anything is twice. The colours are not written here -- the
+# grey title bar and the green of an open tab are Bootswatch's `flatly`, which
+# `bs_theme(preset = )` fetches -- and what is left is the text Bootstrap sizes
+# in pixels and the handful of classes this app has of its own.
 fy_app_css <- function() {
   paste0(
-    ".fy-panel{border:1px solid #dfe3e8;border-radius:6px;margin-bottom:10px;",
-    "background:#fff}",
-    ".fy-panel>summary{cursor:pointer;padding:8px 10px;font-weight:600;",
-    "list-style:revert}",
-    ".fy-panel[open]>summary{border-bottom:1px solid #eceff2}",
-    ".fy-panel-body{padding:10px 10px 2px 10px}",
-    ".fy-panel-body .form-group{margin-bottom:10px}",
+    # The code tabs, and the two tabs of printed output beside them.
+    "#code,#code_plain,#models,#model{background:#f6f8fa;color:#24292f;",
+    "border:1px solid #d7dde3;border-radius:6px;padding:14px 16px;",
+    "font-size:0.95em;line-height:1.55;max-height:70vh;overflow:auto}",
+    ".accordion-button{font-weight:600}",
+    # Labels, so a control is as easy to read as its value.
+    ".form-label,.control-label,.shiny-input-container>label{font-weight:600}",
+    # Notes, hints and alerts, all of which Bootstrap sets to 0.875em.
+    ".small,small,.form-text,.help-block,.alert{font-size:0.95em}",
+    # ionRangeSlider ships its own px sizes, which no theme scale reaches.
+    ".irs-min,.irs-max,.irs-single,.irs-from,.irs-to{font-size:0.8em}",
+    ".irs-grid-text{font-size:0.7em}",
     # The figure is drawn at the export size; if the panel is narrower the
     # page scrolls rather than squeezing the plot between fixed-width columns.
     ".fy-figure{margin-bottom:24px;overflow-x:auto}",
     ".fy-figure h4{font-weight:600;margin:4px 0 6px 0}",
     ".fy-buttons .btn{margin:0 6px 6px 0}",
     ".fy-note{color:#5b6570;font-size:90%;margin:-4px 0 10px 0}",
+    ".fy-heading{font-weight:600;margin:6px 0 2px 0}",
     ".fy-exposure{border-left:3px solid #dfe3e8;padding-left:10px;",
     "margin-bottom:12px}",
     ".fy-exposure>strong{display:block;margin-bottom:4px}",
@@ -349,6 +426,26 @@ fy_app_css <- function() {
     "@keyframes fy-spin{to{transform:rotate(360deg)}}",
     # A device that would rather not see it move.
     "@media (prefers-reduced-motion:reduce){.fy-spinner{animation:none}}"
+  )
+}
+
+# Copying the code happens in the browser rather than on the server, so that it
+# also works when the app is being read over a remote session.
+fy_app_copy_js <- function() {
+  paste0(
+    "$(document).on('click', '.fy-copy', function() {",
+    "  var el = document.getElementById($(this).data('target'));",
+    "  if (el) { navigator.clipboard.writeText(el.innerText); }",
+    "});"
+  )
+}
+
+# The button that does it, named for the output it copies.
+fy_app_copy_button <- function(target) {
+  shiny::tags$button(
+    type = "button", class = "btn btn-secondary btn-sm fy-copy",
+    `data-target` = target,
+    "Copy to clipboard"
   )
 }
 
@@ -392,37 +489,52 @@ fy_app_waiting <- function() {
 }
 
 fy_app_ui <- function(info, variables, fit_name) {
-  shiny::fluidPage(
-    shiny::tags$head(shiny::tags$style(shiny::HTML(fy_app_css()))),
-    shiny::titlePanel("foresty"),
-    shiny::sidebarLayout(
-      shiny::sidebarPanel(
-        width = 3,
+  bslib::page_sidebar(
+    title = "foresty",
+    # The theme `ggstratify` wears, and deliberately the same one: the grey
+    # title bar and the green of an open tab come from Bootswatch's `flatly`,
+    # and `font_scale` raises Bootstrap's base size so that every control,
+    # label and table grows with it. The figures are drawn by ggplot2 and are
+    # unaffected -- their text size is the slider in the sidebar.
+    theme = bslib::bs_theme(version = 5, preset = "flatly", font_scale = 1.35),
+    # The figures are drawn at the size they export at and there may be a dozen
+    # of them, so the page scrolls rather than fitting itself to the window.
+    fillable = FALSE,
+    sidebar = bslib::sidebar(
+      width = 400,
+      open = "desktop",
 
-        # The two choices the figure is of. Both keep every variable picked, so
-        # that a second exposure is added to the first rather than replacing it.
-        shiny::selectInput(
-          "exposure", "Exposures (as many as you want)",
-          choices = variables$exposure, selected = variables$exposure[1L],
-          multiple = TRUE
-        ),
-        shiny::selectInput(
-          "modifier", "Effect modifiers (as many as you want)",
-          choices = fy_app_modifier_choices(variables), multiple = TRUE
-        ),
-        shiny::checkboxInput(
-          "overall",
-          "Also draw the overall effect, from the model with no interaction term",
-          value = TRUE
-        ),
-        shiny::checkboxInput(
-          "combine", "Combine the pairs into one figure", value = TRUE
-        ),
-        shiny::div(class = "fy-note", paste0(
-          "Every exposure is drawn against every modifier. Combining follows ",
-          "foresty_combine(): one figure per exposure, its modifiers as ",
-          "blocks. Uncombined, each figure is exported as a file of its own."
-        )),
+      # The two choices the figure is of. Both keep every variable picked, so
+      # that a second exposure is added to the first rather than replacing it.
+      shiny::selectInput(
+        "exposure", "Exposures (as many as you want)",
+        choices = variables$exposure, selected = variables$exposure[1L],
+        multiple = TRUE
+      ),
+      shiny::selectInput(
+        "modifier", "Effect modifiers (as many as you want)",
+        choices = fy_app_modifier_choices(variables), multiple = TRUE
+      ),
+      shiny::checkboxInput(
+        "overall",
+        "Also draw the overall effect, from the model with no interaction term",
+        value = TRUE
+      ),
+      shiny::checkboxInput(
+        "combine", "Combine the pairs into one figure", value = TRUE
+      ),
+      shiny::div(class = "fy-note", paste0(
+        "Every exposure is drawn against every modifier. Combining follows ",
+        "foresty_combine(): one figure per exposure, its modifiers as ",
+        "blocks. Uncombined, each figure is exported as a file of its own."
+      )),
+
+      bslib::accordion(
+        multiple = TRUE,
+        # Everything else is folded away until it is wanted; the buttons are
+        # what a reader reaches for once the figure is right, so they are the
+        # one section that starts open.
+        open = "Export",
 
         fy_app_panel(
           "Figure style",
@@ -534,11 +646,12 @@ fy_app_ui <- function(info, variables, fit_name) {
           ),
           fy_app_scale_control(info),
           shiny::numericInput("ci_level", "Confidence level", value = 0.95,
-                              min = 0.5, max = 0.9999, step = 0.01)
+                              min = 0.5, max = 0.9999, step = 0.01),
+          shiny::uiOutput("reference_controls")
         ),
 
         fy_app_panel(
-          "Export", open = TRUE,
+          "Export",
           shiny::fluidRow(
             shiny::column(6, shiny::numericInput("width", "Width (in)",
                                                  value = 10, min = 2, step = 1)),
@@ -555,47 +668,62 @@ fy_app_ui <- function(info, variables, fit_name) {
             shiny::downloadButton("save_report", "Reports (HTML)")
           )
         )
-      ),
-      shiny::mainPanel(
-        width = 9,
-        fy_app_waiting(),
-        shiny::tabsetPanel(
-          shiny::tabPanel(
-            "Plot",
-            shiny::br(),
-            shiny::uiOutput("message"),
-            shiny::uiOutput("plots")
-          ),
-          shiny::tabPanel(
-            "Models",
-            shiny::br(),
-            shiny::p(shiny::em(paste0(
-              "How each figure was arrived at, written out in R. The code is ",
-              "what foresty does, not a description of it."
-            ))),
-            shiny::verbatimTextOutput("models")
-          ),
-          shiny::tabPanel(
-            "summary(fit)",
-            shiny::br(),
-            shiny::p(shiny::em(paste0(
-              "The model you fitted, and every model the app fitted from it ",
-              "by adding an interaction term."
-            ))),
-            shiny::verbatimTextOutput("model")
-          ),
-          shiny::tabPanel(
-            "R code",
-            shiny::br(),
-            shiny::p(shiny::em(paste0(
-              "The code that drew the figures. Paste it into the script that ",
-              "fits ", fit_name, "."
-            ))),
-            shiny::verbatimTextOutput("code")
-          )
-        )
       )
-    )
+    ),
+
+    fy_app_waiting(),
+    bslib::navset_card_tab(
+      id = "main_tabs",
+
+      bslib::nav_panel(
+        "Plot",
+        shiny::uiOutput("message"),
+        shiny::uiOutput("plots")
+      ),
+      bslib::nav_panel(
+        "Models",
+        shiny::helpText(
+          "How each figure was arrived at, written out in R. The code is",
+          "what foresty does, not a description of it."
+        ),
+        shiny::verbatimTextOutput("models")
+      ),
+      bslib::nav_panel(
+        "summary(fit)",
+        shiny::helpText(
+          "The model you fitted, and every model the app fitted from it",
+          "by adding an interaction term."
+        ),
+        shiny::verbatimTextOutput("model")
+      ),
+      # Both ways of writing the same figure, one under the other: the call
+      # foresty made, and what that call saves. A reader who wants the package
+      # takes the first; a reader who would rather not add a dependency, or
+      # who wants to see what is being done on their behalf before they trust
+      # it, takes the second and edits it.
+      bslib::nav_panel(
+        "R code",
+        shiny::div(class = "fy-heading", "With foresty"),
+        shiny::helpText("The code that drew the figures."),
+        shiny::div(class = "fy-buttons", fy_app_copy_button("code")),
+        shiny::verbatimTextOutput("code"),
+        shiny::hr(),
+        shiny::div(class = "fy-heading",
+                   "How to calculate effect estimates for each subgroup"),
+        shiny::helpText(
+          "Where the numbers come from, in base R and the car package with",
+          "nothing from this package in them: the interaction term, the linear",
+          "combination of the coefficients each subgroup estimate is, and the",
+          "joint test reported beside them. It comes to the estimates on the",
+          "Plot tab exactly, and draws nothing."
+        ),
+        shiny::div(class = "fy-buttons", fy_app_copy_button("code_plain")),
+        shiny::verbatimTextOutput("code_plain")
+      )
+    ),
+
+    shiny::tags$head(shiny::tags$style(shiny::HTML(fy_app_css()))),
+    shiny::tags$script(shiny::HTML(fy_app_copy_js()))
   )
 }
 
@@ -859,6 +987,58 @@ fy_app_modifier_labels_ui <- function(modifier, id, info, input) {
   )
 }
 
+# One reference group for a whole figure, asked once per effect modifier.
+#
+# The ordinary subgroup figure reads each subgroup against its own reference
+# level, so the rows of one subgroup are not comparisons with the rows of
+# another. Where the exposure and the modifier both have levels there is a
+# second question: what each combination of the two comes to against one of
+# them, which is the table of groups against a baseline group a paper reports.
+# Ticking the box asks that question, and the two menus under it say which
+# combination the rest are read against.
+#
+# It is asked per modifier because the choice belongs to the modifier -- one
+# figure of ecog by egfr mutation can be drawn that way and another by sex left
+# as it was -- and the level of the exposure is asked once per exposure inside
+# it, since a figure of two exposures against one modifier is two figures with a
+# reference group apiece.
+fy_app_reference_ui <- function(modifier, exposures, variables, input) {
+  id <- variables$ids[[modifier]]
+  usable <- intersect(exposures, variables$categorical)
+  levels <- variables$levels[[modifier]] %||% character(0)
+  if (is.null(id) || !length(usable) || length(levels) < 2L) {
+    return(NULL)
+  }
+  flag <- paste0("single_ref_", id)
+  kept <- function(name, default) shiny::isolate(input[[name]]) %||% default
+
+  shiny::div(
+    class = "fy-exposure",
+    shiny::tags$strong(paste0("One reference group: ", modifier)),
+    shiny::checkboxInput(
+      flag,
+      paste0("Compare every combination of the exposure and ", modifier,
+             " with one group"),
+      value = isTRUE(kept(flag, FALSE))
+    ),
+    shiny::conditionalPanel(
+      paste0("input.", flag, " == true"),
+      shiny::selectInput(
+        paste0("ref_level_", id), paste0("The reference level of ", modifier),
+        choices = levels, selected = kept(paste0("ref_level_", id), levels[[1L]])
+      ),
+      lapply(usable, function(exposure) {
+        here <- variables$levels[[exposure]] %||% character(0)
+        name <- paste0("ref_level_", id, "_", variables$ids[[exposure]])
+        shiny::selectInput(
+          name, paste0("The reference level of ", exposure),
+          choices = here, selected = kept(name, here[[1L]])
+        )
+      })
+    )
+  )
+}
+
 # The server ------------------------------------------------------------------
 
 fy_app_server <- function(fit, info, variables, fit_name, measure) {
@@ -898,12 +1078,35 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
         fy_app_modifier_labels_ui(v, variables$ids[[v]], info, input)
       }))
     })
+    output$reference_controls <- shiny::renderUI({
+      modifiers <- fy_app_chosen(input$modifier)
+      exposures <- fy_app_chosen(input$exposure)
+      if (!length(modifiers)) {
+        return(NULL)
+      }
+      blocks <- Filter(Negate(is.null), lapply(modifiers, function(v) {
+        fy_app_reference_ui(v, exposures, variables, input)
+      }))
+      if (!length(blocks)) {
+        # A figure whose exposure has no levels has no combinations to draw, and
+        # a reader who was looking for the box should be told why rather than
+        # left to wonder where it is.
+        return(shiny::div(class = "fy-note", paste0(
+          "Comparing every combination with one group needs an exposure with ",
+          "levels of its own, and none of the exposures chosen has any: the ",
+          "rows of a continuous one are the effect of a difference in it ",
+          "rather than groups of people."
+        )))
+      }
+      shiny::tagList(blocks)
+    })
     # The panel these live in is shut until it is wanted, and an output inside
     # something shut is suspended, so it is told not to be: the controls have
     # to exist for the figure to know what they say.
     shiny::outputOptions(output, "exposure_controls", suspendWhenHidden = FALSE)
     shiny::outputOptions(output, "exposure_labels", suspendWhenHidden = FALSE)
     shiny::outputOptions(output, "modifier_labels", suspendWhenHidden = FALSE)
+    shiny::outputOptions(output, "reference_controls", suspendWhenHidden = FALSE)
 
     figures <- shiny::reactive({
       chosen <- pairs()
@@ -1084,6 +1287,14 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
       fy_app_script(pairs(), input, ctx)
     })
 
+    # Where the estimates come from, without the package. It reads the fitted
+    # states rather than the menus alone, because the levels of the modifier and
+    # the term the interaction added are properties of the model that was fitted
+    # and not of what was clicked.
+    output$code_plain <- shiny::renderText({
+      fy_app_plain_script(figures(), input, ctx)
+    })
+
     output$save_png <- shiny::downloadHandler(
       filename = function() fy_app_file_name(pairs(), display(), "png"),
       content = function(file) {
@@ -1252,6 +1463,8 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
   if (!is.null(modifier)) {
     level_labels <- fy_app_level_labels_arg(input, modifier, ctx)
     if (!is.null(level_labels)) args$level_labels <- level_labels
+    reference <- fy_app_reference_arg(input, pair, ctx)
+    if (!is.null(reference)) args$reference <- reference
   }
 
   # The test belongs to the interaction, and its default is the one the package
@@ -1393,6 +1606,47 @@ fy_app_level_labels_arg <- function(input, modifier, ctx) {
   if (!any(nzchar(values))) return(NULL)
   values[!nzchar(values)] <- levels[!nzchar(values)]
   as.call(c(quote(c), stats::setNames(as.list(values), levels)))
+}
+
+# The one combination of the exposure and the modifier this figure's rows are
+# compared with, as the argument that says it, or NULL where the box asking for
+# one is unticked.
+#
+# The box belongs to the modifier and the level of the exposure is asked inside
+# it, so a pair whose exposure has no levels -- a continuous one -- has no such
+# combination and is drawn as it always was, whatever the box says. That is the
+# same rule foresty_interaction() applies, and applying it here means the app
+# never writes a call the package would refuse.
+fy_app_reference_arg <- function(input, pair, ctx) {
+  variables <- ctx$variables
+  modifier <- pair$modifier
+  id <- if (is.null(modifier)) NULL else variables$ids[[modifier]]
+  exposure_id <- variables$ids[[pair$exposure]]
+  if (is.null(id) || is.null(exposure_id) ||
+      !pair$exposure %in% variables$categorical ||
+      !isTRUE(input[[paste0("single_ref_", id)]])) {
+    return(NULL)
+  }
+
+  levels_of <- function(v) variables$levels[[v]] %||% character(0)
+  modifier_level <- input[[paste0("ref_level_", id)]] %||%
+    levels_of(modifier)[1L]
+  exposure_level <- input[[paste0("ref_level_", id, "_", exposure_id)]] %||%
+    levels_of(pair$exposure)[1L]
+  # The menus are rebuilt whenever the choice of variables changes, and for a
+  # moment they hold the level of the variable they held before. A level that is
+  # not one of this variable's is left out rather than written into a call that
+  # would be refused, and comes back as soon as the menu catches up.
+  if (!length(modifier_level) || !length(exposure_level) ||
+      is.na(modifier_level) || is.na(exposure_level) ||
+      !modifier_level %in% levels_of(modifier) ||
+      !exposure_level %in% levels_of(pair$exposure)) {
+    return(NULL)
+  }
+
+  as.call(c(quote(c), stats::setNames(
+    list(exposure_level, modifier_level), c(pair$exposure, modifier)
+  )))
 }
 
 # The two values a pair of quantiles comes to, in the data the model was fitted
@@ -1788,6 +2042,8 @@ fy_app_specs_lines <- function(pairs, input, ctx, coloured = FALSE) {
   if (!is.null(pair$modifier)) {
     level_labels <- fy_app_level_labels_arg(input, pair$modifier, ctx)
     if (!is.null(level_labels)) args$level_labels <- level_labels
+    reference <- fy_app_reference_arg(input, pair, ctx)
+    if (!is.null(reference)) args$reference <- reference
   }
     subtitle <- fy_app_subtitle(pair$exposure, input, ctx)
     if (!is.null(subtitle)) {
@@ -1819,6 +2075,520 @@ fy_app_wrapped <- function(x, indent) {
 
 fy_app_deparse1 <- function(x) {
   paste(deparse(x, width.cutoff = 500L), collapse = " ")
+}
+
+# Where the estimates come from, without the package ------------------------
+
+# How the number on each row of the figure is calculated, written out in base R
+# and the car package.
+#
+# A reader deciding whether to take a dependency, and a reviewer asking what was
+# actually computed, are owed the arithmetic: the model the interaction term was
+# added to, the linear combination of its coefficients that each subgroup
+# estimate is, and the joint test reported beside them. Written here rather than
+# described, so that it can be pasted into a script and run, and so that the
+# numbers it produces can be checked against the ones on the Plot tab.
+#
+# It reproduces the estimates exactly -- the same design matrix, the same
+# coefficients and covariance, the same degrees of freedom and the same test --
+# and draws nothing. Drawing them is what the call above is for.
+fy_app_plain_script <- function(states, input, ctx) {
+  if (!length(states)) {
+    return("")
+  }
+  blocks <- lapply(seq_along(states), function(i) {
+    fy_app_plain_block(states[[i]], i, input, ctx)
+  })
+  paste(c(fy_app_plain_preamble(input, ctx),
+          unlist(blocks, use.names = FALSE)),
+        collapse = "\n")
+}
+
+# The heading, the helpers, and the handful of settings every estimate below is
+# taken at, written once because every estimate is taken at the same ones.
+fy_app_plain_preamble <- function(input, ctx) {
+  info <- ctx$info
+  exponentiate <- isTRUE(info$exponentiate) && !identical(input$scale, "log")
+  c(
+    strrep("#", 77),
+    "# How the effect estimate in each subgroup is calculated.",
+    "#",
+    "# Needs the car package, and nothing else. Everything below is base R and",
+    "# car: the model the interaction term was added to, the linear combination",
+    "# of its coefficients each subgroup estimate is, and the joint test of the",
+    "# interaction reported beside them.",
+    "#",
+    "# Each subgroup estimate comes out of that one model rather than out of a",
+    "# model fitted in each subgroup, which is what lets every subgroup share",
+    "# one estimate of the covariate effects and the interaction be tested.",
+    "#",
+    "# The numbers are the ones on the Plot tab exactly: the same design matrix,",
+    "# the same coefficients and covariance, the same degrees of freedom and the",
+    "# same test. Nothing here draws a figure.",
+    strrep("#", 77),
+    "",
+    "library(car)",
+    "",
+    fy_app_plain_helpers(),
+    "",
+    paste0("# --- What the sidebar came to ", strrep("-", 47)),
+    "",
+    paste0("ci_level     <- ", fy_app_number(input$ci_level, 0.95)),
+    paste0("exponentiate <- ", if (exponentiate) "TRUE" else "FALSE",
+           "   # ", if (exponentiate) {
+             paste0("the ", tolower(info$measure_name), ", drawn about 1")
+           } else {
+             "the regression coefficient, drawn about 0"
+           }),
+    paste0("use_t        <- ", if (is.finite(info$error_df)) "TRUE" else "FALSE",
+           "   # ", if (is.finite(info$error_df)) {
+             "a gaussian model: t and F on its residual degrees of freedom"
+           } else {
+             "the normal approximation: z and a Wald chi-square"
+           }),
+    "",
+    "# One complete observation of the data. Every estimate is a difference",
+    "# between two copies of this row, so the covariates it carries cancel; it",
+    "# is here because a design matrix has to be built from a whole row.",
+    fy_app_plain_at_line(info, ctx$fit_name),
+    ""
+  )
+}
+
+# The row the contrasts are taken at, named as the reader's own data rather
+# than as a copy of it where the model's call says where it came from.
+fy_app_plain_at_line <- function(info, fit_name) {
+  where <- tryCatch(fy_reference_index(info), error = function(e) NULL)
+  data_name <- fy_app_data_name(info$fit)
+  taken <- if (is.null(where)) {
+    paste0("model.frame(", fit_name, ")[1, ]")
+  } else if (where$from_data && !is.null(data_name)) {
+    paste0(data_name, "[", where$index, ", ]")
+  } else {
+    paste0("model.frame(", fit_name, ")[", where$index, ", ]")
+  }
+  paste0("at <- ", taken)
+}
+
+# The three functions foresty is, as functions of your own.
+fy_app_plain_helpers <- function() {
+  c(
+paste0("# --- What foresty does for you ", strrep("-", 45)),
+"",
+"# One estimate: the effect of the exposure as a linear combination of the",
+"# coefficients of one model. The two rows differ in what is being compared and",
+"# in nothing else -- the exposure, and the modifier where the comparison runs",
+"# across subgroups as well -- so the difference between their rows of the",
+"# design matrix is the contrast the estimate is of, and every covariate",
+"# cancels. Going back through model.frame() with the model's own levels and",
+"# contrast coding is what rebuilds a basis such as ns(x, 3) with the knots it",
+"# was fitted with, rather than recomputing one from two rows.",
+"#",
+"# car::linearHypothesis.default() is called rather than car::linearHypothesis():",
+"# the method a fit dispatches to has its own idea of which coefficients, which",
+"# covariance and how many degrees of freedom to use. The hypothesis is a",
+"# numeric matrix rather than a character formula because a coefficient may be",
+"# named anything a fitting function likes, which car's parser reads only some",
+"# of.",
+"effect_of <- function(model, at, exposure, from, to, modifier = NULL,",
+"                      level = NULL, from_level = level, to_level = level,",
+"                      ci_level = 0.95, exponentiate = TRUE, error_df = Inf) {",
+"  rows <- at[c(1, 1), , drop = FALSE]",
+"  rows[[exposure]] <- c(from, to)",
+"  if (!is.null(modifier)) rows[[modifier]] <- c(from_level, to_level)",
+"",
+"  tt <- delete.response(terms(model))",
+"  mf <- model.frame(tt, data = rows, xlev = model$xlevels, na.action = na.pass)",
+"  X  <- model.matrix(tt, data = mf, contrasts.arg = model$contrasts)",
+"",
+"  b <- coef(model)",
+"  b <- b[!is.na(b)]        # an aliased coefficient has no column in vcov()",
+"  V <- vcov(model)[names(b), names(b), drop = FALSE]",
+"  L <- matrix((X[2, ] - X[1, ])[names(b)], nrow = 1,",
+"              dimnames = list(NULL, names(b)))",
+"",
+"  lh <- car::linearHypothesis.default(",
+"    model, L, coef. = b, vcov. = V, error.df = error_df,",
+"    test = if (is.finite(error_df)) \"F\" else \"Chisq\", singular.ok = TRUE",
+"  )",
+"  # The estimate is the value car attaches to its result and its standard",
+"  # error the square root of the variance beside it.",
+"  estimate <- as.vector(attr(lh, \"value\"))",
+"  se <- sqrt(as.vector(attr(lh, \"vcov\")))",
+"  crit <- if (is.finite(error_df)) {",
+"    qt(1 - (1 - ci_level) / 2, df = error_df)",
+"  } else {",
+"    qnorm(1 - (1 - ci_level) / 2)",
+"  }",
+"  out <- data.frame(",
+"    estimate  = estimate,",
+"    conf.low  = estimate - crit * se,",
+"    conf.high = estimate + crit * se,",
+"    p.value   = lh[[grep(\"^Pr\\\\(\", names(lh))]][2]",
+"  )",
+"  # The interval is formed on the scale the model was fitted on and only then",
+"  # transformed, so that it stays consistent with its point estimate.",
+"  if (exponentiate) {",
+"    out[c(\"estimate\", \"conf.low\", \"conf.high\")] <-",
+"      exp(out[c(\"estimate\", \"conf.low\", \"conf.high\")])",
+"  }",
+"  out",
+"}",
+"",
+"# Which distribution an estimate is referred to. Taken from the model in hand,",
+"# because the model carrying the interaction has spent degrees of freedom on",
+"# it that the model without it still has.",
+"error_df_of <- function(model, use_t) {",
+"  if (!use_t) return(Inf)",
+"  df <- tryCatch(df.residual(model), error = function(e) NULL)",
+"  if (is.null(df) || is.na(df) || df <= 0) Inf else as.numeric(df)",
+"}",
+"",
+"# The p-value for the interaction, the Wald way: the joint test that every",
+"# coefficient the interaction term added is zero.",
+"wald_p <- function(model, columns, error_df = Inf) {",
+"  b <- coef(model)",
+"  b <- b[!is.na(b)]",
+"  columns <- intersect(columns, names(b))",
+"  if (!length(columns)) return(NA_real_)",
+"  V <- vcov(model)[names(b), names(b), drop = FALSE]",
+"  L <- matrix(0, length(columns), length(b),",
+"              dimnames = list(columns, names(b)))",
+"  L[cbind(seq_along(columns), match(columns, names(b)))] <- 1",
+"",
+"  lh <- car::linearHypothesis.default(",
+"    model, L, coef. = b, vcov. = V, error.df = error_df,",
+"    test = if (is.finite(error_df)) \"F\" else \"Chisq\", singular.ok = TRUE",
+"  )",
+"  lh[[grep(\"^Pr\\\\(\", names(lh))]][2]",
+"}",
+"",
+"# The same hypothesis tested against the likelihood rather than against the",
+"# Wald approximation to it: twice the difference in log-likelihood between the",
+"# model carrying the interaction and the same model without it. The two part",
+"# company where the Wald approximation is poor -- a small study, a rare",
+"# outcome, a sparse subgroup -- and this is then the more trustworthy of them.",
+"lrt_p <- function(full, reduced) {",
+"  statistic <- 2 * (as.numeric(logLik(full)) - as.numeric(logLik(reduced)))",
+"  df <- attr(logLik(full), \"df\") - attr(logLik(reduced), \"df\")",
+"  if (is.na(df) || df <= 0 || statistic < 0) return(NA_real_)",
+"  pchisq(statistic, df = df, lower.tail = FALSE)",
+"}"
+  )
+}
+
+# One figure's worth of estimates: the model they come out of, the rows they
+# are, and the test reported beside them.
+fy_app_plain_block <- function(state, index, input, ctx) {
+  pair <- state$pair
+  exposure <- pair$exposure
+  modifier <- pair$modifier
+  suffix <- paste0("_", index)
+
+  comparisons <- fy_app_plain_comparisons(input, exposure, ctx)
+  if (is.null(comparisons)) {
+    return(c(
+      paste0("# --- Figure ", index, ": ", state$label, " ", strrep("-", 40)),
+      paste0("# Not written: which two values of \"", exposure,
+             "\" are being compared could"),
+      "# not be worked out, so there is nothing to contrast.",
+      ""
+    ))
+  }
+
+  opening <- paste0("# --- Figure ", index, ": ", state$label, " ")
+  head <- c(paste0(opening, strrep("-", max(3L, 78L - nchar(opening)))), "")
+  reference <- fy_app_plain_reference(state, input, ctx)
+  body <- if (is.null(modifier)) {
+    fy_app_plain_overall(state, suffix, input, ctx, comparisons)
+  } else if (is.null(reference)) {
+    fy_app_plain_subgroups(state, suffix, input, ctx, comparisons)
+  } else {
+    fy_app_plain_cells(state, suffix, input, ctx, reference)
+  }
+  c(head, body, "")
+}
+
+# The overall effect: one model, and one row per comparison the exposure is of.
+fy_app_plain_overall <- function(state, suffix, input, ctx, comparisons) {
+  exposure <- state$pair$exposure
+  fit_name <- ctx$fit_name
+  label <- fy_app_exposure_label(exposure, input, ctx)
+  c(
+    paste0("comparisons", suffix, " <- list("),
+    paste0(comparisons, c(rep(",", length(comparisons) - 1L), "")),
+    ")",
+    "",
+    paste0("rows", suffix, " <- do.call(rbind, lapply(comparisons", suffix,
+           ", function(cmp) {"),
+    "  out <- if (isTRUE(cmp$reference)) {",
+    "    data.frame(estimate = if (exponentiate) 1 else 0, conf.low = NA_real_,",
+    "               conf.high = NA_real_, p.value = NA_real_)",
+    "  } else {",
+    paste0("    effect_of(", fit_name, ", at, \"", exposure,
+           "\", cmp$from, cmp$to,"),
+    "              ci_level = ci_level, exponentiate = exponentiate,",
+    paste0("              error_df = error_df_of(", fit_name, ", use_t))"),
+    "  }",
+    paste0("  cbind(label = if (is.na(cmp$label)) ",
+           fy_app_quote(label), " else cmp$label, out)"),
+    "}))",
+    paste0("rownames(rows", suffix, ") <- NULL"),
+    paste0("rows", suffix)
+  )
+}
+
+# One estimate per level of the modifier, all of them out of the one model that
+# carries the interaction term. The modifier is held at that level in both rows
+# of the contrast, so each row is the effect of the exposure inside one subgroup
+# and the subgroups are not compared with each other.
+fy_app_plain_subgroups <- function(state, suffix, input, ctx, comparisons) {
+  exposure <- state$pair$exposure
+  modifier <- state$pair$modifier
+  fit_name <- ctx$fit_name
+  int_name <- paste0("fit_int", suffix)
+  levels <- fy_app_plain_levels(input, modifier, ctx)
+  added <- fy_app_plain_added(state, exposure, modifier, ctx)
+
+  c(
+    "# The model carrying the interaction.",
+    paste0(int_name, " <- update(", fit_name, ", . ~ . + ",
+           paste(added, collapse = " + "), ")"),
+    "",
+    paste0("levels", suffix, "       <- c(", levels$values, ")"),
+    paste0("level_labels", suffix, " <- c(",
+           paste0("\"", levels$labels, "\"", collapse = ", "), ")"),
+    paste0("comparisons", suffix, "  <- list("),
+    paste0(comparisons, c(rep(",", length(comparisons) - 1L), "")),
+    ")",
+    "",
+    "# One row per subgroup, and per comparison within it.",
+    paste0("rows", suffix, " <- do.call(rbind, lapply(seq_along(levels",
+           suffix, "), function(i) {"),
+    paste0("  do.call(rbind, lapply(comparisons", suffix,
+           ", function(cmp) {"),
+    "    out <- if (isTRUE(cmp$reference)) {",
+    "      data.frame(estimate = if (exponentiate) 1 else 0,",
+    "                 conf.low = NA_real_, conf.high = NA_real_,",
+    "                 p.value = NA_real_)",
+    "    } else {",
+    paste0("      effect_of(", int_name, ", at, \"", exposure,
+           "\", cmp$from, cmp$to,"),
+    paste0("                modifier = \"", modifier, "\", level = levels",
+           suffix, "[i],"),
+    "                ci_level = ci_level, exponentiate = exponentiate,",
+    paste0("                error_df = error_df_of(", int_name, ", use_t))"),
+    "    }",
+    paste0("    label <- if (is.na(cmp$label)) level_labels", suffix,
+           "[i] else"),
+    paste0("      paste0(level_labels", suffix, "[i], \": \", cmp$label)"),
+    "    cbind(label = label, out)",
+    "  }))",
+    "}))",
+    paste0("rownames(rows", suffix, ") <- NULL"),
+    paste0("rows", suffix),
+    "",
+    "# The p-value reported beside them.",
+    fy_app_plain_test(state, suffix, int_name, exposure, modifier, added,
+                      input, ctx),
+    fy_app_plain_said(suffix)
+  )
+}
+
+# Every combination of the exposure and the modifier against one of them.
+#
+# The two rows of the contrast now differ in both variables -- the reference
+# combination against this one -- so what each row reports is a whole group
+# against one chosen group rather than the effect of the exposure inside a
+# subgroup. The test beside them is the same test of the same coefficients: it
+# asks whether the effect of the exposure depends on the modifier, and it is not
+# a test of the rows.
+fy_app_plain_cells <- function(state, suffix, input, ctx, reference) {
+  exposure <- state$pair$exposure
+  modifier <- state$pair$modifier
+  fit_name <- ctx$fit_name
+  int_name <- paste0("fit_int", suffix)
+  levels <- fy_app_plain_levels(input, modifier, ctx)
+  added <- fy_app_plain_added(state, exposure, modifier, ctx)
+  exposure_levels <- fy_app_plain_exposure_levels(input, exposure, ctx)
+
+  c(
+    "# The model carrying the interaction.",
+    paste0(int_name, " <- update(", fit_name, ", . ~ . + ",
+           paste(added, collapse = " + "), ")"),
+    "",
+    paste0("levels", suffix, "          <- c(", levels$values, ")"),
+    paste0("level_labels", suffix, "    <- c(",
+           paste0("\"", levels$labels, "\"", collapse = ", "), ")"),
+    paste0("exposure_levels", suffix, " <- c(",
+           paste0("\"", exposure_levels, "\"", collapse = ", "), ")"),
+    "",
+    "# The one combination every row below is compared with.",
+    paste0("ref_exposure", suffix, "    <- ",
+           fy_app_quote(reference$exposure_level)),
+    paste0("ref_modifier", suffix, "    <- ",
+           fy_app_level_values(ctx$info, modifier, reference$modifier_level)),
+    "",
+    "# One row per combination of the two, each against that one.",
+    paste0("rows", suffix, " <- do.call(rbind, lapply(seq_along(levels",
+           suffix, "), function(i) {"),
+    paste0("  do.call(rbind, lapply(exposure_levels", suffix,
+           ", function(lv) {"),
+    paste0("    same <- lv == ref_exposure", suffix, " && levels", suffix,
+           "[i] == ref_modifier", suffix),
+    "    out <- if (same) {",
+    "      data.frame(estimate = if (exponentiate) 1 else 0,",
+    "                 conf.low = NA_real_, conf.high = NA_real_,",
+    "                 p.value = NA_real_)",
+    "    } else {",
+    paste0("      effect_of(", int_name, ", at, \"", exposure, "\","),
+    paste0("                from = ref_exposure", suffix, ", to = lv,"),
+    paste0("                modifier = \"", modifier, "\","),
+    paste0("                from_level = ref_modifier", suffix,
+           ", to_level = levels", suffix, "[i],"),
+    "                ci_level = ci_level, exponentiate = exponentiate,",
+    paste0("                error_df = error_df_of(", int_name, ", use_t))"),
+    "    }",
+    paste0("    cbind(label = paste0(level_labels", suffix,
+           "[i], \": \", lv), out)"),
+    "  }))",
+    "}))",
+    paste0("rownames(rows", suffix, ") <- NULL"),
+    paste0("rows", suffix),
+    "",
+    "# The p-value reported beside them, which is the test of the interaction",
+    "# rather than a test of any row.",
+    fy_app_plain_test(state, suffix, int_name, exposure, modifier, added,
+                      input, ctx),
+    fy_app_plain_said(suffix)
+  )
+}
+
+# The line that says what the test came to, since a p-value assigned to a
+# variable and never printed is a p-value nobody sees.
+fy_app_plain_said <- function(suffix) {
+  paste0("cat(\"p for the interaction:\", signif(p_interaction", suffix,
+         ", 3), \"\\n\")")
+}
+
+# The test the sidebar asked for, written as the arithmetic it is.
+fy_app_plain_test <- function(state, suffix, int_name, exposure, modifier,
+                              added, input, ctx) {
+  if (identical(input$test %||% "lrt", "lrt")) {
+    return(c(
+      paste0("p_interaction", suffix, " <- lrt_p("),
+      paste0("  ", int_name, ","),
+      paste0("  update(", int_name, ", . ~ . - ", paste(added, collapse = " - "),
+             ")"),
+      ")"
+    ))
+  }
+  columns <- fy_app_plain_columns(state, exposure, modifier)
+  c(
+    paste0("p_interaction", suffix, " <- wald_p("),
+    paste0("  ", int_name, ","),
+    paste0("  c(", paste0("\"", columns, "\"", collapse = ", "), "),"),
+    paste0("  error_df = error_df_of(", int_name, ", use_t)"),
+    ")"
+  )
+}
+
+# The one combination this figure's rows are compared with, as the figure was
+# drawn rather than as the menus were read: a pair the package refused the
+# reference for was drawn the ordinary way, and the script beside it says so.
+fy_app_plain_reference <- function(state, input, ctx) {
+  if (is.null(state$value)) {
+    return(NULL)
+  }
+  tryCatch(fy_result(state$value)$reference_cell, error = function(e) NULL)
+}
+
+# The levels of the exposure, in the order the figure draws them.
+fy_app_plain_exposure_levels <- function(input, exposure, ctx) {
+  levels <- ctx$variables$levels[[exposure]]
+  if (!is.null(levels) && length(levels)) {
+    return(levels)
+  }
+  x <- tryCatch(fy_variable(ctx$info, exposure), error = function(e) NULL)
+  levels(droplevels(as.factor(x)))
+}
+
+# The comparisons the exposure is of, as the list the loop runs over. A
+# continuous exposure has one; a categorical one has its levels, the first of
+# them the reference the others are read against.
+fy_app_plain_comparisons <- function(input, exposure, ctx) {
+  args <- fy_app_contrast_args(input, exposure, ctx)
+  values <- tryCatch(
+    fy_exposure_values(
+      ctx$info, exposure,
+      contrast = args$contrast,
+      at = if (is.null(args$at)) NULL else c(args$at[[2L]], args$at[[3L]])
+    ),
+    error = function(e) NULL
+  )
+  if (!length(values)) {
+    return(NULL)
+  }
+  vapply(values, function(v) {
+    level <- v$level %||% NA_character_
+    paste0("  list(label = ",
+           if (is.na(level)) "NA_character_" else fy_app_quote(level),
+           ", from = ", fy_app_value_text(v$from),
+           ", to = ", fy_app_value_text(v$to),
+           ", reference = ", if (isTRUE(v$reference)) "TRUE" else "FALSE", ")")
+  }, character(1))
+}
+
+# The levels of the modifier: the values to put back into the data, which have
+# to be of the type the column is, and the names the figure calls them by.
+fy_app_plain_levels <- function(input, modifier, ctx) {
+  x <- tryCatch(fy_variable(ctx$info, modifier), error = function(e) NULL)
+  levels <- levels(droplevels(as.factor(x)))
+  id <- ctx$variables$ids[[modifier]]
+  labels <- vapply(seq_along(levels), function(i) {
+    given <- trimws(input[[paste0("level_label_", id, "_", i)]] %||% "")
+    if (nzchar(given)) given else levels[i]
+  }, character(1))
+  list(levels = levels, labels = labels,
+       values = fy_app_level_values(ctx$info, modifier, levels))
+}
+
+# The term the interaction added, as the model that was fitted has it, so that
+# `update()` in the script adds what the app added.
+fy_app_plain_added <- function(state, exposure, modifier, ctx) {
+  fallback <- paste0(exposure, ":", modifier)
+  if (is.null(state$value)) {
+    return(fallback)
+  }
+  info <- tryCatch(fy_infos(state$value)[[1L]], error = function(e) NULL)
+  if (is.null(info)) {
+    return(fallback)
+  }
+  added <- setdiff(fy_app_term_labels(info$fit),
+                   fy_app_term_labels(ctx$info$fit))
+  if (!length(added)) fallback else added
+}
+
+# The coefficients the Wald test is taken over.
+fy_app_plain_columns <- function(state, exposure, modifier) {
+  fallback <- paste0(exposure, ":", modifier)
+  if (is.null(state$value)) {
+    return(fallback)
+  }
+  info <- tryCatch(fy_infos(state$value)[[1L]], error = function(e) NULL)
+  if (is.null(info)) {
+    return(fallback)
+  }
+  columns <- tryCatch(
+    fy_modifier_interaction_columns(info, exposure, modifier),
+    error = function(e) character(0)
+  )
+  if (!length(columns)) fallback else columns
+}
+
+# A string as the script has to write it, quotes and backslashes escaped.
+fy_app_quote <- function(x) {
+  paste0("\"", gsub("\"", "\\\\\"", gsub("\\\\", "\\\\\\\\", x)), "\"")
 }
 
 # Drawing --------------------------------------------------------------------
@@ -1941,6 +2711,15 @@ fy_app_say_facts <- function(state, input, ctx, indent = "  ") {
       sep = "")
   cat(indent, "Exposure:        ", said, "\n", sep = "")
   cat(indent, "Effect modifier: ", modifier, "\n", sep = "")
+  # Which cell the rows are read against, where they are read against one cell
+  # rather than each against its own subgroup. A row means a different thing in
+  # the two figures, and a tab of coefficients does not say which it is.
+  reference <- fy_app_plain_reference(state, input, ctx)
+  if (!is.null(reference)) {
+    cat(indent, "Reference group: ", state$pair$exposure, " = ",
+        reference$exposure_level, " and ", state$pair$modifier, " = ",
+        reference$modifier_level, "\n", sep = "")
+  }
   invisible(NULL)
 }
 
@@ -2061,10 +2840,20 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
         "   # your model carries it already\n\n", sep = "")
   }
 
-  cat("  2. One estimate per subgroup, from that one model\n\n")
+  reference <- result$reference_cell
+  if (is.null(reference)) {
+    cat("  2. One estimate per subgroup, from that one model\n\n")
+  } else {
+    cat("  2. One estimate per combination of ", exposure, " and ", modifier,
+        ", each\n     against the reference group, from that one model\n\n",
+        sep = "")
+  }
   fy_app_say_code(
     fy_app_lincom_code(info, int_name, exposure, compared, modifier = modifier,
-                       levels = levels),
+                       levels = levels, reference_cell = reference,
+                       exposure_levels = unique(stats::na.omit(
+                         as.character(result$estimates$level)
+                       ))),
     7L
   )
 
@@ -2123,14 +2912,43 @@ fy_app_say_code <- function(lines, indent) {
 # One estimate: the two rows, the design matrix, the contrast and the test.
 # `modifier` wraps the last three of them in the function foresty runs once per
 # subgroup, with the modifier held at that level in both rows.
+#
+# `reference_cell` is the other question the same machinery answers: the two
+# rows then differ in both variables, one of them held at the combination every
+# row is read against, so the loop runs over the combinations rather than over
+# the subgroups.
 fy_app_lincom_code <- function(info, fit_name, exposure, compared,
                                modifier = NULL, levels = NULL,
-                               level_values = NULL) {
+                               level_values = NULL, reference_cell = NULL,
+                               exposure_levels = NULL) {
   design <- c(fy_app_design_lines(info, fit_name), "L <- X[2, ] - X[1, ]")
   test <- fy_app_test_lines(info, fit_name)
+  values <- level_values %||% fy_app_level_values(info, modifier, levels)
+
+  if (!is.null(modifier) && !is.null(reference_cell)) {
+    return(c(
+      fy_app_rows_lines(info, fit_name, exposure, compared, set = FALSE), "",
+      fy_app_coef_lines(info, fit_name), "",
+      "within <- function(level, exposure_level) {",
+      paste0("  rows$", exposure, " <- c(\"", reference_cell$exposure_level,
+             "\", exposure_level)   # the reference group, then this one"),
+      paste0("  rows$", modifier, " <- c(",
+             fy_app_level_values(info, modifier, reference_cell$modifier_level),
+             ", level)"),
+      fy_app_indent(c(design, "", test), 2L),
+      "}",
+      paste0("lapply(c(", values, "), function(level) {"),
+      paste0("  lapply(c(",
+             paste0("\"", exposure_levels, "\"", collapse = ", "),
+             "), function(exposure_level) {"),
+      "    within(level, exposure_level)",
+      "  })",
+      "})"
+    ))
+  }
+
   head <- c(fy_app_rows_lines(info, fit_name, exposure, compared), "",
             fy_app_coef_lines(info, fit_name), "")
-
   if (is.null(modifier)) {
     return(c(head, design, "", test))
   }
@@ -2139,9 +2957,7 @@ fy_app_lincom_code <- function(info, fit_name, exposure, compared,
     paste0("  rows$", modifier, " <- level"),
     fy_app_indent(c(design, "", test), 2L),
     "}",
-    paste0("lapply(c(", level_values %||% fy_app_level_values(info, modifier,
-                                                              levels),
-           "), within)"))
+    paste0("lapply(c(", values, "), within)"))
 }
 
 # The levels of the modifier as the code has to write them: the numbers
@@ -2162,7 +2978,10 @@ fy_app_level_values <- function(info, modifier, levels) {
 # The row is named as foresty named it. The source data is preferred over the
 # model frame, since a model frame holds a splined variable as its basis matrix
 # and setting the variable on such a row would change nothing.
-fy_app_rows_lines <- function(info, fit_name, exposure, compared) {
+#
+# `set = FALSE` leaves the exposure where it is, for the loop that moves it and
+# the modifier together and would otherwise be handed two rows already set.
+fy_app_rows_lines <- function(info, fit_name, exposure, compared, set = TRUE) {
   where <- tryCatch(fy_reference_index(info), error = function(e) NULL)
   data_name <- fy_app_data_name(info$fit)
   taken <- if (is.null(where)) {
@@ -2173,8 +2992,11 @@ fy_app_rows_lines <- function(info, fit_name, exposure, compared) {
     paste0("model.frame(", fit_name, ")[c(", where$index, ", ", where$index,
            "), ]")
   }
-  c(paste0("rows <- ", taken,
-           "   # one complete observation, twice"),
+  head <- paste0("rows <- ", taken, "   # one complete observation, twice")
+  if (!isTRUE(set)) {
+    return(head)
+  }
+  c(head,
     paste0("rows$", exposure, " <- c(", compared$from, ", ", compared$to, ")",
            compared$said))
 }
@@ -2339,11 +3161,6 @@ fy_app_save <- function(figures, file, format, input) {
   }
   width <- fy_app_number(input$width, 10)
   height <- fy_app_number(input$height, 6) * length(figures)
-  plot <- if (length(figures) == 1L) {
-    fy_app_plain(figures[[1L]])
-  } else {
-    patchwork::wrap_plots(lapply(figures, fy_app_plain), ncol = 1)
-  }
 
   if (identical(format, "png")) {
     dpi <- fy_app_number(input$dpi, 300)
@@ -2367,7 +3184,21 @@ fy_app_save <- function(figures, file, format, input) {
     grDevices::svg(file, width = width, height = height, bg = "white")
   }
   on.exit(grDevices::dev.off(), add = TRUE)
-  print(plot)
+
+  # Built once the device is open, since how wide the plot in a figure has to
+  # be is settled against the width it is being drawn at: a file downloaded at
+  # the size on the screen has to be the figure that was on the screen. One
+  # figure is printed as itself, which is what applies the floor; several are
+  # each given it here, because stacking them hands patchwork the class and the
+  # estimates of whichever it took them from.
+  print(if (length(figures) == 1L) {
+    figures[[1L]]
+  } else {
+    patchwork::wrap_plots(
+      lapply(figures, function(one) fy_app_plain(fy_floor_plot_width(one))),
+      ncol = 1
+    )
+  })
   invisible(file)
 }
 

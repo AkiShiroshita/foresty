@@ -16,6 +16,113 @@ fy_new_result <- function(plot, ...) {
   plot
 }
 
+# Drawing a figure --------------------------------------------------------
+
+#' Draw a forest plot
+#'
+#' Draws the figure, having first made sure the plot in it has room for its
+#' axis. A column of text is as wide as what it holds, and the plot is given
+#' what those columns leave, which is a decision that cannot be made while the
+#' figure is being built: how much they leave depends on the width the figure is
+#' drawn at. So a table wide enough -- a survival model reporting N, events and
+#' person-time beside the estimates -- can leave the plot a centimetre and the
+#' numbers under its axis printed one on top of another. The floor is applied
+#' here, where the width being drawn at is known: see the `min_plot_width`
+#' argument of [foresty_layout()].
+#'
+#' @param x A figure returned by [foresty_main()], [foresty_interaction()] or
+#'   [foresty_combine()].
+#' @param ... Passed on to patchwork's and ggplot2's own print methods.
+#'
+#' @return `x`, invisibly.
+#'
+#' @examples
+#' fit <- glm(asthma ~ no2 + sex, family = binomial, data = foresty_cohort)
+#' print(foresty_interaction(fit, "no2", "sex", table = TRUE))
+#'
+#' @export
+print.foresty <- function(x, ...) {
+  drawn <- fy_floor_plot_width(x)
+  # Handed on to patchwork's method, or to ggplot2's on a figure that is
+  # nothing but the plot. NextMethod() cannot be used: it would dispatch on the
+  # object as it arrived rather than on the one whose widths have been settled.
+  class(drawn) <- setdiff(class(drawn), "foresty")
+  print(drawn, ...)
+  invisible(x)
+}
+
+#' @rdname print.foresty
+#' @export
+plot.foresty <- function(x, ...) {
+  print(x, ...)
+}
+
+#' @rdname print.foresty
+#' @param recording Whether to record the drawing on the display list, as in
+#'   [grid::grid.draw()].
+#' @export
+grid.draw.foresty <- function(x, recording = TRUE) {
+  # ggplot2::ggsave() draws rather than prints, so the width has to be settled
+  # here as well: a figure saved to a file and a figure on the screen are the
+  # same figure and cannot be laid out differently.
+  drawn <- fy_floor_plot_width(x)
+  class(drawn) <- setdiff(class(drawn), "foresty")
+  grid::grid.draw(drawn, recording = recording)
+}
+
+# Gives the plot the least of the figure it is allowed to have.
+#
+# The widths patchwork was handed are centimetres for each column of text and
+# one null unit for the plot, the null being "whatever is left". Where what is
+# left is less than the floor, every width becomes a null unit instead: the
+# plot takes its share of the figure and the columns of text divide the rest in
+# proportion to what they hold, which is the same division `plot_width` as a
+# fraction makes. Nothing is changed on a figure that fits, so the usual
+# behaviour -- a column of text exactly as wide as its widest entry, and
+# widening the figure widening the plot alone -- is what a figure with room for
+# it is still drawn with.
+fy_floor_plot_width <- function(x) {
+  share <- attr(x, "fy_min_plot_width")
+  if (!inherits(x, "patchwork") || is.null(share) || !isTRUE(share > 0)) {
+    return(x)
+  }
+  widths <- x$patches$layout$widths
+  if (!grid::is.unit(widths) || !length(widths)) {
+    return(x)
+  }
+
+  # Exactly one null width is the layout this can act on: the plot taking what
+  # the columns of text leave. A caller who fixed the widths themselves, in
+  # centimetres or as fractions of the figure, has said what they want.
+  null <- grid::unitType(widths) == "null"
+  if (sum(null) != 1L) {
+    return(x)
+  }
+
+  device <- fy_device_width_cm()
+  cm <- vapply(seq_along(widths), function(i) {
+    if (null[i]) 0 else grid::convertWidth(widths[i], "cm", valueOnly = TRUE)
+  }, numeric(1))
+  text <- sum(cm)
+  if (is.na(device) || device <= 0 || device - text >= device * share) {
+    return(x)
+  }
+
+  cm[null] <- text * share / (1 - share)
+  x$patches$layout$widths <- grid::unit(cm, "null")
+  x
+}
+
+# How wide the figure is being drawn, in centimetres. The device is the best
+# answer available: a figure is a page of its own, and where it is not -- one
+# panel of a larger composition -- the width is an over-estimate, which errs
+# towards leaving the layout alone rather than towards rearranging a figure
+# that was fine.
+fy_device_width_cm <- function() {
+  out <- tryCatch(grDevices::dev.size("cm")[1L], error = function(e) NA_real_)
+  if (length(out) != 1L || !is.finite(out)) NA_real_ else out
+}
+
 # The analysis behind a figure. Errors rather than returning NULL, since a
 # foresty object that has lost its attribute is a bug worth hearing about.
 fy_result <- function(x) {
@@ -31,8 +138,26 @@ fy_result <- function(x) {
   out
 }
 
+# The models a figure was drawn from.
+#
+# A figure drawn by foresty_data() was drawn from a table of numbers and has
+# none, so everything that is a property of a model rather than of the figure
+# -- the coefficient table, the report, summary() -- refuses here, once, rather
+# than failing further in on an empty list.
 fy_infos <- function(x) {
-  fy_result(x)$infos
+  result <- fy_result(x)
+  if (isTRUE(result$from_data)) {
+    stop(
+      "this figure was drawn from a data frame by foresty_data(), so there is ",
+      "no fitted model behind it and nothing that is a property of one -- the ",
+      "coefficient table, the model summary, the HTML report -- can be given. ",
+      "The estimates themselves are there: as.data.frame() and broom::tidy() ",
+      "return them. Draw the figure from the model with foresty_main() or ",
+      "foresty_interaction() to have the rest.",
+      call. = FALSE
+    )
+  }
+  result$infos
 }
 
 fy_single_info <- function(x, model = NULL, what = "this") {
@@ -99,6 +224,7 @@ summary.foresty <- function(object, model = NULL, ...) {
       robust = isTRUE(result$robust),
       exposure = result$exposure,
       modifier = result$modifier,
+      reference_group = fy_reference_phrase(result),
       coefficients = fy_coefficient_matrix(info),
       estimates = fy_estimates_frame(object),
       interaction_test = result$interaction_test,
@@ -153,6 +279,11 @@ print.summary.foresty <- function(x, ...) {
   stats::printCoefmat(x$coefficients, signif.stars = FALSE, digits = 4)
 
   cat("\n", x$measure_label, " (", round(x$ci_level * 100), "% CI):\n", sep = "")
+  # Which cell the rows are read against, where every one of them is read
+  # against one cell rather than each against its own subgroup.
+  if (!is.null(x$reference_group)) {
+    cat("Every combination compared with ", x$reference_group, "\n", sep = "")
+  }
   print(fy_console_table(x$estimates, x$measure, x$person_time_unit),
         row.names = FALSE)
 

@@ -345,3 +345,76 @@ test_that("a figure testing an interaction drops the p-value of each row", {
     fy_table_columns(plain, "Odds ratio (95% CI)"), NULL
   )))
 })
+
+test_that("the plot keeps a share of the figure when the table is wide", {
+  # A column of text is as wide as what it holds, and the plot is given what
+  # they leave; how much that is depends on the width the figure is drawn at,
+  # which is only known when it is drawn.
+  x <- foresty_interaction(fy_test_logistic(), exposure = "no2",
+                           interaction = "sex", table = TRUE,
+                           layout = foresty_layout("classic", base_size = 16))
+  built <- x$patches$layout$widths
+  expect_equal(sum(grid::unitType(built) == "null"), 1L)
+
+  text <- sum(grid::convertWidth(built[grid::unitType(built) != "null"], "cm",
+                                 valueOnly = TRUE))
+
+  # Wide enough for both, and the widths are what the panels asked for.
+  wide <- fy_with_device_width(text * 4, function() fy_floor_plot_width(x))
+  expect_equal(as.numeric(wide$patches$layout$widths),
+               as.numeric(built))
+
+  # Too narrow, and every width becomes a share of the figure instead, the
+  # plot taking the floor and the columns of text dividing the rest.
+  narrow <- fy_with_device_width(text * 1.05, function() fy_floor_plot_width(x))
+  widths <- narrow$patches$layout$widths
+  expect_true(all(grid::unitType(widths) == "null"))
+  share <- as.numeric(widths)
+  expect_equal(share[grid::unitType(built) == "null"] / sum(share), 0.25,
+               tolerance = 1e-6)
+})
+
+test_that("the floor leaves alone a figure whose widths the caller fixed", {
+  fit <- fy_test_logistic()
+  # A share of the figure asked for outright: every width is already a share,
+  # so there is nothing left over to be squeezed.
+  fixed <- foresty_interaction(
+    fit, exposure = "no2", interaction = "sex", table = TRUE,
+    layout = foresty_layout("classic", base_size = 16, plot_width = 0.6)
+  )
+  expect_identical(
+    fy_with_device_width(1, function() fy_floor_plot_width(fixed)), fixed
+  )
+
+  # And the floor turned off leaves the plot whatever is left, however little.
+  off <- foresty_interaction(
+    fit, exposure = "no2", interaction = "sex", table = TRUE,
+    layout = foresty_layout("classic", base_size = 16, min_plot_width = 0)
+  )
+  expect_identical(
+    fy_with_device_width(1, function() fy_floor_plot_width(off)), off
+  )
+})
+
+test_that("the numbers under the axis are written to as few decimals as tell them apart", {
+  layout <- fy_style("classic")
+
+  # The estimates are written to two decimals, but breaks 0.2 apart need one,
+  # and a label a third narrower is one that goes on fitting.
+  expect_equal(fy_axis_labels(c(0.4, 0.6, 0.8, 1.0, 1.2), layout),
+               c("0.4", "0.6", "0.8", "1.0", "1.2"))
+  expect_equal(fy_axis_labels(c(1, 2, 3), layout), c("1", "2", "3"))
+
+  # Where they do not, the decimals that tell them apart are kept.
+  expect_equal(fy_axis_labels(c(0.95, 1, 1.05), layout),
+               c("0.95", "1.00", "1.05"))
+})
+
+test_that("the null is one break rather than two", {
+  # breaks_pretty() finds 1 as well, and comparing doubles with != let both
+  # through to be drawn one on top of the other.
+  scale <- fy_x_scale(1, NULL, fy_style("classic"))
+  breaks <- scale[["breaks"]](c(0.32, 1.38))
+  expect_equal(anyDuplicated(round(breaks, 8)), 0L)
+  expect_true(1 %in% breaks)
+})

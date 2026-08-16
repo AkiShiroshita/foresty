@@ -329,8 +329,16 @@ fy_exposure_values <- function(info, exposure, contrast = NULL, at = NULL) {
 
 # Builds the contrast matrix for one exposure, optionally within one level of
 # an effect modifier. One row per non-reference comparison.
+#
+# `reference_cell` moves the baseline row. Without it the two rows differ in the
+# exposure alone and the modifier is held at the level being drawn, so the
+# estimate is the exposure effect inside that subgroup. With it the baseline row
+# is one named combination of the two variables -- the exposure at one of its
+# levels and the modifier at one of its -- and the row compared with it carries
+# both the level of the exposure and the level of the modifier the row is of, so
+# the estimate is that whole combination against the one reference combination.
 fy_contrast_matrix <- function(info, exposure, values, modifier = NULL,
-                               modifier_level = NULL) {
+                               modifier_level = NULL, reference_cell = NULL) {
   reference <- fy_reference_row(info)
 
   # A splined exposure has no single effect to report, because the difference
@@ -354,11 +362,18 @@ fy_contrast_matrix <- function(info, exposure, values, modifier = NULL,
   rows <- lapply(wanted, function(v) {
     baseline <- reference
     compared <- reference
-    baseline[[exposure]] <- fy_coerce_like(v$from, fy_variable(info, exposure))
+    baseline[[exposure]] <- fy_coerce_like(
+      if (is.null(reference_cell)) v$from else reference_cell$exposure_level,
+      fy_variable(info, exposure)
+    )
     compared[[exposure]] <- fy_coerce_like(v$to, fy_variable(info, exposure))
     if (!is.null(modifier)) {
       lvl <- fy_coerce_like(modifier_level, fy_variable(info, modifier))
-      baseline[[modifier]] <- lvl
+      baseline[[modifier]] <- if (is.null(reference_cell)) {
+        lvl
+      } else {
+        fy_coerce_like(reference_cell$modifier_level, fy_variable(info, modifier))
+      }
       compared[[modifier]] <- lvl
     }
     nd <- rbind(baseline, compared)

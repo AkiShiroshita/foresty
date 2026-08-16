@@ -175,3 +175,15 @@ fy_bars <- function(x) {
                   nrow(d) > 0L, data)
   hit[[length(hit)]]
 }
+
+# Runs `f` on a device of a given width, since how the panels of a figure are
+# laid out is settled against the width it is being drawn at.
+fy_with_device_width <- function(cm, f) {
+  file <- tempfile(fileext = ".png")
+  grDevices::png(file, width = cm, height = 10, units = "cm", res = 72)
+  on.exit({
+    grDevices::dev.off()
+    unlink(file)
+  }, add = TRUE)
+  f()
+}
