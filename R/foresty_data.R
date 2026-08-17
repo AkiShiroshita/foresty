@@ -27,9 +27,10 @@
 #'
 #' @section The data:
 #'
-#' A `data.frame`, a `tibble` or a `data.table` -- anything [as.data.frame()]
-#' makes a data frame of. One row is one row of the figure, drawn in the order
-#' the rows are in, so sort the data the way the figure should read.
+#' A `data.frame`, a `tibble`, a `data.table` or a matrix, all of which are
+#' read as the plain data frame the columns are taken from. One row is one row
+#' of the figure, drawn in the order the rows are in, so sort the data the way
+#' the figure should read.
 #'
 #' The estimate and the two ends of its interval are the only columns the
 #' figure cannot be drawn without. They are looked for by name when they are
@@ -94,7 +95,9 @@
 #'   reads "Odds ratio for incident asthma" rather than "Odds ratio".
 #' @param ratio Whether the estimates are ratios, drawn about 1 on a scale
 #'   where the null is 1, rather than differences drawn about 0. `NULL`, the
-#'   default, takes it from `measure`.
+#'   default, takes it from `measure`, which can only be done for a measure
+#'   named by one of the codes above; a measure described in words of your own
+#'   has to say, and it is an error not to.
 #' @param adjusted Whether the estimates are adjusted, which is a word the axis
 #'   and the heading of the table say if so. `foresty` cannot tell from a
 #'   column of numbers, so it asks.
@@ -301,11 +304,27 @@ fy_data_info <- function(measure, outcome, ratio) {
   checkmate::assert_flag(ratio, null.ok = TRUE)
   named <- outcome %||% NA_character_
 
-  spec <- if (measure %in% c("OR", "RR", "HR", "IRR", "MD", "Coefficient")) {
+  spec <- if (measure %in% fy_measure_codes()) {
     fy_measure_spec(measure, named)
   } else {
+    # A measure named by the caller says nothing the package can read: whether
+    # a "Prevalence ratio" is drawn about 1 and a "Standardised mean
+    # difference" about 0 is the difference between a figure and a wrong
+    # figure, and guessing it from the words in the name would be wrong
+    # silently. So it is asked for rather than assumed.
+    if (is.null(ratio)) {
+      stop(
+        "`measure = \"", measure, "\" is a measure of your own, and `ratio` ",
+        "has to say which side of the null it is drawn about: `ratio = TRUE` ",
+        "for a ratio, drawn about 1, and `ratio = FALSE` for a difference, ",
+        "drawn about 0. One of \"",
+        paste(fy_measure_codes(), collapse = "\", \""),
+        "\" is named rather than described and needs no `ratio`.",
+        call. = FALSE
+      )
+    }
     list(measure = measure, outcome = named, name = measure,
-         label = fy_measure_label(measure, named), exponentiate = TRUE)
+         label = fy_measure_label(measure, named), exponentiate = ratio)
   }
   # The names a model's description carries, which are the ones every function
   # that writes an axis or a heading reads.
@@ -351,6 +370,24 @@ fy_data_estimates <- function(data, info, columns) {
       "some rows of `data` have a lower end of the interval above the upper ",
       "end, so the two columns are the wrong way round or the wrong pair of ",
       "columns has been named",
+      call. = FALSE
+    )
+  }
+  # An estimate outside its own interval is the other way the columns come to
+  # be paired wrongly, and one a figure would draw without complaint: the mark
+  # sits off the end of the bar it belongs to, which reads as a finding rather
+  # than as a mistake.
+  outside <- !is.na(estimate) &
+    ((!is.na(conf.low) & estimate < conf.low) |
+       (!is.na(conf.high) & estimate > conf.high))
+  if (any(outside)) {
+    first <- which(outside)[1L]
+    stop(
+      "some rows of `data` have an estimate outside their own interval -- row ",
+      first, " has ", fy_trim_number(estimate[first]), " against an interval ",
+      "of ", fy_trim_number(conf.low[first]), " to ",
+      fy_trim_number(conf.high[first]), " -- so at least one of the three ",
+      "columns is not the one it was taken for.",
       call. = FALSE
     )
   }
@@ -405,6 +442,18 @@ fy_data_estimates <- function(data, info, columns) {
   }
 
   if (!is.null(group)) {
+    # A missing block is not a block: the row would be left out of the levels
+    # and drawn under a heading reading NA, at whichever end of the figure the
+    # sort happened to put it.
+    if (anyNA(group)) {
+      stop(
+        "the column `group` names has missing values in row",
+        if (sum(is.na(group)) > 1L) "s " else " ",
+        paste(which(is.na(group)), collapse = ", "),
+        ", so those rows belong to no block. Name the block every row is in.",
+        call. = FALSE
+      )
+    }
     out$block <- group
     out$block_label <- factor(group, levels = unique(group))
   }

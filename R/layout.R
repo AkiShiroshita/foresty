@@ -1,6 +1,6 @@
 #' Layout and style of a foresty figure
 #'
-#' Every drawing decision the figure makes is held in one object: the colours,
+#' Every drawing decision the figure makes is held in one object: the colors,
 #' the marks, the rules between the rows, how the numbers beside the plot are
 #' written, and where the columns sit. Pass the name of a style to
 #' [foresty_main()] or [foresty_interaction()] as `layout = "jama"`, or build
@@ -37,40 +37,45 @@
 #' @param base_size Base font size in points. Everything else is drawn relative
 #'   to it.
 #' @param family Font family, as `"serif"` or `"Times New Roman"`. `NULL`
-#'   leaves the device's default.
-#' @param colour One colour for the estimates and their intervals, which is the
-#'   usual thing to change. `palette` changes them apart, and `colour_by` draws
-#'   the rows in colours of their own instead. [foresty_colours()] names a
-#'   colour of a ColorBrewer palette without pasting a hex code, as
-#'   `colour = foresty_colours("Dark2")[3]`.
-#' @param colour_by What the colours change with, for a figure drawn in more
-#'   than one. `"none"`, the default, draws the whole figure in `colour`.
-#'   `"category"` gives every category of the rows a colour of its own: the
+#'   leaves the device's default. How wide each column of text is made is
+#'   worked out from a table of character widths rather than by asking the
+#'   device, so a family far from the default one may leave a column slightly
+#'   wide or slightly narrow; the columns still hold what is in them.
+#' @param color One color for the estimates and their intervals, which is the
+#'   usual thing to change. `palette` changes them apart, and `color_by` draws
+#'   the rows in colors of their own instead. [foresty_colors()] names a
+#'   color of a ColorBrewer palette without pasting a hex code, as
+#'   `color = foresty_colors("Dark2")[3]`.
+#' @param color_by What the colors change with, for a figure drawn in more
+#'   than one. `"none"`, the default, draws the whole figure in `color`.
+#'   `"category"` gives every category of the rows a color of its own: the
 #'   levels of a categorical exposure -- "Yes" and "No" -- where the rows are
 #'   levels, and the subgroups of the modifier where they are subgroups, which
-#'   is what an interaction figure draws. A category keeps its colour wherever
+#'   is what an interaction figure draws. A category keeps its color wherever
 #'   it appears, so a combined figure reads across its blocks. `"row"` gives
-#'   every row a colour, whatever it is of. The reference level of a
+#'   every row a color, whatever it is of. The reference level of a
 #'   categorical exposure is drawn hollow either way, being a definition rather
 #'   than an estimate. No legend is drawn: every row is labelled already, and a
 #'   legend repeating the labels is a second copy of them to keep in step.
-#' @param colours The colours `colour_by` draws the categories in, in order,
-#'   and cycled where there are more categories than colours. The name of a
+#' @param colors The colors `color_by` draws the categories in, in order,
+#'   and cycled where there are more categories than colors. The name of a
 #'   ColorBrewer palette -- `"Dark2"`, the default, `"Set1"` or `"Set2"` -- or
-#'   the colours themselves, as `c("#1B9E77", "#D95F02")`. [foresty_colours()]
+#'   the colors themselves, as `c("#1B9E77", "#D95F02")`. [foresty_colors()]
 #'   builds one starting from a chosen place in a palette, as
-#'   `colours = foresty_colours("Dark2", start = 3)`.
+#'   `colors = foresty_colors("Dark2", start = 3)`.
 #' @param theme The `ggplot2` theme the plot itself is drawn on: `"void"`, the
 #'   default, which is the plain panel a forest plot is usually drawn as, or
 #'   the name of one of `ggplot2`'s own -- `"minimal"`, `"bw"`, `"classic"`,
 #'   `"light"`, `"linedraw"`, `"grey"` or `"dark"` -- for its background, its
-#'   border and its grid. A theme object or a theme function is also accepted.
+#'   border and its grid. A theme object is also accepted, as is a theme
+#'   function, which is called with `base_size` and `base_family` and so has to
+#'   take them, as `ggplot2`'s own do.
 #'   It is the plot's theme, not the figure's: the columns of numbers beside it
 #'   are a table rather than a plot and keep their own. Everything the layout
-#'   sets -- the sizes, the colours of the text, whether the axis line and the
+#'   sets -- the sizes, the colors of the text, whether the axis line and the
 #'   grid are drawn -- is applied over it, so `grid = TRUE` and `theme = "bw"`
 #'   are not two answers to the same question.
-#' @param palette Named character vector overriding single colours, as
+#' @param palette Named character vector overriding single colors, as
 #'   `c(estimate = "#B24745", null = "grey60")`. The names are `estimate`,
 #'   `border` (the outline of the marks), `reference` (the fill of the
 #'   reference level's hollow mark), `interval`, `null`, `rule`, `band`,
@@ -186,7 +191,7 @@
 #' # A style, changed where it needs to be.
 #' foresty_interaction(
 #'   fit, "no2", "sex", table = TRUE,
-#'   layout = foresty_layout("jama", colour = "#B24745", base_size = 11)
+#'   layout = foresty_layout("jama", color = "#B24745", base_size = 11)
 #' )
 #'
 #' # Trimming a wide interval rather than letting it flatten the figure.
@@ -201,9 +206,9 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
                                      "bmj", "revman"),
                            base_size = NULL,
                            family = NULL,
-                           colour = NULL,
-                           colour_by = NULL,
-                           colours = NULL,
+                           color = NULL,
+                           color_by = NULL,
+                           colors = NULL,
                            theme = NULL,
                            palette = NULL,
                            point_shape = NULL,
@@ -243,9 +248,9 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
     fy_style(match.arg(style))
   }
 
-  if (!is.null(colour)) {
-    checkmate::assert_string(colour)
-    out$palette[c("estimate", "border", "interval")] <- colour
+  if (!is.null(color)) {
+    checkmate::assert_string(color)
+    out$palette[c("estimate", "border", "interval")] <- color
   }
   if (!is.null(palette)) {
     out$palette <- fy_merge_palette(out$palette, palette)
@@ -256,8 +261,8 @@ foresty_layout <- function(style = c("classic", "jama", "nejm", "lancet",
 
   # Everything else is a single value replaced as it stands.
   given <- list(
-    base_size = base_size, family = family, colour_by = colour_by,
-    colours = colours, theme = theme, point_shape = point_shape,
+    base_size = base_size, family = family, color_by = color_by,
+    colors = colors, theme = theme, point_shape = point_shape,
     point_size = point_size, emphasis_shape = emphasis_shape,
     emphasis_height = emphasis_height, emphasis_size = emphasis_size,
     emphasis_face = emphasis_face,
@@ -286,14 +291,14 @@ print.foresty_layout <- function(x, ...) {
   cat("<foresty layout: ", x$style, ">\n", sep = "")
   cat("  size      ", x$base_size, " pt",
       if (!is.null(x$family)) paste0(", ", x$family), "\n", sep = "")
-  cat("  colours   ",
+  cat("  colors   ",
       paste0(names(x$palette), " ", unlist(x$palette), collapse = ", "),
       "\n", sep = "")
-  if (fy_colours_rows(x)) {
-    colours <- fy_layout_colours(x$colours)
-    cat("  one per   ", x$colour_by, ", from ",
-        paste(utils::head(colours, 3), collapse = ", "),
-        if (length(colours) > 3L) ", ...", "\n", sep = "")
+  if (fy_colors_rows(x)) {
+    colors <- fy_layout_colors(x$colors)
+    cat("  one per   ", x$color_by, ", from ",
+        paste(utils::head(colors, 3), collapse = ", "),
+        if (length(colors) > 3L) ", ...", "\n", sep = "")
   }
   cat("  numbers   ", x$digits, " digits, p-values ", x$p_format,
       ", intervals ", fy_ci_example(x), "\n", sep = "")
@@ -346,10 +351,10 @@ fy_layout_defaults <- function() {
       group = "black",
       axis = "grey25"
     ),
-    # One colour for the whole figure, which is what a forest plot is usually
-    # drawn in. `colour_by` is what makes `colours` mean anything.
-    colour_by = "none",
-    colours = NULL,
+    # One color for the whole figure, which is what a forest plot is usually
+    # drawn in. `color_by` is what makes `colors` mean anything.
+    color_by = "none",
+    colors = NULL,
     # The panel a forest plot is drawn on carries nothing of its own: the rules,
     # the shading and the line at the null are drawn by the figure, at heights
     # it worked out, so a theme under them would be a second set of lines.
@@ -506,14 +511,16 @@ fy_style <- function(name) {
 }
 
 fy_merge_palette <- function(current, given) {
-  if (!is.character(given) || is.null(names(given)) || any(names(given) == "")) {
-    stop("`palette` must be a named character vector, as ",
-         "`c(estimate = \"#B24745\")`", call. = FALSE)
+  if (!is.character(given) || is.null(names(given)) ||
+      any(names(given) == "") || anyNA(given) ||
+      anyDuplicated(names(given))) {
+    stop("`palette` must be a named character vector naming each color ",
+         "once, as `c(estimate = \"#B24745\")`", call. = FALSE)
   }
   unknown <- setdiff(names(given), names(current))
   if (length(unknown)) {
     stop(
-      "`palette` names a colour foresty does not draw: ",
+      "`palette` names a color foresty does not draw: ",
       paste(unknown, collapse = ", "), ". The ones it does: ",
       paste(names(current), collapse = ", "), ".",
       call. = FALSE
@@ -523,9 +530,14 @@ fy_merge_palette <- function(current, given) {
 }
 
 fy_merge_headings <- function(current, given) {
-  if (!is.character(given) || is.null(names(given)) || any(names(given) == "")) {
-    stop("`headings` must be a named character vector, as ",
-         "`c(n = \"No. of patients\")`", call. = FALSE)
+  # A heading may be empty -- that is how a column is left unheaded -- but not
+  # missing, and naming the same column twice would leave whichever of the two
+  # modifyList() happened to keep.
+  if (!is.character(given) || is.null(names(given)) ||
+      any(names(given) == "") || anyNA(given) ||
+      anyDuplicated(names(given))) {
+    stop("`headings` must be a named character vector heading each column ",
+         "once, as `c(n = \"No. of patients\")`", call. = FALSE)
   }
   unknown <- setdiff(names(given), names(current))
   if (length(unknown)) {
@@ -556,27 +568,58 @@ fy_check_layout <- function(layout) {
   if (!is.null(layout$emphasis_size)) {
     checkmate::assert_number(layout$emphasis_size, lower = 0)
   }
+  if (!is.null(layout$family)) {
+    checkmate::assert_string(layout$family, min.chars = 1L,
+                             .var.name = "family")
+  }
+  fy_check_shape(layout$point_shape, "point_shape")
   # Either the summary diamond, which is drawn from the interval, or a plotting
   # symbol, which is drawn on it.
   if (is.character(layout$emphasis_shape)) {
     layout$emphasis_shape <- match.arg(layout$emphasis_shape, "diamond")
   } else {
-    checkmate::assert_number(layout$emphasis_shape)
+    fy_check_shape(layout$emphasis_shape, "emphasis_shape")
   }
-  layout$colour_by <- match.arg(layout$colour_by %||% "none",
+  layout$null_line <- match.arg(layout$null_line,
+                                c("dashed", "solid", "none"))
+  checkmate::assert_string(layout$decimal_mark, min.chars = 1L,
+                           .var.name = "decimal_mark")
+  if (!is.null(layout$ci_separator)) {
+    checkmate::assert_string(layout$ci_separator, .var.name = "ci_separator")
+  }
+  fy_check_plot_width(layout$plot_width)
+  # The palette is a color apiece, and a name that is not one is drawn as
+  # black by grid without a word said about it.
+  wrong <- fy_not_colors(unlist(layout$palette, use.names = FALSE))
+  if (length(wrong)) {
+    stop(
+      "the palette holds ",
+      paste0("\"", wrong, "\"", collapse = ", "),
+      ", which ",
+      if (length(wrong) == 1L) "is not a color" else "are not colors",
+      " R can draw. Give a hex code, as \"#B24745\", or one of the names in ",
+      "grDevices::colors().",
+      call. = FALSE
+    )
+  }
+  layout$color_by <- match.arg(layout$color_by %||% "none",
                                 c("none", "category", "row"))
-  if (!is.null(layout$colours)) {
-    checkmate::assert_character(layout$colours, min.len = 1L,
+  if (!is.null(layout$colors)) {
+    checkmate::assert_character(layout$colors, min.len = 1L,
                                 any.missing = FALSE)
-    unknown <- length(layout$colours) == 1L &&
-      !layout$colours %in% names(fy_brewer_palettes) &&
-      !fy_is_colour(layout$colours)
+    # One name is a palette or a color; several are the colors themselves,
+    # and every one of them has to be one. A name that is not a color is
+    # drawn as black by grid rather than refused, so the row it was meant for
+    # is drawn in the wrong color and nothing says so.
+    named_palette <- length(layout$colors) == 1L &&
+      layout$colors %in% names(fy_brewer_palettes)
+    unknown <- !named_palette && length(fy_not_colors(layout$colors)) > 0L
     if (unknown) {
       stop(
-        "`colours` is the name of a palette -- ",
+        "`colors` is the name of a palette -- ",
         paste0("\"", names(fy_brewer_palettes), "\"", collapse = ", "),
-        " -- or the colours themselves, as `c(\"#1B9E77\", \"#D95F02\")`. ",
-        "foresty_colours(\"Dark2\", start = 3) builds one starting where you ",
+        " -- or the colors themselves, as `c(\"#1B9E77\", \"#D95F02\")`. ",
+        "foresty_colors(\"Dark2\", start = 3) builds one starting where you ",
         "want it to.",
         call. = FALSE
       )
@@ -598,12 +641,58 @@ fy_check_layout <- function(layout) {
   if (!is.null(layout$arrows)) {
     checkmate::assert_character(layout$arrows, len = 2L, any.missing = FALSE)
   }
-  checkmate::assert_character(layout$ci_brackets, len = 2L)
+  checkmate::assert_character(layout$ci_brackets, len = 2L,
+                              any.missing = FALSE)
   layout
 }
 
-fy_is_colour <- function(x) {
-  grepl("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", x) || x %in% grDevices::colours()
+# A plotting symbol, which ggplot2 takes either as one of its 26 numbered
+# shapes or as the single character to draw instead.
+fy_check_shape <- function(shape, what) {
+  if (is.character(shape)) {
+    checkmate::assert_string(shape, min.chars = 1L, .var.name = what)
+    if (nchar(shape) > 1L) {
+      stop(
+        "`", what, "` is a plotting symbol: a number from 0 to 25, or the ",
+        "single character to draw in its place. \"", shape, "\" is neither.",
+        call. = FALSE
+      )
+    }
+    return(invisible(TRUE))
+  }
+  checkmate::assert_number(shape, lower = 0, upper = 25, .var.name = what)
+  invisible(TRUE)
+}
+
+# How wide the plot is drawn: whatever the columns of text leave, a share of
+# the figure, a number of centimetres, or a unit saying so outright. Checked
+# here rather than when the figure is drawn, so that a width that is not one is
+# refused where it was named.
+fy_check_plot_width <- function(width) {
+  if (is.null(width) || grid::is.unit(width)) {
+    if (grid::is.unit(width) && length(width) != 1L) {
+      stop("`plot_width` must be one width, not ", length(width),
+           call. = FALSE)
+    }
+    return(invisible(TRUE))
+  }
+  checkmate::assert_number(width, lower = 0, finite = TRUE,
+                           .var.name = "plot_width")
+  invisible(TRUE)
+}
+
+# Whether each of these is a color R can draw: a hex code, with or without an
+# alpha pair, or one of the names R knows. Vectorised, since a palette and a
+# set of category colors are both checked a whole vector at a time.
+fy_is_color <- function(x) {
+  x <- as.character(x)
+  hex <- grepl("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", x)
+  !is.na(x) & (hex | x %in% grDevices::colors())
+}
+
+# The ones that are not, named, for a message that says which to fix.
+fy_not_colors <- function(x) {
+  unique(as.character(x)[!fy_is_color(x)])
 }
 
 # The themes ------------------------------------------------------------------

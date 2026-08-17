@@ -366,7 +366,8 @@ fy_exposure_values <- function(info, exposure, contrast = NULL, at = NULL) {
       list(list(
         from = at[[1L]], to = at[[2L]],
         level = NA_character_,
-        contrast_label = paste0(at[[1L]], " \u2192 ", at[[2L]]),
+        contrast_label = paste0(fy_trim_number(at[[1L]]), " \u2192 ",
+                                fy_trim_number(at[[2L]])),
         reference = FALSE
       )),
       explicit = TRUE
@@ -556,14 +557,20 @@ fy_is_splined <- function(info, exposure) {
 # The rows of the model frame an estimate was taken over, so that the counts
 # beside it describe the same people. A categorical exposure is counted level
 # by level; a continuous one over everybody in the subgroup.
+#
+# `whole_exposure` counts over every level of it instead, for the one row of a
+# figure that is not about a value of the exposure at all: the level of a
+# multinomial outcome the other rows are read against is drawn once for the
+# whole of it, and counting it at one level of the exposure would put a number
+# beside it that its own label does not account for.
 fy_estimate_rows <- function(info, exposure, value, modifier = NULL,
-                             modifier_level = NULL) {
+                             modifier_level = NULL, whole_exposure = FALSE) {
   keep <- rep(TRUE, info$n)
   x <- info$mf[[exposure]]
   # The level counted is the one the comparison is of, which is the value the
   # contrast was taken to -- named by `at` where it was given, and the level of
   # the row otherwise.
-  if (!is.null(x) && fy_is_categorical(x)) {
+  if (!whole_exposure && !is.null(x) && fy_is_categorical(x)) {
     keep <- keep & !is.na(x) & as.character(x) == as.character(value$to)
   }
   if (!is.null(modifier)) {

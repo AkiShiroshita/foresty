@@ -22,9 +22,11 @@ foresty_combine(
 in the order they are to be drawn, optionally named.}
 
 \item{emphasize}{Which blocks are drawn as the figure's summary rather than
-as another subgroup: \code{"auto"}, the default, takes the overall estimates,
-a character vector names blocks by the names they are drawn under, and
-\code{NULL} draws every block alike. See \emph{Singling out the overall estimate}.}
+as another subgroup: \code{"auto"}, the default, takes the overall estimates
+that are a single row; \code{TRUE} takes every overall estimate, a block of
+several rows included; a character vector names blocks by the names they
+are drawn under; and \code{NULL} or \code{FALSE} draws every block alike. See
+\emph{Singling out the overall estimate}.}
 
 \item{outcome}{What to call the outcome, as \code{outcome = "incident asthma"}.
 The default takes it from the left of the model's formula, which is the

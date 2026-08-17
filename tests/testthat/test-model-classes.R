@@ -582,6 +582,18 @@ test_that("the reference outcome row is one row whatever the exposure is", {
   expect_equal(as.character(est$outcome_label)[[1L]], "None")
   expect_true(is.na(est$level[[1L]]))
   expect_equal(est$estimate[[1L]], 1)
+
+  # Being one row for every level of the exposure at once, it is counted over
+  # all of them: a row whose label names no level of the exposure and whose
+  # count was taken at one of them cannot be read.
+  d <- foresty_cohort
+  expect_equal(est$n[[1L]], nrow(d))
+  expect_equal(est$events[[1L]],
+               as.integer(sum(d$wheeze_phenotype == "None")))
+
+  # The rows that are about a level of the exposure are still counted at it.
+  urban <- est[!is.na(est$level) & as.character(est$level) == "Urban", ]
+  expect_true(all(urban$n == sum(d$urbanicity == "Urban")))
 })
 
 test_that("each subgroup of an interaction figure carries the reference row", {
@@ -601,6 +613,111 @@ test_that("each subgroup of an interaction figure carries the reference row", {
   expect_equal(est$events[est$reference],
                as.integer(table(d$sex[d$wheeze_phenotype == "None"])),
                ignore_attr = TRUE)
+
+  # And within the subgroup only: a categorical exposure leaves the row one row
+  # for all of its levels, so the subgroup is counted whole.
+  fit_cat <- nnet::multinom(wheeze_phenotype ~ urbanicity * sex, data = d,
+                            trace = FALSE)
+  cat_est <- fy_est(suppressMessages(
+    foresty_interaction(fit_cat, exposure = "urbanicity", interaction = "sex",
+                        outcome_reference_row = TRUE)
+  ))
+  first <- cat_est[!duplicated(cat_est$modifier_level), ]
+  expect_true(all(first$reference))
+  expect_equal(first$n, as.integer(table(d$sex)), ignore_attr = TRUE)
+  expect_equal(first$events,
+               as.integer(table(d$sex[d$wheeze_phenotype == "None"])),
+               ignore_attr = TRUE)
+})
+
+test_that("every row of the hardest figure carries its own estimate", {
+  skip_if_not_installed("nnet")
+  d <- foresty_cohort
+  fit <- nnet::multinom(wheeze_phenotype ~ urbanicity + sex, data = d,
+                        trace = FALSE)
+
+  # A categorical exposure, a multinomial outcome drawn against a reference
+  # level of its own, and subgroups of a modifier: three things that each skip
+  # a row of the contrast matrix, in one figure. The rows are built in one
+  # place and the estimates in another, so what is checked is that they still
+  # line up.
+  est <- fy_est(foresty_interaction(fit, exposure = "urbanicity",
+                                    interaction = "sex",
+                                    outcome_reference_row = TRUE))
+
+  # Per subgroup: the outcome's reference level once, then three levels of the
+  # exposure in each of the two comparisons.
+  expect_equal(nrow(est), 2L * (1L + 3L * 2L))
+  expect_equal(est$modifier_level, rep(c("Female", "Male"), each = 7L))
+  expect_equal(
+    est$reference,
+    rep(c(TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE), 2L)
+  )
+  expect_true(all(est$estimate[est$reference] == 1))
+
+  # Each estimated row against the same row of the figure drawn without the
+  # reference row of the outcome, which is the same set of contrasts less the
+  # rows that carry no estimate.
+  plain <- fy_est(foresty_interaction(fit, exposure = "urbanicity",
+                                      interaction = "sex"))
+  expect_equal(est$estimate[!est$reference], plain$estimate[!plain$reference])
+  expect_equal(est$se[!est$reference], plain$se[!plain$reference])
+
+  # And one of them against the coefficients by hand: Urban against Rural in
+  # the Persistent equation, inside the male subgroup.
+  interacted <- nnet::multinom(wheeze_phenotype ~ urbanicity * sex, data = d,
+                               trace = FALSE)
+  by_hand <- fy_est(foresty_interaction(interacted, exposure = "urbanicity",
+                                        interaction = "sex"))
+  b <- stats::coef(interacted)
+  # The rows of an interaction figure are named for the comparison of the
+  # outcome as well as for the level of the exposure, the blocks being spoken
+  # for by the subgroups.
+  wanted <- by_hand$modifier_level == "Male" &
+    as.character(by_hand$level) == "Urban, Persistent vs None"
+  expect_equal(
+    log(by_hand$estimate[wanted]),
+    unname(b["Persistent", "urbanicityUrban"] +
+             b["Persistent", "urbanicityUrban:sexMale"]),
+    tolerance = 1e-6
+  )
+})
+
+test_that("a second interaction on the exposure is left alone by the test", {
+  d <- foresty_cohort
+  # The exposure is interacted with two variables. Only the terms carrying the
+  # modifier are what the interaction is tested over, and only they come out of
+  # the model the likelihood ratio test compares it with.
+  fit <- glm(asthma ~ no2 * sex + no2 * maternal_smoking + maternal_age,
+             family = binomial, data = d)
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                           contrast = 10, test = "both")
+  test <- fy_test(x)
+
+  expect_equal(test$terms, "no2:sexMale")
+  expect_equal(test$df, 1)
+
+  reduced <- glm(asthma ~ no2 + sex + no2 * maternal_smoking + maternal_age,
+                 family = binomial, data = d)
+  expect_equal(
+    fy_result(x)$interaction_tests$lrt$p.value,
+    stats::anova(reduced, fit, test = "LRT")[["Pr(>Chi)"]][[2L]],
+    tolerance = 1e-8
+  )
+
+  # The subgroup estimate holds the other interaction at the row the contrast
+  # was taken from, which is the first complete observation.
+  b <- stats::coef(fit)
+  used <- all.vars(stats::formula(fit))
+  row <- d[which(stats::complete.cases(d[, used]))[[1L]], ]
+  est <- fy_est(x)
+  expect_equal(
+    log(est$estimate[est$modifier_level == "Male"]),
+    unname(10 * (b[["no2"]] + b[["no2:sexMale"]] +
+                   b[["no2:maternal_smokingYes"]] *
+                     (row$maternal_smoking == "Yes"))),
+    tolerance = 1e-6
+  )
 })
 
 test_that("robust standard errors are refused for a multinom fit", {

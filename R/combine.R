@@ -73,9 +73,11 @@
 #' @param ... Figures returned by [foresty_main()] or [foresty_interaction()],
 #'   in the order they are to be drawn, optionally named.
 #' @param emphasize Which blocks are drawn as the figure's summary rather than
-#'   as another subgroup: `"auto"`, the default, takes the overall estimates,
-#'   a character vector names blocks by the names they are drawn under, and
-#'   `NULL` draws every block alike. See *Singling out the overall estimate*.
+#'   as another subgroup: `"auto"`, the default, takes the overall estimates
+#'   that are a single row; `TRUE` takes every overall estimate, a block of
+#'   several rows included; a character vector names blocks by the names they
+#'   are drawn under; and `NULL` or `FALSE` draws every block alike. See
+#'   *Singling out the overall estimate*.
 #' @inheritParams foresty_main
 #' @param title Plot title. The default names the measure, the outcome it is a
 #'   measure of and the exposure the figure reports, as `"Adjusted odds ratio
@@ -184,6 +186,16 @@ foresty_combine <- function(...,
   estimates$emphasis <- estimates$block %in% emphasized
 
   infos <- unlist(lapply(parts, fy_infos), recursive = FALSE)
+  # Figures of different outcomes are a figure of no one outcome, and the axis
+  # says so rather than naming whichever came first: "Odds ratio" over a set of
+  # blocks that are the outcomes, rather than "Odds ratio for asthma" over rows
+  # half of which are about something else. Naming one through `outcome` names
+  # it whatever the figures were of.
+  outcomes <- unique(vapply(infos, function(i) i$outcome %||% NA_character_,
+                            character(1)))
+  if (is.null(outcome) && length(outcomes) > 1L) {
+    outcome <- NA
+  }
   # The outcome is renamed on the descriptions the figures came back with; there
   # is nothing to refit, and the axis and the title of the combined figure are
   # written from them.
@@ -262,7 +274,10 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
                               subtitle, xlab) {
   estimates$block_label <- factor(estimates$block,
                                   levels = blocks[blocks %in% estimates$block])
-  estimates$variable_label <- factor(as.character(estimates$variable_label))
+  estimates$variable_label <- factor(
+    as.character(estimates$variable_label),
+    levels = unique(as.character(estimates$variable_label))
+  )
   estimates$label <- factor(as.character(estimates$label),
                             levels = rev(unique(as.character(estimates$label))))
   # A column no row of this figure supplies says nothing, and an empty column in
@@ -469,12 +484,15 @@ fy_combined_estimates <- function(results, blocks) {
       block = block,
       variable = est$variable,
       variable_label = as.character(est$variable_label),
-      level = est$level,
-      contrast_label = est$contrast_label %||% NA_character_,
+      # Held to the one type each column is, whatever the figure it came off
+      # stored it as, so that rbind() binds them rather than coercing a column
+      # to whichever type the first figure happened to use.
+      level = as.character(est$level),
+      contrast_label = as.character(est$contrast_label %||% NA_character_),
       modifier = result$modifier %||% NA_character_,
-      modifier_level = est$modifier_level %||% NA_character_,
+      modifier_level = as.character(est$modifier_level %||% NA_character_),
       row_label = row_label,
-      reference = est$reference,
+      reference = as.logical(est$reference),
       estimate = est$estimate,
       se = est$se,
       conf.low = est$conf.low,

@@ -45,7 +45,12 @@
 #' the exposure depends on the modifier, and it is not a test of the rows.
 #'
 #' `reference = TRUE` takes the first level of each, which is the cell a model
-#' takes as its own baseline.
+#' fitted under R's default treatment contrasts takes as its own baseline. Which
+#' cell that is makes no difference to the estimates -- each row is a difference
+#' between two rows of the design matrix, so it comes out the same however the
+#' factors were coded -- but it is what the rest of the figure is read against,
+#' so name the cell with `reference = c(...)` where the first level is not the
+#' one a reader should start from.
 #'
 #' @section Testing the interaction:
 #'
@@ -471,8 +476,12 @@ fy_reference_cell <- function(reference, info, exposure, interaction,
 
   exposure_levels <- levels(droplevels(as.factor(x)))
   wanted <- if (isTRUE(reference)) {
-    # The cell the model itself takes as its baseline, which is where a reader
-    # who has not decided yet should start.
+    # The first level of each, which is the cell the model itself takes as its
+    # baseline under the treatment contrasts R uses by default, and is where a
+    # reader who has not decided yet should start. Under another coding it is
+    # the first level rather than the model's baseline; the estimates are the
+    # same either way, since each is a difference between two rows of the
+    # design, so what this settles is which cell the figure is read against.
     stats::setNames(c(exposure_levels[[1L]], modifier_levels[[1L]]),
                     c(exposure, interaction))
   } else {
@@ -713,7 +722,9 @@ fy_add_interaction <- function(fit, info, exposure, interaction,
 # `data = d`, where `d` is a variable local to the user's function or to a
 # loop, would then fail to find its own data. The call is instead evaluated
 # where the model's formula came from, with the data bound under the name the
-# call used, so a model fitted anywhere can be updated.
+# call used, so a model fitted inside a function or a loop can be updated too.
+# What it cannot do is update a fit that records no usable call of its own,
+# which is why every caller of this takes the failure as a failure and says so.
 fy_refit <- function(fit, info, added) {
   call <- stats::update(fit, added, evaluate = FALSE)
   env <- environment(stats::formula(fit))

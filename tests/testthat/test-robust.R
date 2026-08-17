@@ -48,6 +48,38 @@ test_that("a cluster can be named as a column of the data", {
   expect_equal(by_name$se, by_value$se)
 })
 
+test_that("a named cluster column is matched to the rows the model kept", {
+  skip_if_not_installed("sandwich")
+  d <- foresty_cohort
+  d$practice <- rep(seq_len(400), length.out = nrow(d))
+
+  # Rows dropped for a missing value are recorded on the fit, and sandwich
+  # takes them out of the cluster itself, so the column is used as it stands
+  # and comes to what the formula form comes to.
+  missing <- d
+  missing$no2[seq_len(500)] <- NA
+  fit <- glm(asthma ~ no2 + sex, family = binomial, data = missing)
+  expect_equal(
+    fy_est(foresty_main(list(fit), exposure = "no2",
+                        cluster = "practice"))$se,
+    fy_est(foresty_main(list(fit), exposure = "no2",
+                        cluster = ~practice))$se
+  )
+
+  # Rows left out by `subset` are recorded nowhere, so the column cannot be
+  # lined up with them and saying so is the whole of what can be done.
+  part <- glm(asthma ~ no2 + sex, family = binomial, data = d,
+              subset = maternal_age > 30)
+  expect_error(
+    foresty_main(list(part), exposure = "no2", cluster = "practice"),
+    "cannot be matched to the rows"
+  )
+  # The formula reaches the rows the model kept, and is what the message says
+  # to use.
+  expect_silent(foresty_main(list(part), exposure = "no2",
+                             cluster = ~practice))
+})
+
 test_that("a matrix or a function can be supplied instead", {
   fit <- fy_test_logistic()
   v <- stats::vcov(fit) * 4

@@ -33,7 +33,10 @@ drawn at. So a table wide enough -- a survival model reporting N, events and
 person-time beside the estimates -- can leave the plot a centimetre and the
 numbers under its axis printed one on top of another. The floor is applied
 here, where the width being drawn at is known: see the \code{min_plot_width}
-argument of \code{\link[=foresty_layout]{foresty_layout()}}.
+argument of \code{\link[=foresty_layout]{foresty_layout()}}. Where it has to act, the columns of text
+stop being as wide as what they hold and share what the plot leaves in
+proportion to it, which is where the room for the axis comes from; a figure
+with room for its columns already is drawn exactly as it was built.
 }
 \examples{
 fit <- glm(asthma ~ no2 + sex, family = binomial, data = foresty_cohort)

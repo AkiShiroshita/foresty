@@ -56,9 +56,13 @@ freedom the figure implies.}
 
 \item{measure}{Effect measure, one of \code{"OR"}, \code{"RR"}, \code{"HR"}, \code{"IRR"},
 \code{"MD"} or \code{"Coefficient"}. The default reads it from the model: a logistic
-regression gives an odds ratio, a Cox model a hazard ratio, a Poisson
+regression gives an odds ratio, as do the ordinal and multinomial forms of
+one, a Cox model a hazard ratio, a Poisson
 model with an offset an incidence rate ratio, and a linear model a mean
-difference. Ratios are exponentiated; differences are not.}
+difference. Ratios are exponentiated; differences are not. What an offset
+holds is not recorded anywhere, so a Poisson model offset by something
+other than person-time -- the size of a population, say -- is named here
+instead, as \code{measure = "RR"}.}
 
 \item{exponentiate}{Whether a ratio measure is drawn as a ratio. \code{TRUE}, the
 default, draws an odds ratio as an odds ratio. \code{FALSE} leaves it on the
@@ -96,7 +100,8 @@ own for a figure whose caption says what of.}
 \item{outcome_reference}{For a multinomial logistic regression, the level of
 the outcome every estimate is read against, as
 \code{outcome_reference = "None"}. \code{NULL}, the default, is the level the model
-itself was referred to, which is the first level of the outcome factor.
+itself was referred to, read off the fit as the level it holds no equation
+for rather than assumed to be any particular one.
 Naming another does not refit anything: the odds ratio of one level
 against another is the difference between their two equations, and the
 covariance of the pair is already in the model. Every other level is then
@@ -113,8 +118,11 @@ exposure is drawn: it carries no estimate, being the definition the other
 rows are differences from, so it is \code{1} on the ratio scale and \code{0} on the
 scale the model was fitted on, with no interval, no test and no p-value.
 It is one row whatever the exposure is, since it is the same definition at
-every value of it, and the counts beside it are of the people in that
-level. It says nothing about a model of one equation.}
+every value of it, and the counts beside it are of everybody in that level
+of the outcome for the same reason: the row is not about a value of the
+exposure, so it is not counted at one. On a figure of subgroups it is drawn
+once inside each and counted within it. It says nothing about a model of
+one equation.}
 
 \item{ci_level}{Confidence level of the intervals. Defaults to \code{0.95}.}
 
@@ -141,9 +149,16 @@ comparison taken within another subgroup, so it is said once rather than
 on each of them. An exposure entered as a spline, or in any other way that
 spreads it over more than one coefficient, has no single effect to report
 and is drawn only when \code{at} names the two values; any other exposure may
-be given them too, \code{at} and \code{contrast} being two ways of saying the same
-thing and only one of them accepted at a time. For a categorical exposure
-the two values are two of its levels.}
+be given them too. \code{at} and \code{contrast} both say which two values are
+compared, so only one of them is accepted at a time, but they do not say it
+the same way: \code{contrast} is an increment taken from the middle of the
+exposure's own distribution, and \code{at} is the two values themselves. Where
+the exposure enters the model as it stands the two come to the same number,
+an increment being the same difference wherever it is taken; where it
+enters transformed -- \code{log(no2)}, a spline, a polynomial -- they do not,
+and \code{at} is the one that says where on the curve the difference was taken.
+For a categorical exposure the two values are two of its levels, and the
+figure is then that one comparison rather than a row for every level.}
 
 \item{vcov}{Robust standard errors. \code{NULL}, the default, uses the model's
 own. \code{"robust"} gives the heteroskedasticity-consistent sandwich estimator
@@ -269,7 +284,12 @@ the same test of the same coefficients: it still asks whether the effect of
 the exposure depends on the modifier, and it is not a test of the rows.
 
 \code{reference = TRUE} takes the first level of each, which is the cell a model
-takes as its own baseline.
+fitted under R's default treatment contrasts takes as its own baseline. Which
+cell that is makes no difference to the estimates -- each row is a difference
+between two rows of the design matrix, so it comes out the same however the
+factors were coded -- but it is what the rest of the figure is read against,
+so name the cell with \code{reference = c(...)} where the first level is not the
+one a reader should start from.
 }
 
 \section{Testing the interaction}{

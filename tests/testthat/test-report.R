@@ -114,6 +114,23 @@ test_that("html = TRUE writes the report under the variables' names", {
                "must be TRUE or FALSE")
 })
 
+test_that("a name written in another script still names its own file", {
+  # A letter is a letter in any script. Reduced to the ASCII in them, these
+  # two would both come back empty and both be written to foresty.html, so the
+  # second figure would overwrite the first.
+  # Built from their code points rather than written out, so that this file
+  # stays the ASCII the rest of the package is.
+  smoking <- intToUtf8(c(0x55ABL, 0x7159L))
+  age <- intToUtf8(c(0x5E74L, 0x9F62L))
+  expect_equal(fy_file_slug(smoking), smoking)
+  expect_false(identical(fy_file_slug(smoking), fy_file_slug(age)))
+
+  # What a file name cannot carry is still turned into an underscore, and a
+  # name with nothing left in it still has the fallback behind it.
+  expect_equal(fy_file_slug("ns(no2, 3)"), "ns_no2_3")
+  expect_equal(fy_file_slug("%%%"), "")
+})
+
 test_that("a list of figures is not a report", {
   d <- foresty_cohort
   figures <- foresty_combine(

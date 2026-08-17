@@ -15,7 +15,7 @@
   ...
 )
 
-\method{glance}{foresty}(x, ...)
+\method{glance}{foresty}(x, model = NULL, ...)
 
 \method{as.data.frame}{foresty}(x, row.names = NULL, optional = FALSE, ...)
 }
@@ -30,7 +30,11 @@ instead, on the scale it was fitted on.}
 \code{TRUE}, an interval being the point of a forest plot.}
 
 \item{model}{Which model to take the coefficients from, when the figure
-covers several.}
+covers several. \code{glance()} takes the counts of that model too; without it
+a figure of several models is glanced at as a figure -- its measure, its
+confidence level, its test and how many models it holds -- and the columns
+describing what one model was fitted to are \code{NA}, no one of them being the
+figure's.}
 
 \item{...}{Ignored.}
 

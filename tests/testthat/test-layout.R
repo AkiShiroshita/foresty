@@ -26,7 +26,7 @@ test_that("a layout is a name, an object, or nothing at all", {
 })
 
 test_that("a style is changed where it needs to be and kept elsewhere", {
-  x <- foresty_layout("jama", colour = "#B24745", base_size = 12)
+  x <- foresty_layout("jama", color = "#B24745", base_size = 12)
 
   expect_equal(x$palette$estimate, "#B24745")
   expect_equal(x$palette$interval, "#B24745")
@@ -43,38 +43,40 @@ test_that("a style is changed where it needs to be and kept elsewhere", {
                "does not draw")
 })
 
-test_that("the colour of the estimates is the one the layout was given", {
+test_that("the color of the estimates is the one the layout was given", {
   x <- foresty_main(list(fy_test_logistic()), exposure = "no2",
-                    layout = foresty_layout("classic", colour = "#B24745"))
+                    layout = foresty_layout("classic", color = "#B24745"))
   layers <- ggplot2::ggplot_build(x)$data
   points <- layers[[length(layers)]]
 
   expect_true(all(points$fill == "#B24745"))
+  # `colour` is what ggplot2 names the column of built data, whatever the
+  # package spells the setting.
   expect_true(all(points$colour == "#B24745"))
 })
 
-test_that("the rows are drawn in a colour apiece when the layout asks", {
+test_that("the rows are drawn in a color apiece when the layout asks", {
   fit <- fy_test_logistic()
   x <- foresty_interaction(fit, exposure = "no2", interaction = "sex",
                            layout = foresty_layout("classic",
-                                                   colour_by = "category"))
+                                                   color_by = "category"))
   points <- fy_marks(x)
 
-  # One colour per subgroup, from Dark2, and the interval drawn in the colour
+  # One color per subgroup, from Dark2, and the interval drawn in the color
   # of the mark on it.
-  expect_equal(sort(unique(points$fill)), sort(foresty_colours("Dark2")[1:2]))
+  expect_equal(sort(unique(points$fill)), sort(foresty_colors("Dark2")[1:2]))
   expect_equal(points$colour, points$fill)
   expect_equal(sort(unique(fy_bars(x)$colour)),
-               sort(foresty_colours("Dark2")[1:2]))
+               sort(foresty_colors("Dark2")[1:2]))
 
   # The reference level of a categorical exposure is hollow whatever the
-  # figure is coloured by: it was not estimated.
+  # figure is colored by: it was not estimated.
   y <- foresty_main(list(fit), exposure = "maternal_smoking",
-                    layout = foresty_layout("classic", colour_by = "category",
-                                            colours = "Set1"))
+                    layout = foresty_layout("classic", color_by = "category",
+                                            colors = "Set1"))
   marks <- fy_marks(y)
   expect_true("white" %in% marks$fill)
-  expect_true(foresty_colours("Set1")[2] %in% marks$fill)
+  expect_true(foresty_colors("Set1")[2] %in% marks$fill)
 
   # And a figure that asked for none of this is drawn exactly as it was.
   expect_true(all(fy_marks(foresty_interaction(fit, exposure = "no2",
@@ -82,19 +84,59 @@ test_that("the rows are drawn in a colour apiece when the layout asks", {
                     "black"))
 })
 
-test_that("a palette is named, or the colours are given, or neither", {
-  expect_length(foresty_colours("Dark2"), 8L)
-  expect_equal(foresty_colours("Dark2", start = 3)[1L],
-               foresty_colours("Dark2")[3L])
+test_that("a palette is named, or the colors are given, or neither", {
+  expect_length(foresty_colors("Dark2"), 8L)
+  expect_equal(foresty_colors("Dark2", start = 3)[1L],
+               foresty_colors("Dark2")[3L])
   # Starting late wraps round rather than running out.
-  expect_equal(sort(foresty_colours("Dark2", start = 7)),
-               sort(foresty_colours("Dark2")))
-  expect_length(foresty_colours("Set2", n = 12), 12L)
+  expect_equal(sort(foresty_colors("Dark2", start = 7)),
+               sort(foresty_colors("Dark2")))
+  expect_length(foresty_colors("Set2", n = 12), 12L)
 
-  expect_equal(fy_layout_colours(NULL), foresty_colours("Dark2"))
-  expect_equal(fy_layout_colours("Set1"), foresty_colours("Set1"))
-  expect_equal(fy_layout_colours(c("red", "blue")), c("red", "blue"))
-  expect_error(foresty_layout("classic", colours = "Viridis"), "palette")
+  expect_equal(fy_layout_colors(NULL), foresty_colors("Dark2"))
+  expect_equal(fy_layout_colors("Set1"), foresty_colors("Set1"))
+  expect_equal(fy_layout_colors(c("red", "blue")), c("red", "blue"))
+  expect_error(foresty_layout("classic", colors = "Viridis"), "palette")
+  # Every color of a set of them, not only the first: one that is not a color
+  # is drawn as black rather than refused, so the row it was meant for comes
+  # out in the wrong color and nothing says so.
+  expect_error(foresty_layout("classic", colors = c("#1B9E77", "burgundy")),
+               "palette")
+  expect_silent(foresty_layout("classic", colors = c("#1B9E77", "red")))
+})
+
+test_that("a setting that could not be drawn is refused where it was named", {
+  # Each of these reaches grid or ggplot2 unread otherwise, and comes back as
+  # a complaint about something the caller never named -- or, for a color, as
+  # a figure quietly drawn in black.
+  expect_error(foresty_layout("classic", palette = c(estimate = "burgundy")),
+               "not a color")
+  expect_error(foresty_layout("classic", color = "burgundy"), "not a color")
+  expect_error(foresty_layout("classic", null_line = "banana"), "should be one")
+  expect_error(foresty_layout("classic", family = 12), "family")
+  expect_error(foresty_layout("classic", decimal_mark = 12), "decimal_mark")
+  expect_error(foresty_layout("classic", ci_separator = 12), "ci_separator")
+  expect_error(foresty_layout("classic", point_shape = 99), "point_shape")
+  expect_error(foresty_layout("classic", point_shape = "square"),
+               "plotting symbol")
+  expect_error(foresty_layout("classic", emphasis_shape = 99),
+               "emphasis_shape")
+  expect_error(foresty_layout("classic", plot_width = "wide"), "plot_width")
+  expect_error(foresty_layout("classic", plot_width = -1), "plot_width")
+  expect_error(foresty_layout("classic", headings = c(n = NA_character_)),
+               "headings")
+  expect_error(foresty_layout("classic", headings = c(n = "N", n = "No.")),
+               "headings")
+
+  # What is drawable still is: a share, a width, a unit, a single character as
+  # a plotting symbol, and an empty heading, which is how a column is left
+  # unheaded.
+  expect_silent(foresty_layout("classic", plot_width = 0.6))
+  expect_silent(foresty_layout("classic", plot_width = 8))
+  expect_silent(foresty_layout("classic", plot_width = grid::unit(8, "cm")))
+  expect_silent(foresty_layout("classic", point_shape = "+"))
+  expect_silent(foresty_layout("classic", family = "serif"))
+  expect_silent(foresty_layout("classic", headings = c(n = "")))
 })
 
 test_that("the plot can be drawn on a ggplot2 theme of its own", {
@@ -118,9 +160,12 @@ test_that("the plot can be drawn on a ggplot2 theme of its own", {
 test_that("p-values are written the way the journal asks", {
   expect_equal(fy_format_p(c(0.0004, 0.0231, 0.005, 0.995, NA)),
                c("<0.001", "0.023", "0.005", "0.995", ""))
-  # No leading zero, three places up to 0.01 and two above it.
+  # No leading zero, three places below 0.01 and two from there up, so that
+  # .01 itself is written as the journal writes it.
   expect_equal(fy_format_p(c(0.0004, 0.0231, 0.005, 0.995, NA), "jama"),
                c("<.001", ".02", ".005", ">.99", ""))
+  expect_equal(fy_format_p(c(0.0099, 0.01, 0.0101), "jama"),
+               c(".010", ".01", ".01"))
   # The Lancet's decimal point reaches the numbers as well as the p-values.
   expect_equal(fy_format_p(0.0231, "default", "·"), "0·023")
   expect_equal(fy_format_number(1.5, 2, "·"), "1·50")

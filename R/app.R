@@ -97,9 +97,9 @@
 #' renames the outcome -- which is otherwise taken from the left of your
 #' formula, `asthma_ever_dx` and all -- replaces the label under the plot
 #' outright, and names each selected exposure. A model carrying person-time is
-#' also asked what unit to count it in, 1,000 or 100,000 being how a paper
-#' reports a rate and six figures beside the plot being width the plot could
-#' have had.
+#' also asked what unit to count it in -- any number, 1,000 and 100,000 being
+#' how a paper usually reports a rate and six figures beside the plot being
+#' width the plot could have had.
 #'
 #' @section A model too slow to redraw:
 #'
@@ -114,17 +114,17 @@
 #' they come to, which is what to paste into the script and run once. The other
 #' tabs report on models the app fitted and say so instead.
 #'
-#' @section Colours and the panel:
+#' @section Colors and the panel:
 #'
-#' A figure is drawn in one colour, which is asked for per exposure and can be
-#' named as a place in a ColorBrewer palette -- the third colour of Dark2 --
-#' or typed as a hex code, which is how a figure is drawn in the colour a
-#' journal or a slide deck already uses. **What the colours change with** draws
-#' it in more than one instead: a colour per category of the rows, which is the
+#' A figure is drawn in one color, which is asked for per exposure and can be
+#' named as a place in a ColorBrewer palette -- the third color of Dark2 --
+#' or typed as a hex code, which is how a figure is drawn in the color a
+#' journal or a slide deck already uses. **What the colors change with** draws
+#' it in more than one instead: a color per category of the rows, which is the
 #' levels of a categorical exposure or the subgroups of the modifier, or a
-#' colour per row. Those come from a palette, or from hex codes typed beside it
-#' -- `#1B9E77, #D95F02` -- which is the same list `colours` takes. See
-#' `colour_by` in [foresty_layout()].
+#' color per row. Those come from a palette, or from hex codes typed beside it
+#' -- `#1B9E77, #D95F02` -- which is the same list `colors` takes. See
+#' `color_by` in [foresty_layout()].
 #'
 #' @section The tabs:
 #'
@@ -154,7 +154,11 @@
 #' on their behalf than take it on trust. It comes to the estimates on the Plot
 #' tab exactly -- the same design matrix, the same coefficients and covariance,
 #' the same degrees of freedom and the same test -- and draws nothing: drawing
-#' them is what the call above it is for.
+#' them is what the call above it is for. A multinomial fit is written out too:
+#' it holds one equation for each level of the outcome other than the one it
+#' was fitted against, so an estimate is a difference of blocks of coefficients
+#' rather than a difference of two rows of the design, and the script does that
+#' placing where it does the rest of the arithmetic.
 #'
 #' @section What comes out:
 #'
@@ -399,7 +403,7 @@ fy_app_panel <- function(title, ...) {
 
 # The look is the one `ggstratify` wears, and for the same reason: the two are
 # read as one pair of tools, so a reader who has used the other should not have
-# to learn where anything is twice. The colours are not written here -- the
+# to learn where anything is twice. The colors are not written here -- the
 # grey title bar and the green of an open tab are Bootswatch's `flatly`, which
 # `bs_theme(preset = )` fetches -- and what is left is the text Bootstrap sizes
 # in pixels and the handful of classes this app has of its own.
@@ -538,8 +542,8 @@ fy_app_ui <- function(info, variables, fit_name) {
         "combine", "Combine the pairs into one figure", value = TRUE
       ),
       shiny::div(class = "fy-note", paste0(
-        "Every exposure is drawn against every modifier. Combining follows ",
-        "foresty_combine(): one figure per exposure, its modifiers as ",
+        "Every exposure is drawn against every modifier.",
+        "One figure per exposure and its modifiers as ",
         "blocks. Uncombined, each figure is exported as a file of its own."
       )),
 
@@ -558,24 +562,24 @@ fy_app_ui <- function(info, variables, fit_name) {
           shiny::sliderInput("base_size", "Text size (pt)", min = 8, max = 36,
                              value = 16, step = 1),
           shiny::radioButtons(
-            "colour_by", "What the colours change with",
-            choices = c("One colour for the whole figure" = "none",
+            "color_by", "What the colors change with",
+            choices = c("One color for the whole figure" = "none",
                         "One per category of the rows" = "category",
                         "One per row" = "row"),
             selected = "none"
           ),
           shiny::conditionalPanel(
-            "input.colour_by != 'none'",
+            "input.color_by != 'none'",
             shiny::selectInput("palette", "Palette",
                                choices = c("Dark2", "Set1", "Set2")),
             shiny::textInput(
-              "colours_hex", "Or hex codes of your own, separated by commas",
+              "colors_hex", "Or hex codes of your own, separated by commas",
               placeholder = "#1B9E77, #D95F02, #7570B3"
             ),
             shiny::div(class = "fy-note", paste0(
-              "The colours are taken in the order they are written and reused ",
+              "The colors are taken in the order they are written and reused ",
               "from the start where the rows outrun them. A category keeps ",
-              "its colour wherever it appears. No legend is drawn: the rows ",
+              "its color wherever it appears. No legend is drawn: the rows ",
               "are labelled already."
             ))
           ),
@@ -637,15 +641,15 @@ fy_app_ui <- function(info, variables, fit_name) {
         fy_app_panel(
           "Each exposure",
           shiny::div(class = "fy-note", paste0(
-            "Two exposures rarely want the same answers, so the colour they ",
+            "Two exposures rarely want the same answers, so the color they ",
             "are drawn in and the difference each estimate is for are asked ",
             "once apiece."
           )),
           shiny::conditionalPanel(
-            "input.colour_by != 'none'",
+            "input.color_by != 'none'",
             shiny::div(class = "fy-note", paste0(
-              "The rows are being drawn in colours of their own, so the ",
-              "colour chosen here is not used."
+              "The rows are being drawn in colors of their own, so the ",
+              "color chosen here is not used."
             ))
           ),
           shiny::uiOutput("exposure_controls")
@@ -800,9 +804,8 @@ fy_app_outcome_reference_control <- function(info) {
       "Draw that level as a row of its own", value = FALSE
     ),
     shiny::div(class = "fy-note", paste0(
-      "It carries no estimate -- it is the definition the other rows are ",
-      "differences from, so it is 1 on the ratio scale and 0 on the scale ",
-      "the model was fitted on, with no interval -- but it puts the level ",
+      "It carries no estimate ",
+      ",but it puts the level ",
       "everything is read against on the figure rather than only in the ",
       "row labels."
     ))
@@ -821,7 +824,9 @@ fy_app_person_time_control <- function(info) {
   }
   shiny::tagList(
     shiny::numericInput(
-      "person_time", "Count person-time in units of", value = 1, min = 0,
+      # 1 is the total and is the least it can be: person-time is divided by
+      # this, and a unit of nothing is not a unit.
+      "person_time", "Count person-time in units of", value = 1, min = 1,
       step = 1000
     ),
     shiny::div(class = "fy-note", paste0(
@@ -832,20 +837,20 @@ fy_app_person_time_control <- function(info) {
   )
 }
 
-# The colours an exposure can be drawn in. A figure is drawn in one colour --
-# the point, its border and its interval -- so this is that colour rather than
+# The colors an exposure can be drawn in. A figure is drawn in one color --
+# the point, its border and its interval -- so this is that color rather than
 # a palette, and "the style's own" leaves the journal style to say.
 #
 # The eight of Dark2 are offered by their number as well as by their name, since
-# that is how a figure drawn to match another one is asked for: the third colour
-# of Dark2, not "purple". They are foresty_colours()'s own, so the code the app
+# that is how a figure drawn to match another one is asked for: the third color
+# of Dark2, not "purple". They are foresty_colors()'s own, so the code the app
 # writes and the swatch beside the menu cannot come apart.
 #
 # The last of them is a hex code typed rather than picked, which is what a
-# figure drawn to match a journal's own colours or the rest of a slide deck
+# figure drawn to match a journal's own colors or the rest of a slide deck
 # needs, since no menu can hold those.
-fy_app_colour_choices <- function() {
-  dark2 <- foresty_colours("Dark2")
+fy_app_color_choices <- function() {
+  dark2 <- foresty_colors("Dark2")
   names(dark2) <- paste0("Dark2 ", seq_along(dark2), " -- ",
                          c("green", "orange", "purple", "pink", "light green",
                            "yellow", "brown", "grey"))
@@ -857,9 +862,9 @@ fy_app_colour_choices <- function() {
     "A hex code I type" = "hex")
 }
 
-# A hex colour as it has to be written to be one: `#RGB`, `#RRGGBB` or
+# A hex color as it has to be written to be one: `#RGB`, `#RRGGBB` or
 # `#RRGGBBAA`, with the `#` supplied where it was left out, since that is how a
-# colour is copied out of a style guide. Anything else is not a colour and is
+# color is copied out of a style guide. Anything else is not a color and is
 # treated as though nothing had been typed, so that a half-typed code draws the
 # figure in the style's own rather than refusing to draw it.
 fy_app_hex <- function(x) {
@@ -878,7 +883,7 @@ fy_app_hex <- function(x) {
 fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL,
                                splined = FALSE) {
   kind <- paste0("contrast_kind_", id)
-  colour <- paste0("colour_", id)
+  color <- paste0("color_", id)
   # Whatever was chosen last time is what these come back as: the controls are
   # rebuilt whenever the menu of exposures changes, and an exposure that is
   # still there has not changed its mind.
@@ -982,13 +987,13 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL,
           paste0("input.", kind, " == 'quantile'"),
           shiny::fluidRow(
             shiny::column(6, shiny::numericInput(
-              paste0("quantile_low_", id), "First quartile",
+              paste0("quantile_low_", id), "Lower quantile",
               value = kept(paste0("quantile_low_", id), 0.25),
               min = 0, max = 1, step = 0.05
             )),
             shiny::column(6, shiny::numericInput(
               paste0("quantile_high_", id),
-              paste0(fy_arrow, " Third quartile"),
+              paste0(fy_arrow, " Upper quantile"),
               value = kept(paste0("quantile_high_", id), 0.75),
               min = 0, max = 1, step = 0.05
             ))
@@ -1020,17 +1025,17 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL,
     )
   }
 
-  colour_hex <- paste0("colour_hex_", id)
+  color_hex <- paste0("color_hex_", id)
   label <- paste0("label_", id)
   shiny::div(
     class = "fy-exposure",
     shiny::tags$strong(exposure),
-    shiny::selectInput(colour, "Colour", choices = fy_app_colour_choices(),
-                       selected = kept(colour, "")),
+    shiny::selectInput(color, "Color", choices = fy_app_color_choices(),
+                       selected = kept(color, "")),
     shiny::conditionalPanel(
-      paste0("input.", colour, " == 'hex'"),
-      shiny::textInput(colour_hex, "Hex code",
-                       value = kept(colour_hex, ""),
+      paste0("input.", color, " == 'hex'"),
+      shiny::textInput(color_hex, "Hex code",
+                       value = kept(color_hex, ""),
                        placeholder = "#B24745")
     ),
     difference
@@ -1570,7 +1575,7 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
     args$test <- input$test
   }
   args <- c(args, fy_app_figure_args(input,
-                                     fy_app_colour(input, pair$exposure, ctx)))
+                                     fy_app_color(input, pair$exposure, ctx)))
   if (isTRUE(many)) {
     subtitle <- fy_app_subtitle(pair$exposure, input, ctx)
     if (!is.null(subtitle)) args$subtitle <- subtitle
@@ -1797,6 +1802,12 @@ fy_app_quantile_values <- function(info, exposure, probs) {
       any(probs < 0) || any(probs > 1)) {
     return(NULL)
   }
+  # The lower one first. A pair given the other way round would draw the effect
+  # of a fall in the exposure while the boxes above it still read as a rise,
+  # and "Reverse the direction" is the control that turns the figure round.
+  if (probs[[1L]] >= probs[[2L]]) {
+    return(NULL)
+  }
   x <- tryCatch(fy_variable(info, exposure), error = function(e) NULL)
   x <- suppressWarnings(as.numeric(x))
   x <- x[is.finite(x)]
@@ -1860,14 +1871,14 @@ fy_app_combine_call <- function(object_names, input, ctx, pairs) {
   # foresty_combine() would do with several exposures is exactly this -- a
   # figure apiece, since rows of different exposures are not read against each
   # other -- and doing it here means each of them can be drawn in that
-  # exposure's colour and told which exposure it is of.
+  # exposure's color and told which exposure it is of.
   one <- function(exposure) {
     here <- object_names[exposures == exposure]
     if (length(here) == 1L) {
       return(as.name(here))
     }
     args <- c(lapply(here, as.name),
-              fy_app_figure_args(input, fy_app_colour(input, exposure, ctx)))
+              fy_app_figure_args(input, fy_app_color(input, exposure, ctx)))
     subtitle <- fy_app_subtitle(exposure, input, ctx)
     if (!is.null(subtitle)) args$subtitle <- subtitle
     as.call(c(quote(foresty_combine), args))
@@ -1879,54 +1890,54 @@ fy_app_combine_call <- function(object_names, input, ctx, pairs) {
   as.call(c(quote(list), stats::setNames(lapply(wanted, one), wanted)))
 }
 
-# The colour this exposure is drawn in, or NULL for the style's own.
+# The color this exposure is drawn in, or NULL for the style's own.
 #
-# A figure whose rows carry colours of their own has no one colour to be drawn
+# A figure whose rows carry colors of their own has no one color to be drawn
 # in, so the choice made per exposure is left out of the call rather than
 # written into it and then overridden.
-fy_app_colour <- function(input, exposure, ctx) {
+fy_app_color <- function(input, exposure, ctx) {
   id <- ctx$variables$ids[[exposure]]
-  if (is.null(id) || !identical(input$colour_by %||% "none", "none")) {
+  if (is.null(id) || !identical(input$color_by %||% "none", "none")) {
     return(NULL)
   }
-  colour <- input[[paste0("colour_", id)]]
-  if (is.null(colour) || !nzchar(colour)) {
+  color <- input[[paste0("color_", id)]]
+  if (is.null(color) || !nzchar(color)) {
     return(NULL)
   }
-  if (identical(colour, "hex")) {
-    # A code half typed is not a colour yet, and is left as though nothing had
+  if (identical(color, "hex")) {
+    # A code half typed is not a color yet, and is left as though nothing had
     # been chosen rather than drawn as an error.
-    typed <- fy_app_hex(input[[paste0("colour_hex_", id)]])
+    typed <- fy_app_hex(input[[paste0("color_hex_", id)]])
     return(if (length(typed)) typed[[1L]] else NULL)
   }
-  colour
+  color
 }
 
-# What the rows are coloured by, as the arguments that say it: the palette by
+# What the rows are colored by, as the arguments that say it: the palette by
 # name, so that the code carries the name a reader knows rather than eight hex
 # codes, or the codes themselves where those were typed instead.
-fy_app_colour_by_args <- function(input) {
-  colour_by <- input$colour_by %||% "none"
-  if (identical(colour_by, "none")) {
+fy_app_color_by_args <- function(input) {
+  color_by <- input$color_by %||% "none"
+  if (identical(color_by, "none")) {
     return(list())
   }
-  typed <- fy_app_hex(input$colours_hex)
-  colours <- if (!length(typed)) {
+  typed <- fy_app_hex(input$colors_hex)
+  colors <- if (!length(typed)) {
     input$palette %||% "Dark2"
   } else if (length(typed) == 1L) {
     typed
   } else {
     as.call(c(quote(c), as.list(typed)))
   }
-  list(colour_by = colour_by, colours = colours)
+  list(color_by = color_by, colors = colors)
 }
 
 # What the sidebar says about how a figure looks, as arguments shared by the
 # calls that draw one. The layout is the one part of it that can differ between
-# the figures of one screen, since the colour belongs to the exposure.
-fy_app_figure_args <- function(input, colour = NULL) {
+# the figures of one screen, since the color belongs to the exposure.
+fy_app_figure_args <- function(input, color = NULL) {
   args <- c(fy_app_table_args(input), fy_app_naming_args(input))
-  layout <- fy_app_layout_call(input, colour)
+  layout <- fy_app_layout_call(input, color)
   if (!is.null(layout)) args$layout <- layout
   c(args, fy_app_title_args(input))
 }
@@ -1971,14 +1982,14 @@ fy_app_title_args <- function(input) {
 # The layout as the shortest thing that says it: nothing at all where every
 # control is where the package left it, the name of a style where that is the
 # only thing that moved, and a foresty_layout() call where more did.
-fy_app_layout_call <- function(input, colour = NULL) {
+fy_app_layout_call <- function(input, color = NULL) {
   style <- input$style %||% "classic"
   args <- list()
   if (!is.null(input$base_size) && !is.na(input$base_size)) {
     args$base_size <- input$base_size
   }
-  if (!is.null(colour) && nzchar(colour)) args$colour <- colour
-  args <- c(args, fy_app_colour_by_args(input))
+  if (!is.null(color) && nzchar(color)) args$color <- color
+  args <- c(args, fy_app_color_by_args(input))
   if (!fy_app_same(input$digits, 2)) args$digits <- input$digits
   if (isTRUE(input$use_xlim)) {
     args$xlim <- call("c", input$xlim_low, input$xlim_high)
@@ -2024,12 +2035,12 @@ fy_app_script <- function(pairs, input, ctx) {
 
   fit_symbol <- ctx$fit_name
   with_modifier <- vapply(pairs, function(p) !is.null(p$modifier), logical(1))
-  # A colour belongs to an exposure, so where one has been chosen the layout is
+  # A color belongs to an exposure, so where one has been chosen the layout is
   # part of what varies between the figures and moves into the list with them.
-  coloured <- any(vapply(pairs, function(p) {
-    !is.null(fy_app_colour(input, p$exposure, ctx))
+  colored <- any(vapply(pairs, function(p) {
+    !is.null(fy_app_color(input, p$exposure, ctx))
   }, logical(1)))
-  shared <- fy_app_shared_args(input, ctx, coloured)
+  shared <- fy_app_shared_args(input, ctx, colored)
 
   main <- paste0("do.call(foresty_main, c(list(list(", fit_symbol,
                  ")), spec", shared$main, "))")
@@ -2061,7 +2072,7 @@ fy_app_script <- function(pairs, input, ctx) {
   }
 
   lines <- c(
-    fy_app_specs_lines(pairs, input, ctx, coloured),
+    fy_app_specs_lines(pairs, input, ctx, colored),
     "",
     "figures <- lapply(specs, function(spec) {",
     body,
@@ -2086,7 +2097,7 @@ fy_app_combine_lines <- function(pairs, input, ctx) {
 
   one <- function(exposure, indent) {
     at <- which(exposures == exposure)
-    args <- fy_app_figure_args(input, fy_app_colour(input, exposure, ctx))
+    args <- fy_app_figure_args(input, fy_app_color(input, exposure, ctx))
     subtitle <- fy_app_subtitle(exposure, input, ctx)
     if (!is.null(subtitle)) args$subtitle <- subtitle
     if (length(at) == 1L) {
@@ -2131,7 +2142,7 @@ fy_app_combine_lines <- function(pairs, input, ctx) {
 # What every figure of the loop is drawn with, as the tail of a do.call().
 # foresty_main() has no `test`, so the two branches do not share quite the same
 # arguments.
-fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
+fy_app_shared_args <- function(input, ctx, colored = FALSE) {
   common <- list()
   if (!is.null(ctx$measure)) common$measure <- ctx$measure
   if (identical(input$scale, "log")) common$exponentiate <- FALSE
@@ -2141,12 +2152,12 @@ fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
     common$outcome_reference_row <- TRUE
   }
   if (!fy_app_same(input$ci_level, 0.95)) common$ci_level <- input$ci_level
-  common <- c(common, if (coloured) {
+  common <- c(common, if (colored) {
     c(fy_app_table_args(input), fy_app_naming_args(input))
   } else {
     fy_app_figure_args(input)
   })
-  if (coloured) {
+  if (colored) {
     common <- c(common, fy_app_title_args(input))
   }
 
@@ -2164,7 +2175,7 @@ fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
 
 # The pairs, as the list the loop runs over: what changes from figure to
 # figure and nothing else.
-fy_app_specs_lines <- function(pairs, input, ctx, coloured = FALSE) {
+fy_app_specs_lines <- function(pairs, input, ctx, colored = FALSE) {
   items <- vapply(pairs, function(pair) {
     args <- list(exposure = fy_app_exposure_arg(input, pair$exposure, ctx))
     if (!is.null(pair$modifier)) {
@@ -2181,8 +2192,8 @@ fy_app_specs_lines <- function(pairs, input, ctx, coloured = FALSE) {
     if (!is.null(subtitle)) {
       args$subtitle <- subtitle
     }
-    if (coloured) {
-      layout <- fy_app_layout_call(input, fy_app_colour(input, pair$exposure, ctx))
+    if (colored) {
+      layout <- fy_app_layout_call(input, fy_app_color(input, pair$exposure, ctx))
       if (!is.null(layout)) {
         args$layout <- layout
       }
@@ -2224,77 +2235,111 @@ fy_app_deparse1 <- function(x) {
 # It reproduces the estimates exactly -- the same design matrix, the same
 # coefficients and covariance, the same degrees of freedom and the same test --
 # and draws nothing. Drawing them is what the call above is for.
+#
+# A multinomial logistic regression holds one equation per non-reference level
+# of the outcome rather than one, so its contrast is a difference of blocks of
+# coefficients rather than a difference of rows of the design. That is written
+# out too, by the same helpers with the block arithmetic in them.
 fy_app_plain_script <- function(states, input, ctx) {
   if (!length(states)) {
     return("")
   }
-  # The script below is written around one equation: one design matrix, one
-  # coefficient vector, and a contrast that is the difference between two rows
-  # of the design. A multinomial fit has one equation per non-reference level
-  # of the outcome and a coefficient vector holding a block of each, so the
-  # contrast is a difference of blocks rather than a difference of rows. Rather
-  # than write a second version of every helper below and have it drift from
-  # the one the figures are actually drawn by, the tab says so.
-  if (!is.null(ctx$info$equations)) {
-    return(paste(fy_app_plain_multi_equation_note(ctx), collapse = "\n"))
-  }
-  blocks <- lapply(seq_along(states), function(i) {
+  body <- unlist(lapply(seq_along(states), function(i) {
     fy_app_plain_block(states[[i]], i, input, ctx)
-  })
-  paste(c(fy_app_plain_preamble(input, ctx),
-          unlist(blocks, use.names = FALSE)),
-        collapse = "\n")
+  }), use.names = FALSE)
+  # Which of the two tests the figures below came to is read off the code that
+  # takes them rather than worked out a second time, so that the helper the
+  # script defines cannot be the one it does not go on to call. A function
+  # defined and never used is a function to read past.
+  used <- c(
+    lrt = any(grepl("lrt_p(", body, fixed = TRUE)),
+    wald = any(grepl("wald_p(", body, fixed = TRUE))
+  )
+  paste(c(fy_app_plain_preamble(input, ctx, used), body), collapse = "\n")
 }
 
-# What this tab says for a model whose estimates it does not write out by hand.
-fy_app_plain_multi_equation_note <- function(ctx) {
-  equations <- ctx$info$equations
+# A paragraph of the script's own explanation, wrapped to the width the tab is
+# read at. The names of the outcome's levels are written into it, and a level
+# named at length would otherwise run off the side of it.
+fy_app_plain_note <- function(...) {
+  paste0("# ", strwrap(paste0(...), width = 76))
+}
+
+# What the p-value beside the figures is, named rather than left as "the test".
+# Which of the two it is turns on the model as much as on the sidebar -- a fit
+# with no likelihood has the Wald test reported beside it whatever was asked
+# for -- so it is named from the code that takes it.
+fy_app_plain_test_name <- function(used) {
+  if (used[["lrt"]] && used[["wald"]]) {
+    return("the tests of the interaction")
+  }
+  if (used[["wald"]]) {
+    return("the joint Wald test of the interaction")
+  }
+  "the likelihood ratio test of the interaction"
+}
+
+# What a fit of several equations adds to the arithmetic, said above the script
+# that does it rather than left for the reader to work out of the code.
+fy_app_plain_equations_note <- function(equations) {
+  if (is.null(equations)) {
+    return(character(0))
+  }
   c(
-    strrep("#", 77),
-    "# How the effect estimate in each subgroup is calculated.",
     "#",
-    "# Not written for this model. It is a multinomial logistic regression of",
-    paste0("# ", length(equations$levels), " outcome levels, so it holds ",
-           length(equations$blocks), " equations -- one for each level other"),
-    paste0("# than \"", equations$reference,
-           "\", which each of them is measured against -- and one block"),
-    "# of coefficients for each equation, all built from the same design",
-    "# matrix.",
+    fy_app_plain_note(
+      "This is a multinomial logistic regression of ",
+      length(equations$levels), " outcome levels, so it holds ",
+      length(equations$blocks), " equations -- one for each level other than \"",
+      equations$reference, "\", which each of them is measured against -- and ",
+      "a block of coefficients for each equation, all built from the same ",
+      "design matrix."
+    ),
     "#",
-    "# The estimate on any one row is therefore not the difference between two",
-    "# rows of that design matrix, which is what the script written here for",
-    "# every other model is. It is that difference placed in the block of the",
-    "# equation the row belongs to, less the same difference in the block of",
-    "# the equation the row is read against, and zero everywhere else. The",
-    "# comparison between two levels neither of which the model was fitted",
-    "# against is the difference of their two blocks, with the covariance of",
-    "# the pair in its variance.",
+    fy_app_plain_note(
+      "The estimate on any one row is therefore not the difference between two ",
+      "rows of that design matrix, which is what it is for a model of one ",
+      "equation. It is that difference placed in the block of the equation the ",
+      "row belongs to, less the same difference in the block of the equation ",
+      "the row is read against, and zero everywhere else."
+    ),
     "#",
-    "# The R code tab writes the foresty calls that drew the figures, and the",
-    "# HTML report carries the estimates, the joint test and the whole",
-    "# coefficient table. summary() and as.data.frame() report the same numbers",
-    "# at the console.",
-    strrep("#", 77)
+    fy_app_plain_note(
+      "The level the model was fitted against has no block of its own -- it is ",
+      "the zero the other equations are measured from -- so it drops out of ",
+      "that difference on its own, and a comparison between two levels neither ",
+      "of which it is is the difference of their two blocks, with the ",
+      "covariance of the pair already in vcov(). Reading the figure against ",
+      "another level of the outcome is therefore not a refit."
+    )
   )
 }
 
 # The heading, the helpers, and the handful of settings every estimate below is
 # taken at, written once because every estimate is taken at the same ones.
-fy_app_plain_preamble <- function(input, ctx) {
+fy_app_plain_preamble <- function(input, ctx, used) {
   info <- ctx$info
+  equations <- info$equations
   exponentiate <- isTRUE(info$exponentiate) && !identical(input$scale, "log")
   c(
     strrep("#", 77),
     "# How the effect estimate in each subgroup is calculated.",
     "#",
-    "# Needs the car package, and nothing else. Everything below is base R and",
-    "# car: the model the interaction term was added to, the linear combination",
-    "# of its coefficients each subgroup estimate is, and the joint test of the",
-    "# interaction reported beside them.",
+    fy_app_plain_note(
+      "Needs the car package", if (!is.null(equations)) " and nnet",
+      ", and nothing else. Everything below is base R and car: the model the ",
+      "interaction term was added to, the linear combination of its ",
+      "coefficients each subgroup estimate is",
+      if (any(used)) {
+        paste0(", and ", fy_app_plain_test_name(used), " reported beside them")
+      },
+      "."
+    ),
     "#",
     "# Each subgroup estimate comes out of that one model rather than out of a",
     "# model fitted in each subgroup, which is what lets every subgroup share",
     "# one estimate of the covariate effects and the interaction be tested.",
+    fy_app_plain_equations_note(equations),
     "#",
     "# The numbers are the ones on the Plot tab exactly: the same design matrix,",
     "# the same coefficients and covariance, the same degrees of freedom and the",
@@ -2302,8 +2347,9 @@ fy_app_plain_preamble <- function(input, ctx) {
     strrep("#", 77),
     "",
     "library(car)",
+    if (!is.null(equations)) "library(nnet)",
     "",
-    fy_app_plain_helpers(),
+    fy_app_plain_helpers(equations, used),
     "",
     paste0("# --- What the sidebar came to ", strrep("-", 47)),
     "",
@@ -2325,6 +2371,56 @@ fy_app_plain_preamble <- function(input, ctx) {
     "# between two copies of this row, so the covariates it carries cancel; it",
     "# is here because a design matrix has to be built from a whole row.",
     fy_app_plain_at_line(info, ctx$fit_name),
+    "",
+    fy_app_plain_outcomes(input, ctx)
+  )
+}
+
+# The comparisons between outcome levels the rows of a multinomial figure are
+# made of: every level except the one they are all read against, one apiece,
+# and that level itself where the sidebar asked for it as a row of its own.
+#
+# They belong to the model rather than to any one figure, as the scale and the
+# confidence level do, so they are written once above every figure below.
+fy_app_plain_outcomes <- function(input, ctx) {
+  equations <- ctx$info$equations
+  if (is.null(equations)) {
+    return(character(0))
+  }
+  reference <- fy_app_outcome_reference(input, ctx) %||% equations$reference
+  wanted <- setdiff(equations$levels, reference)
+
+  item <- function(level, label, is_reference) {
+    c(
+      paste0("  list(label = ", fy_app_quote(label), ", level = ",
+             fy_app_quote(level), ","),
+      paste0("       against = ", fy_app_quote(reference), ", reference = ",
+             if (is_reference) "TRUE" else "FALSE", ")")
+    )
+  }
+  items <- lapply(wanted, function(lv) {
+    item(lv, paste0(lv, " vs ", reference), FALSE)
+  })
+  # The level everything is read against comes first, as the reference level of
+  # a categorical exposure does, and carries no estimate: it is the definition
+  # the rows around it are differences from.
+  if (fy_app_outcome_reference_row(input, ctx)) {
+    items <- c(list(item(reference, reference, TRUE)), items)
+  }
+  # A comma after every item but the last, so the list parses.
+  items <- lapply(seq_along(items), function(i) {
+    lines <- items[[i]]
+    if (i < length(items)) {
+      lines[length(lines)] <- paste0(lines[length(lines)], ",")
+    }
+    lines
+  })
+
+  c(
+    "# Which two levels of the outcome each row of the figure compares.",
+    "outcomes <- list(",
+    unlist(items, use.names = FALSE),
+    ")",
     ""
   )
 }
@@ -2345,7 +2441,10 @@ fy_app_plain_at_line <- function(info, fit_name) {
 }
 
 # The three functions foresty is, as functions of your own.
-fy_app_plain_helpers <- function() {
+fy_app_plain_helpers <- function(equations = NULL, used) {
+  if (!is.null(equations)) {
+    return(fy_app_plain_multi_helpers(used))
+  }
   c(
 paste0("# --- What foresty does for you ", strrep("-", 45)),
 "",
@@ -2353,17 +2452,25 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "# coefficients of one model. The two rows differ in what is being compared and",
 "# in nothing else -- the exposure, and the modifier where the comparison runs",
 "# across subgroups as well -- so the difference between their rows of the",
-"# design matrix is the contrast the estimate is of, and every covariate",
-"# cancels. Going back through model.frame() with the model's own levels and",
-"# contrast coding is what rebuilds a basis such as ns(x, 3) with the knots it",
-"# was fitted with, rather than recomputing one from two rows.",
+"# design matrix is the contrast the estimate is of. Everything else is held at",
+"# the same value in both rows, so what those variables contribute is the same",
+"# in both and cancels from the difference; which value they are held at is",
+"# therefore irrelevant. Going back through model.frame() with the model's own",
+"# levels and contrast coding is what rebuilds a basis such as ns(x, 3) with",
+"# the knots it was fitted with, rather than recomputing one from two rows.",
 "#",
-"# car::linearHypothesis.default() is called rather than car::linearHypothesis():",
-"# the method a fit dispatches to has its own idea of which coefficients, which",
+"# car::linearHypothesis.default() is called rather than the generic: the",
+"# method a fit dispatches to has its own idea of which coefficients, which",
 "# covariance and how many degrees of freedom to use. The hypothesis is a",
 "# numeric matrix rather than a character formula because a coefficient may be",
 "# named anything a fitting function likes, which car's parser reads only some",
 "# of.",
+"#",
+"# What comes back is the ordinary Wald arithmetic -- L %*% b for the estimate",
+"# and L %*% V %*% t(L) for its variance -- so the same two numbers can be had",
+"# without car at all. They are taken through car here because that is the call",
+"# foresty makes, and the point of this script is to be that call rather than a",
+"# second implementation of it that could agree with it or not.",
 "effect_of <- function(model, at, exposure, from, to, modifier = NULL,",
 "                      level = NULL, from_level = level, to_level = level,",
 "                      ci_level = 0.95, exponentiate = TRUE, error_df = Inf) {",
@@ -2372,12 +2479,17 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "  if (!is.null(modifier)) rows[[modifier]] <- c(from_level, to_level)",
 "",
 "  tt <- delete.response(terms(model))",
-"  mf <- model.frame(tt, data = rows, xlev = model$xlevels, na.action = na.pass)",
+"  mf <- model.frame(tt, data = rows, xlev = model$xlevels,",
+"                    na.action = na.pass)",
 "  X  <- model.matrix(tt, data = mf, contrasts.arg = model$contrasts)",
 "",
 "  b <- coef(model)",
 "  b <- b[!is.na(b)]        # an aliased coefficient has no column in vcov()",
 "  V <- vcov(model)[names(b), names(b), drop = FALSE]",
+"  # The contrast is matched to the coefficients by name. A coefficient with no",
+"  # column of that name in the design would otherwise become an NA and be",
+"  # carried into the estimate without a word.",
+"  stopifnot(all(names(b) %in% colnames(X)))",
 "  L <- matrix((X[2, ] - X[1, ])[names(b)], nrow = 1,",
 "              dimnames = list(NULL, names(b)))",
 "",
@@ -2417,6 +2529,7 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "  df <- tryCatch(df.residual(model), error = function(e) NULL)",
 "  if (is.null(df) || is.na(df) || df <= 0) Inf else as.numeric(df)",
 "}",
+    if (used[["wald"]]) c(
 "",
 "# The p-value for the interaction, the Wald way: the joint test that every",
 "# coefficient the interaction term added is zero.",
@@ -2435,19 +2548,219 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "    test = if (is.finite(error_df)) \"F\" else \"Chisq\", singular.ok = TRUE",
 "  )",
 "  lh[[grep(\"^Pr\\\\(\", names(lh))]][2]",
-"}",
+"}"
+    ),
+    if (used[["lrt"]]) c(
 "",
 "# The same hypothesis tested against the likelihood rather than against the",
 "# Wald approximation to it: twice the difference in log-likelihood between the",
-"# model carrying the interaction and the same model without it. The two part",
-"# company where the Wald approximation is poor -- a small study, a rare",
-"# outcome, a sparse subgroup -- and this is then the more trustworthy of them.",
+"# model carrying the interaction and the same model without it, referred to a",
+"# chi-square on the degrees of freedom between the two. It tests the",
+"# interaction as a whole rather than any one coefficient of it.",
+"#",
+"# The two are different asymptotic tests of the same hypothesis and usually",
+"# agree. Where the Wald approximation is poor -- a small study, a rare",
+"# outcome, a sparse subgroup, an estimate far from the null -- the likelihood",
+"# ratio test is usually the more reliable of the two.",
 "lrt_p <- function(full, reduced) {",
 "  statistic <- 2 * (as.numeric(logLik(full)) - as.numeric(logLik(reduced)))",
 "  df <- attr(logLik(full), \"df\") - attr(logLik(reduced), \"df\")",
 "  if (is.na(df) || df <= 0 || statistic < 0) return(NA_real_)",
 "  pchisq(statistic, df = df, lower.tail = FALSE)",
 "}"
+    )
+  )
+}
+
+# The same three functions for a model of several equations.
+#
+# They are written out in full rather than folded into the ones above with a
+# branch in them, because a reader is being shown the arithmetic of the model
+# in front of them and a branch for a model they have not fitted is one more
+# thing to read past. What differs is where the contrast goes: the design is
+# one equation wide, the coefficients are as wide as all of them together, and
+# equation_row() is what puts the one in the other.
+fy_app_plain_multi_helpers <- function(used) {
+  c(
+paste0("# --- What foresty does for you ", strrep("-", 45)),
+"",
+"# The coefficients of this model as one vector, named as its covariance",
+"# matrix is. coef() gives a matrix -- one row per equation, one column per",
+"# term -- and vcov() a matrix named \"level:term\", so the vector is that",
+"# matrix read row by row and named the same way.",
+"#",
+"# The names are rebuilt here rather than read off vcov(), so that the two are",
+"# lined up by name below and not by the order they happen to come in. A name",
+"# built here that vcov() does not carry stops the subset that follows rather",
+"# than quietly matching the wrong coefficient.",
+"flat_coef <- function(model) {",
+"  b <- coef(model)",
+"  if (!is.matrix(b)) return(b[!is.na(b)])",
+"  setNames(as.vector(t(b)),",
+"           paste(rep(rownames(b), each = ncol(b)),",
+"                 rep(colnames(b), nrow(b)), sep = \":\"))",
+"}",
+"",
+"# The difference between the two rows being compared, in the space of one",
+"# equation. The two rows differ in what is being compared and in nothing else",
+"# -- the exposure, and the modifier where the comparison runs across subgroups",
+"# as well. Everything else is held at the same value in both rows, so what",
+"# those variables contribute is the same in both and cancels from the",
+"# difference. Going back through model.frame() with the model's own levels and",
+"# contrast coding is what rebuilds a basis such as ns(x, 3) with the knots it",
+"# was fitted with, rather than recomputing one from two rows. Every equation",
+"# is built from this same design, so the difference is taken once and placed",
+"# in the blocks below.",
+"design_difference <- function(model, at, exposure, from, to, modifier = NULL,",
+"                              from_level = NULL, to_level = NULL) {",
+"  rows <- at[c(1, 1), , drop = FALSE]",
+"  rows[[exposure]] <- c(from, to)",
+"  if (!is.null(modifier)) rows[[modifier]] <- c(from_level, to_level)",
+"",
+"  tt <- delete.response(terms(model))",
+"  mf <- model.frame(tt, data = rows, xlev = model$xlevels,",
+"                    na.action = na.pass)",
+"  X  <- model.matrix(tt, data = mf, contrasts.arg = model$contrasts)",
+"  X[2, ] - X[1, ]",
+"}",
+"",
+"# One row of the contrast matrix: that difference placed in the block of the",
+"# equation the row is of, less the same difference in the block of the",
+"# equation it is read against, and zero everywhere else. The level the model",
+"# was fitted against has no block -- it is the zero the other equations are",
+"# measured from -- so it drops out of the difference on its own.",
+"equation_row <- function(b, base, dx, outcome, against) {",
+"  L <- setNames(numeric(length(b)), names(b))",
+"  # The design is one equation wide and the coefficients are as wide as all",
+"  # of them together, so the two are matched by name. A design column the",
+"  # coefficients do not name would otherwise become an NA and be carried into",
+"  # the estimate without a word.",
+"  stopifnot(all(base %in% names(dx)))",
+"  dx <- dx[base]",
+"  place <- function(level, sign) {",
+"    nm <- paste(level, base, sep = \":\")",
+"    hit <- nm %in% names(L)",
+"    L[nm[hit]] <<- L[nm[hit]] + sign * dx[hit]",
+"  }",
+"  place(outcome, 1)",
+"  place(against, -1)",
+"  matrix(L, nrow = 1, dimnames = list(NULL, names(L)))",
+"}",
+"",
+"# One estimate: the effect of the exposure on the odds of one level of the",
+"# outcome against another, as a linear combination of the coefficients of one",
+"# model.",
+"#",
+"# car::linearHypothesis.default() is called rather than the generic: the",
+"# method a fit dispatches to has its own idea of which coefficients, which",
+"# covariance and how many degrees of freedom to use. The hypothesis is a",
+"# numeric matrix rather than a character formula because a coefficient may be",
+"# named anything a fitting function likes, which car's parser reads only some",
+"# of.",
+"#",
+"# What comes back is the ordinary Wald arithmetic -- L %*% b for the estimate",
+"# and L %*% V %*% t(L) for its variance -- so the same two numbers can be had",
+"# without car at all. They are taken through car here because that is the call",
+"# foresty makes, and the point of this script is to be that call rather than a",
+"# second implementation of it that could agree with it or not.",
+"effect_of <- function(model, at, exposure, from, to, outcome, against,",
+"                      modifier = NULL, level = NULL, from_level = level,",
+"                      to_level = level, ci_level = 0.95, exponentiate = TRUE,",
+"                      error_df = Inf) {",
+"  b <- flat_coef(model)",
+"  V <- vcov(model)[names(b), names(b), drop = FALSE]",
+"  dx <- design_difference(model, at, exposure, from, to, modifier,",
+"                          from_level, to_level)",
+"  L <- equation_row(b, colnames(coef(model)), dx, outcome, against)",
+"",
+"  lh <- car::linearHypothesis.default(",
+"    model, L, coef. = b, vcov. = V, error.df = error_df,",
+"    test = if (is.finite(error_df)) \"F\" else \"Chisq\", singular.ok = TRUE",
+"  )",
+"  # The estimate is the value car attaches to its result and its standard",
+"  # error the square root of the variance beside it.",
+"  estimate <- as.vector(attr(lh, \"value\"))",
+"  se <- sqrt(as.vector(attr(lh, \"vcov\")))",
+"  crit <- if (is.finite(error_df)) {",
+"    qt(1 - (1 - ci_level) / 2, df = error_df)",
+"  } else {",
+"    qnorm(1 - (1 - ci_level) / 2)",
+"  }",
+"  out <- data.frame(",
+"    estimate  = estimate,",
+"    conf.low  = estimate - crit * se,",
+"    conf.high = estimate + crit * se,",
+"    p.value   = lh[[grep(\"^Pr\\\\(\", names(lh))]][2]",
+"  )",
+"  # The interval is formed on the scale the model was fitted on and only then",
+"  # transformed, so that it stays consistent with its point estimate.",
+"  if (exponentiate) {",
+"    out[c(\"estimate\", \"conf.low\", \"conf.high\")] <-",
+"      exp(out[c(\"estimate\", \"conf.low\", \"conf.high\")])",
+"  }",
+"  out",
+"}",
+"",
+"# The label a row is drawn under: what the row is of, and which two levels of",
+"# the outcome it compares. The level the others are read against is one row",
+"# for the whole of the exposure, so it is labelled by the subgroup it sits in",
+"# rather than by a value of the exposure it is not about.",
+"label_of <- function(oc, of, within = NULL) {",
+"  parts <- c(if (isTRUE(oc$reference)) within else of, oc$label)",
+"  paste(parts, collapse = \", \")",
+"}",
+"",
+"# Which distribution an estimate is referred to. A multinomial fit is referred",
+"# to the normal, so this is Inf for it, and it is written out anyway because",
+"# what it answers is a property of the model rather than of the script.",
+"error_df_of <- function(model, use_t) {",
+"  if (!use_t) return(Inf)",
+"  df <- tryCatch(df.residual(model), error = function(e) NULL)",
+"  if (is.null(df) || is.na(df) || df <= 0) Inf else as.numeric(df)",
+"}",
+    if (used[["wald"]]) c(
+"",
+"# The p-value for the interaction, the Wald way: the joint test that every",
+"# coefficient the interaction term added is zero. It added one to each",
+"# equation, so the test spans all of them and spends a degree of freedom on",
+"# each, which is what makes it a test of whether the effect depends on the",
+"# modifier at all rather than one test for each level of the outcome.",
+"wald_p <- function(model, columns, error_df = Inf) {",
+"  b <- flat_coef(model)",
+"  columns <- intersect(columns, names(b))",
+"  if (!length(columns)) return(NA_real_)",
+"  V <- vcov(model)[names(b), names(b), drop = FALSE]",
+"  L <- matrix(0, length(columns), length(b),",
+"              dimnames = list(columns, names(b)))",
+"  L[cbind(seq_along(columns), match(columns, names(b)))] <- 1",
+"",
+"  lh <- car::linearHypothesis.default(",
+"    model, L, coef. = b, vcov. = V, error.df = error_df,",
+"    test = if (is.finite(error_df)) \"F\" else \"Chisq\", singular.ok = TRUE",
+"  )",
+"  lh[[grep(\"^Pr\\\\(\", names(lh))]][2]",
+"}"
+    ),
+    if (used[["lrt"]]) c(
+"",
+"# The same hypothesis tested against the likelihood rather than against the",
+"# Wald approximation to it: twice the difference in log-likelihood between the",
+"# model carrying the interaction and the same model without it, referred to a",
+"# chi-square on the degrees of freedom between the two. It tests the",
+"# interaction as a whole, across every equation the model holds, and so spends",
+"# the same degrees of freedom the Wald test above does.",
+"#",
+"# The two are different asymptotic tests of the same hypothesis and usually",
+"# agree. Where the Wald approximation is poor -- a small study, a rare",
+"# outcome, a sparse subgroup, an estimate far from the null -- the likelihood",
+"# ratio test is usually the more reliable of the two.",
+"lrt_p <- function(full, reduced) {",
+"  statistic <- 2 * (as.numeric(logLik(full)) - as.numeric(logLik(reduced)))",
+"  df <- attr(logLik(full), \"df\") - attr(logLik(reduced), \"df\")",
+"  if (is.na(df) || df <= 0 || statistic < 0) return(NA_real_)",
+"  pchisq(statistic, df = df, lower.tail = FALSE)",
+"}"
+    )
   )
 }
 
@@ -2483,30 +2796,87 @@ fy_app_plain_block <- function(state, index, input, ctx) {
   c(head, body, "")
 }
 
+# The loop that fills in a figure's rows, wrapped in one over the comparisons
+# between levels of the outcome.
+#
+# A fit of one equation has one comparison to make, which is the exposure
+# against itself elsewhere. A multinomial fit repeats that comparison within
+# each comparison of the outcome, and the rows come out in that order -- the
+# outcome outside, the exposure inside -- which is the order the figure draws
+# them in.
+#
+# `reference_row` is the level everything is read against, drawn as a row of
+# its own. It is one row for the whole of the exposure, since it is the same
+# definition at every value of it, so only the first value is drawn for it.
+# Where it was not asked for there is no such row and nothing is written about
+# it: a branch that can never be taken is a line to read past.
+fy_app_plain_over_outcomes <- function(inner, iterated, reference_row) {
+  c(
+    "do.call(rbind, lapply(outcomes, function(oc) {",
+    if (reference_row) {
+      c(paste0("  drawn <- ", iterated),
+        "  # The level everything is read against is one row for the whole of",
+        "  # the exposure: it is the same definition at every value of it.",
+        "  if (isTRUE(oc$reference)) drawn <- drawn[1]")
+    },
+    fy_app_indent(inner, 2),
+    "}))"
+  )
+}
+
+# Whether a row is a definition rather than an estimate, as the script has to
+# ask it: the reference level of a categorical exposure, and, where the level
+# of the outcome the others are read against is drawn as a row of its own,
+# that row too.
+fy_app_plain_definition <- function(reference_row,
+                                    of = "isTRUE(cmp$reference)") {
+  if (reference_row) paste0("isTRUE(oc$reference) || ", of) else of
+}
+
 # The overall effect: one model, and one row per comparison the exposure is of.
 fy_app_plain_overall <- function(state, suffix, input, ctx, comparisons) {
   exposure <- state$pair$exposure
   fit_name <- ctx$fit_name
   label <- fy_app_exposure_label(exposure, input, ctx)
-  c(
-    paste0("comparisons", suffix, " <- list("),
-    paste0(comparisons, c(rep(",", length(comparisons) - 1L), "")),
-    ")",
-    "",
-    paste0("rows", suffix, " <- do.call(rbind, lapply(comparisons", suffix,
+  multi <- !is.null(ctx$info$equations)
+  outcome_row <- multi && fy_app_outcome_reference_row(input, ctx)
+
+  inner <- c(
+    paste0("do.call(rbind, lapply(",
+           if (outcome_row) "drawn" else paste0("comparisons", suffix),
            ", function(cmp) {"),
-    "  out <- if (isTRUE(cmp$reference)) {",
+    paste0("  out <- if (", fy_app_plain_definition(outcome_row), ") {"),
     "    data.frame(estimate = if (exponentiate) 1 else 0, conf.low = NA_real_,",
     "               conf.high = NA_real_, p.value = NA_real_)",
     "  } else {",
     paste0("    effect_of(", fit_name, ", at, \"", exposure,
            "\", cmp$from, cmp$to,"),
+    if (multi) "              outcome = oc$level, against = oc$against,",
     "              ci_level = ci_level, exponentiate = exponentiate,",
     paste0("              error_df = error_df_of(", fit_name, ", use_t))"),
     "  }",
-    paste0("  cbind(label = if (is.na(cmp$label)) ",
-           fy_app_quote(label), " else cmp$label, out)"),
-    "}))",
+    if (multi) {
+      c(paste0("  of <- if (is.na(cmp$label)) ", fy_app_quote(label),
+               " else cmp$label"),
+        "  cbind(label = label_of(oc, of), out)")
+    } else {
+      paste0("  cbind(label = if (is.na(cmp$label)) ",
+             fy_app_quote(label), " else cmp$label, out)")
+    },
+    "}))"
+  )
+  if (multi) {
+    inner <- fy_app_plain_over_outcomes(inner, paste0("comparisons", suffix),
+                                        outcome_row)
+  }
+
+  c(
+    paste0("comparisons", suffix, " <- list("),
+    paste0(comparisons, c(rep(",", length(comparisons) - 1L), "")),
+    ")",
+    "",
+    paste0("rows", suffix, " <- ", inner[1L]),
+    inner[-1L],
     paste0("rownames(rows", suffix, ") <- NULL"),
     paste0("rows", suffix)
   )
@@ -2523,6 +2893,41 @@ fy_app_plain_subgroups <- function(state, suffix, input, ctx, comparisons) {
   int_name <- paste0("fit_int", suffix)
   levels <- fy_app_plain_levels(input, modifier, ctx)
   added <- fy_app_plain_added(state, exposure, modifier, ctx)
+  multi <- !is.null(ctx$info$equations)
+  outcome_row <- multi && fy_app_outcome_reference_row(input, ctx)
+
+  inner <- c(
+    paste0("do.call(rbind, lapply(",
+           if (outcome_row) "drawn" else paste0("comparisons", suffix),
+           ", function(cmp) {"),
+    paste0("  out <- if (", fy_app_plain_definition(outcome_row), ") {"),
+    "    data.frame(estimate = if (exponentiate) 1 else 0,",
+    "               conf.low = NA_real_, conf.high = NA_real_,",
+    "               p.value = NA_real_)",
+    "  } else {",
+    paste0("    effect_of(", int_name, ", at, \"", exposure,
+           "\", cmp$from, cmp$to,"),
+    if (multi) "              outcome = oc$level, against = oc$against,",
+    paste0("              modifier = \"", modifier, "\", level = levels",
+           suffix, "[i],"),
+    "              ci_level = ci_level, exponentiate = exponentiate,",
+    paste0("              error_df = error_df_of(", int_name, ", use_t))"),
+    "  }",
+    paste0("  label <- if (is.na(cmp$label)) level_labels", suffix,
+           "[i] else"),
+    paste0("    paste0(level_labels", suffix, "[i], \": \", cmp$label)"),
+    if (multi) {
+      paste0("  cbind(label = label_of(oc, label, level_labels", suffix,
+             "[i]), out)")
+    } else {
+      "  cbind(label = label, out)"
+    },
+    "}))"
+  )
+  if (multi) {
+    inner <- fy_app_plain_over_outcomes(inner, paste0("comparisons", suffix),
+                                        outcome_row)
+  }
 
   c(
     "# The model carrying the interaction.",
@@ -2531,38 +2936,25 @@ fy_app_plain_subgroups <- function(state, suffix, input, ctx, comparisons) {
     "",
     paste0("levels", suffix, "       <- c(", levels$values, ")"),
     paste0("level_labels", suffix, " <- c(",
-           paste0("\"", levels$labels, "\"", collapse = ", "), ")"),
+           paste(fy_app_quote(levels$labels), collapse = ", "), ")"),
     paste0("comparisons", suffix, "  <- list("),
     paste0(comparisons, c(rep(",", length(comparisons) - 1L), "")),
     ")",
     "",
-    "# One row per subgroup, and per comparison within it.",
+    if (multi) {
+      "# One row per subgroup, per comparison of the outcome within it, and per"
+    } else {
+      "# One row per subgroup, and per comparison within it."
+    },
+    if (multi) "# comparison of the exposure within that.",
     paste0("rows", suffix, " <- do.call(rbind, lapply(seq_along(levels",
            suffix, "), function(i) {"),
-    paste0("  do.call(rbind, lapply(comparisons", suffix,
-           ", function(cmp) {"),
-    "    out <- if (isTRUE(cmp$reference)) {",
-    "      data.frame(estimate = if (exponentiate) 1 else 0,",
-    "                 conf.low = NA_real_, conf.high = NA_real_,",
-    "                 p.value = NA_real_)",
-    "    } else {",
-    paste0("      effect_of(", int_name, ", at, \"", exposure,
-           "\", cmp$from, cmp$to,"),
-    paste0("                modifier = \"", modifier, "\", level = levels",
-           suffix, "[i],"),
-    "                ci_level = ci_level, exponentiate = exponentiate,",
-    paste0("                error_df = error_df_of(", int_name, ", use_t))"),
-    "    }",
-    paste0("    label <- if (is.na(cmp$label)) level_labels", suffix,
-           "[i] else"),
-    paste0("      paste0(level_labels", suffix, "[i], \": \", cmp$label)"),
-    "    cbind(label = label, out)",
-    "  }))",
+    fy_app_indent(inner, 2),
     "}))",
     paste0("rownames(rows", suffix, ") <- NULL"),
     paste0("rows", suffix),
     "",
-    "# The p-value reported beside them.",
+    fy_app_plain_test_said(state, input),
     fy_app_plain_test(state, suffix, int_name, exposure, modifier, added,
                       input, ctx),
     fy_app_plain_said(suffix)
@@ -2585,6 +2977,44 @@ fy_app_plain_cells <- function(state, suffix, input, ctx, reference) {
   levels <- fy_app_plain_levels(input, modifier, ctx)
   added <- fy_app_plain_added(state, exposure, modifier, ctx)
   exposure_levels <- fy_app_plain_exposure_levels(input, exposure, ctx)
+  multi <- !is.null(ctx$info$equations)
+  outcome_row <- multi && fy_app_outcome_reference_row(input, ctx)
+
+  inner <- c(
+    paste0("do.call(rbind, lapply(",
+           if (outcome_row) "drawn" else paste0("exposure_levels", suffix),
+           ", function(lv) {"),
+    paste0("  same <- lv == ref_exposure", suffix, " && levels", suffix,
+           "[i] == ref_modifier", suffix),
+    paste0("  out <- if (", fy_app_plain_definition(outcome_row, "same"), ") {"),
+    "    data.frame(estimate = if (exponentiate) 1 else 0,",
+    "               conf.low = NA_real_, conf.high = NA_real_,",
+    "               p.value = NA_real_)",
+    "  } else {",
+    paste0("    effect_of(", int_name, ", at, \"", exposure, "\","),
+    if (multi) "              outcome = oc$level, against = oc$against,",
+    paste0("              from = ref_exposure", suffix, ", to = lv,"),
+    paste0("              modifier = \"", modifier, "\","),
+    paste0("              from_level = ref_modifier", suffix,
+           ", to_level = levels", suffix, "[i],"),
+    "              ci_level = ci_level, exponentiate = exponentiate,",
+    paste0("              error_df = error_df_of(", int_name, ", use_t))"),
+    "  }",
+    if (multi) {
+      c(paste0("  of <- paste0(level_labels", suffix, "[i], \": \", lv)"),
+        paste0("  cbind(label = label_of(oc, of, level_labels", suffix,
+               "[i]), out)"))
+    } else {
+      paste0("  cbind(label = paste0(level_labels", suffix,
+             "[i], \": \", lv), out)")
+    },
+    "}))"
+  )
+  if (multi) {
+    inner <- fy_app_plain_over_outcomes(inner,
+                                        paste0("exposure_levels", suffix),
+                                        outcome_row)
+  }
 
   c(
     "# The model carrying the interaction.",
@@ -2593,9 +3023,9 @@ fy_app_plain_cells <- function(state, suffix, input, ctx, reference) {
     "",
     paste0("levels", suffix, "          <- c(", levels$values, ")"),
     paste0("level_labels", suffix, "    <- c(",
-           paste0("\"", levels$labels, "\"", collapse = ", "), ")"),
+           paste(fy_app_quote(levels$labels), collapse = ", "), ")"),
     paste0("exposure_levels", suffix, " <- c(",
-           paste0("\"", exposure_levels, "\"", collapse = ", "), ")"),
+           paste(fy_app_quote(exposure_levels), collapse = ", "), ")"),
     "",
     "# The one combination every row below is compared with.",
     paste0("ref_exposure", suffix, "    <- ",
@@ -2606,32 +3036,13 @@ fy_app_plain_cells <- function(state, suffix, input, ctx, reference) {
     "# One row per combination of the two, each against that one.",
     paste0("rows", suffix, " <- do.call(rbind, lapply(seq_along(levels",
            suffix, "), function(i) {"),
-    paste0("  do.call(rbind, lapply(exposure_levels", suffix,
-           ", function(lv) {"),
-    paste0("    same <- lv == ref_exposure", suffix, " && levels", suffix,
-           "[i] == ref_modifier", suffix),
-    "    out <- if (same) {",
-    "      data.frame(estimate = if (exponentiate) 1 else 0,",
-    "                 conf.low = NA_real_, conf.high = NA_real_,",
-    "                 p.value = NA_real_)",
-    "    } else {",
-    paste0("      effect_of(", int_name, ", at, \"", exposure, "\","),
-    paste0("                from = ref_exposure", suffix, ", to = lv,"),
-    paste0("                modifier = \"", modifier, "\","),
-    paste0("                from_level = ref_modifier", suffix,
-           ", to_level = levels", suffix, "[i],"),
-    "                ci_level = ci_level, exponentiate = exponentiate,",
-    paste0("                error_df = error_df_of(", int_name, ", use_t))"),
-    "    }",
-    paste0("    cbind(label = paste0(level_labels", suffix,
-           "[i], \": \", lv), out)"),
-    "  }))",
+    fy_app_indent(inner, 2),
     "}))",
     paste0("rownames(rows", suffix, ") <- NULL"),
     paste0("rows", suffix),
     "",
-    "# The p-value reported beside them, which is the test of the interaction",
-    "# rather than a test of any row.",
+    fy_app_plain_test_said(state, input),
+    "# It is the test of the interaction rather than a test of any row.",
     fy_app_plain_test(state, suffix, int_name, exposure, modifier, added,
                       input, ctx),
     fy_app_plain_said(suffix)
@@ -2645,10 +3056,42 @@ fy_app_plain_said <- function(suffix) {
          ", 3), \"\\n\")")
 }
 
-# The test the sidebar asked for, written as the arithmetic it is.
+# Which of the two tests this figure reported, as it was drawn rather than as
+# the menus were read.
+#
+# The sidebar asks for one, and the model has the last word: a fit with no
+# likelihood -- a GEE, which is estimating equations rather than a likelihood
+# -- has the joint Wald test reported beside it however the box is set, and so
+# does a fit whose standard errors are robust. A script writing the other one
+# would print a p-value that is not the one on the figure, and for a GEE would
+# not run at all.
+fy_app_plain_is_lrt <- function(state, input) {
+  drawn <- if (is.null(state$value)) {
+    NULL
+  } else {
+    tryCatch(fy_result(state$value)$interaction_test$test,
+             error = function(e) NULL)
+  }
+  if (!is.null(drawn) && !is.na(drawn)) {
+    return(grepl("[Ll]ikelihood", drawn))
+  }
+  identical(input$test %||% "lrt", "lrt")
+}
+
+# The line above it that says which of the two it is, since a p-value whose
+# test is not named is a p-value a reader has to guess at.
+fy_app_plain_test_said <- function(state, input) {
+  if (fy_app_plain_is_lrt(state, input)) {
+    "# The p-value reported beside them: the likelihood ratio test."
+  } else {
+    "# The p-value reported beside them: the joint Wald test."
+  }
+}
+
+# The test that was taken, written as the arithmetic it is.
 fy_app_plain_test <- function(state, suffix, int_name, exposure, modifier,
                               added, input, ctx) {
-  if (identical(input$test %||% "lrt", "lrt")) {
+  if (fy_app_plain_is_lrt(state, input)) {
     return(c(
       paste0("p_interaction", suffix, " <- lrt_p("),
       paste0("  ", int_name, ","),
@@ -2658,10 +3101,12 @@ fy_app_plain_test <- function(state, suffix, int_name, exposure, modifier,
     ))
   }
   columns <- fy_app_plain_columns(state, exposure, modifier)
+  named <- fy_app_plain_column_lines(columns)
+  named[length(named)] <- paste0(named[length(named)], ",")
   c(
     paste0("p_interaction", suffix, " <- wald_p("),
     paste0("  ", int_name, ","),
-    paste0("  c(", paste0("\"", columns, "\"", collapse = ", "), "),"),
+    named,
     paste0("  error_df = error_df_of(", int_name, ", use_t)"),
     ")"
   )
@@ -2679,9 +3124,9 @@ fy_app_plain_reference <- function(state, input, ctx) {
 
 # The levels of the exposure, in the order the figure draws them.
 fy_app_plain_exposure_levels <- function(input, exposure, ctx) {
-  levels <- ctx$variables$levels[[exposure]]
-  if (!is.null(levels) && length(levels)) {
-    return(levels)
+  known <- ctx$variables$levels[[exposure]]
+  if (!is.null(known) && length(known)) {
+    return(known)
   }
   x <- tryCatch(fy_variable(ctx$info, exposure), error = function(e) NULL)
   levels(droplevels(as.factor(x)))
@@ -2741,6 +3186,25 @@ fy_app_plain_added <- function(state, exposure, modifier, ctx) {
   added <- setdiff(fy_app_term_labels(info$fit),
                    fy_app_term_labels(ctx$info$fit))
   if (!length(added)) fallback else added
+}
+
+# Those coefficients as the script writes them: on one line where they fit,
+# and one to a line where they do not. A multi-equation fit names a coefficient
+# after its equation as well as after its term, and there is one of them per
+# equation, so the list runs off the side of the tab often enough to matter.
+fy_app_plain_column_lines <- function(columns, indent = 2L) {
+  quoted <- fy_app_quote(columns)
+  pad <- strrep(" ", indent)
+  one <- paste0(pad, "c(", paste(quoted, collapse = ", "), ")")
+  # One character in hand for the comma the caller adds to the last line.
+  if (nchar(one) <= 77L) {
+    return(one)
+  }
+  c(
+    paste0(pad, "c("),
+    paste0(pad, "  ", quoted, c(rep(",", length(quoted) - 1L), "")),
+    paste0(pad, ")")
+  )
 }
 
 # The coefficients the Wald test is taken over.
@@ -3104,8 +3568,9 @@ fy_app_lincom_code <- function(info, fit_name, exposure, compared,
       fy_app_rows_lines(info, fit_name, exposure, compared, set = FALSE), "",
       fy_app_coef_lines(info, fit_name), "",
       "within <- function(level, exposure_level) {",
-      paste0("  rows$", exposure, " <- c(\"", reference_cell$exposure_level,
-             "\", exposure_level)   # the reference group, then this one"),
+      paste0("  rows$", exposure, " <- c(",
+             fy_app_level_values(info, exposure, reference_cell$exposure_level),
+             ", exposure_level)   # the reference group, then this one"),
       paste0("  rows$", modifier, " <- c(",
              fy_app_level_values(info, modifier, reference_cell$modifier_level),
              ", level)"),
@@ -3113,7 +3578,7 @@ fy_app_lincom_code <- function(info, fit_name, exposure, compared,
       "}",
       paste0("lapply(c(", values, "), function(level) {"),
       paste0("  lapply(c(",
-             paste0("\"", exposure_levels, "\"", collapse = ", "),
+             paste(fy_app_quote(exposure_levels), collapse = ", "),
              "), function(exposure_level) {"),
       "    within(level, exposure_level)",
       "  })",
@@ -3143,7 +3608,10 @@ fy_app_level_values <- function(info, modifier, levels) {
   if (!is.null(x) && is.numeric(x)) {
     return(paste(levels, collapse = ", "))
   }
-  paste0("\"", levels, "\"", collapse = ", ")
+  if (!is.null(x) && is.logical(x)) {
+    return(paste(toupper(as.character(as.logical(levels))), collapse = ", "))
+  }
+  paste(fy_app_quote(levels), collapse = ", ")
 }
 
 # The two rows the contrast is the difference between: one complete observation
@@ -3248,7 +3716,7 @@ fy_app_test_lines <- function(info, fit_name, hypothesis = "L") {
 # that survives an aliased coefficient.
 fy_app_joint_code <- function(info, fit_name, columns) {
   c(fy_app_coef_lines(info, fit_name),
-    paste0("columns <- c(", paste0("\"", columns, "\"", collapse = ", "), ")"),
+    paste0("columns <- c(", paste(fy_app_quote(columns), collapse = ", "), ")"),
     "L <- matrix(0, length(columns), length(b),",
     "            dimnames = list(columns, names(b)))",
     "L[cbind(seq_along(columns), match(columns, names(b)))] <- 1",
@@ -3303,7 +3771,7 @@ fy_app_compared <- function(exposure, input, ctx) {
 
 fy_app_value_text <- function(x) {
   if (is.factor(x) || is.character(x)) {
-    paste0("\"", as.character(x), "\"")
+    fy_app_quote(as.character(x))
   } else {
     fy_trim_number(round(as.numeric(x), 4))
   }

@@ -19,12 +19,21 @@
 #' from two multinomial logits whose exposure effects differ, so its levels
 #' cannot be collapsed into an ordering.
 #'
+#' The four are four separate draws, sharing the covariates and the same
+#' exposure effect rather than describing one event four ways: each is there
+#' to be the outcome of a model, and a child may be an asthma case in one of
+#' them and not in another. So `asthma` is not the `asthma_severity` of the
+#' same child collapsed to two levels, and cross-tabulating one outcome
+#' against another says nothing about anything. Fit them one at a time.
+#'
 #' @format A data frame with 4,000 rows and 13 columns:
 #' \describe{
 #'   \item{asthma}{Asthma by school age, 1 or 0.}
 #'   \item{asthma_severity}{Asthma severity by school age, an ordered factor:
-#'     `None` < `Mild` < `Moderate` < `Severe`.}
-#'   \item{wheeze}{First wheeze episode observed before censoring, 1 or 0.}
+#'     `None` < `Mild` < `Moderate` < `Severe`. Drawn on its own rather than
+#'     from `asthma`.}
+#'   \item{wheeze}{The event indicator for `followup_years`: 1 where a first
+#'     wheeze episode was seen, 0 where the child was censored without one.}
 #'   \item{wheeze_phenotype}{Wheeze phenotype, an unordered factor: `None`,
 #'     `Transient` or `Persistent`.}
 #'   \item{followup_years}{Years to the wheeze episode or to censoring.}

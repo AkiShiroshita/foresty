@@ -7,8 +7,11 @@
 #' opened or sent on its own.
 #'
 #' A figure drawn from several models -- [foresty_main()] over a list of them --
-#' carries each of them on the page, in a section of its own headed with the
-#' exposure it was fitted for. `model` cuts that down to one.
+#' describes each of them on the page and gives each its own coefficient table,
+#' headed with the exposure it was fitted for. `model` cuts those sections down
+#' to one. The rest of the page is the figure itself -- the estimates, the test
+#' and the plot -- and is the whole of it whichever model is named, a figure
+#' being one figure however many models went into it.
 #'
 #' @param x An object returned by [foresty_interaction()] or [foresty_main()].
 #' @param file Path to write to. A `.html` extension is added if missing.
@@ -162,8 +165,15 @@ fy_report_file <- function(html, exposure, modifier = NULL) {
 # The variable names as a file name: joined by underscores, and with anything a
 # file name cannot carry -- a bracket from `ns(no2, 3)`, a slash, a space --
 # turned into one as well.
+#
+# A letter is a letter in any script, not only in Latin. Reducing a name to the
+# ASCII in it leaves nothing at all of one written in Japanese or Greek or
+# Cyrillic, so every figure whose variables are named in such a script would be
+# written to the same fallback file and would overwrite the last one -- which
+# is the one thing a file named for its variables is there to prevent.
 fy_file_slug <- function(x) {
-  out <- gsub("[^A-Za-z0-9._-]+", "_", paste(as.character(x), collapse = "_"))
+  out <- gsub("[^\\p{L}\\p{N}._-]+", "_", paste(as.character(x), collapse = "_"),
+              perl = TRUE)
   gsub("(^_+)|(_+$)", "", gsub("_+", "_", out))
 }
 
@@ -179,7 +189,10 @@ fy_model_table <- function(info, result, exposure) {
   rows[["Model"]] <- fy_model_name(info$fit)
   formula <- try(stats::formula(info$fit), silent = TRUE)
   if (!inherits(formula, "try-error")) {
-    rows[["Formula"]] <- paste(deparse(formula), collapse = " ")
+    # Deparsed wide, so that a long formula comes back as the one line it is
+    # rather than as the lines the default width would break it into.
+    rows[["Formula"]] <- paste(deparse(formula, width.cutoff = 500L),
+                               collapse = " ")
   }
   rows[["Observations"]] <- fy_format_count(info$n)
   if (!is.na(info$events)) {
@@ -416,10 +429,14 @@ fy_gt <- function(data) {
   as.character(gt::as_raw_html(tbl, inline_css = TRUE))
 }
 
+# Escaped for a text node and for an attribute alike, so that a variable name
+# carrying a quote stays safe wherever the page happens to put it.
 fy_escape <- function(x) {
   x <- gsub("&", "&amp;", x, fixed = TRUE)
   x <- gsub("<", "&lt;", x, fixed = TRUE)
-  gsub(">", "&gt;", x, fixed = TRUE)
+  x <- gsub(">", "&gt;", x, fixed = TRUE)
+  x <- gsub("\"", "&quot;", x, fixed = TRUE)
+  gsub("'", "&#39;", x, fixed = TRUE)
 }
 
 fy_require <- function(package, purpose) {

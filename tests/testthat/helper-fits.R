@@ -162,7 +162,8 @@ fy_hand_lincom <- function(fit, exposure, interaction_term) {
 # The layer that draws the marks, and the one that draws the intervals. A
 # figure is several panels joined, and which layer is which depends on what
 # the figure carries, so they are found by what they hold rather than by
-# where they sit.
+# where they sit. The columns are ggplot2's own, so they are spelled the way
+# ggplot2 spells them -- `colour` -- rather than the way the package does.
 fy_marks <- function(x) {
   data <- ggplot2::ggplot_build(x)$data
   hit <- Filter(function(d) all(c("shape", "fill") %in% names(d)), data)

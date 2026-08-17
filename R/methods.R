@@ -28,7 +28,10 @@ fy_new_result <- function(plot, ...) {
 #' person-time beside the estimates -- can leave the plot a centimetre and the
 #' numbers under its axis printed one on top of another. The floor is applied
 #' here, where the width being drawn at is known: see the `min_plot_width`
-#' argument of [foresty_layout()].
+#' argument of [foresty_layout()]. Where it has to act, the columns of text
+#' stop being as wide as what they hold and share what the plot leaves in
+#' proportion to it, which is where the room for the axis comes from; a figure
+#' with room for its columns already is drawn exactly as it was built.
 #'
 #' @param x A figure returned by [foresty_main()], [foresty_interaction()] or
 #'   [foresty_combine()].
@@ -46,6 +49,8 @@ print.foresty <- function(x, ...) {
   # Handed on to patchwork's method, or to ggplot2's on a figure that is
   # nothing but the plot. NextMethod() cannot be used: it would dispatch on the
   # object as it arrived rather than on the one whose widths have been settled.
+  # The class is dropped rather than kept so that the print below is the next
+  # method rather than this one again.
   class(drawn) <- setdiff(class(drawn), "foresty")
   print(drawn, ...)
   invisible(x)
@@ -361,7 +366,11 @@ fy_console_table <- function(estimates, measure, person_time = NULL) {
 #' @param conf.int Whether to include the confidence interval. Defaults to
 #'   `TRUE`, an interval being the point of a forest plot.
 #' @param model Which model to take the coefficients from, when the figure
-#'   covers several.
+#'   covers several. `glance()` takes the counts of that model too; without it
+#'   a figure of several models is glanced at as a figure -- its measure, its
+#'   confidence level, its test and how many models it holds -- and the columns
+#'   describing what one model was fitted to are `NA`, no one of them being the
+#'   figure's.
 #' @param row.names,optional Ignored, present for consistency with the generic.
 #' @param ... Ignored.
 #'
@@ -469,17 +478,27 @@ fy_as_tibble <- function(x) {
 
 #' @rdname foresty-tidiers
 #' @exportS3Method broom::glance
-glance.foresty <- function(x, ...) {
+glance.foresty <- function(x, model = NULL, ...) {
   result <- fy_result(x)
-  info <- fy_infos(x)[[1L]]
+  infos <- fy_infos(x)
+  # What the figure is -- its measure, its confidence level, the test beside
+  # its rows -- belongs to the whole of it however many models went into it.
+  # What a model was fitted to does not: a figure of three models has three
+  # counts and no one of them is the figure's, so unless one model is named
+  # they are left out rather than reported off whichever came first.
+  info <- if (length(infos) == 1L || !is.null(model)) {
+    fy_single_info(x, model, what = "this figure")
+  } else {
+    NULL
+  }
   out <- data.frame(
     measure = result$measure,
-    n = info$n,
-    events = info$events,
-    person_time = info$person_time,
-    conf.ci_level = result$ci_level,
+    n = if (is.null(info)) NA_integer_ else info$n,
+    events = if (is.null(info)) NA_integer_ else info$events,
+    person_time = if (is.null(info)) NA_real_ else info$person_time,
+    conf.level = result$ci_level,
     robust = isTRUE(result$robust),
-    n_models = length(fy_infos(x)),
+    n_models = length(infos),
     stringsAsFactors = FALSE
   )
   if (!is.null(result$interaction_test)) {

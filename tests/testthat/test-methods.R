@@ -124,6 +124,20 @@ test_that("tidy returns broom's column names", {
   expect_equal(names(broom::tidy(x, what = "coefficients", conf.int = FALSE)),
                c("term", "estimate", "std.error", "statistic", "p.value"))
   expect_true("no2:sexMale" %in% coefs$term)
+
+  # The interval is formed by a different function from the standard error
+  # beside it, so it is checked to be the same inference: the same covariance,
+  # and the same choice between a z and a t.
+  expect_equal(coefs$conf.low,
+               coefs$estimate - stats::qnorm(0.975) * coefs$std.error)
+
+  # A gaussian model is referred to a t on its residual degrees of freedom,
+  # which is what confint() gives for one.
+  linear <- fy_test_linear()
+  lc <- broom::tidy(foresty_main(list(linear), exposure = "black_carbon"),
+                    what = "coefficients")
+  expect_equal(lc$conf.low, unname(stats::confint(linear)[, 1L]))
+  expect_equal(lc$conf.high, unname(stats::confint(linear)[, 2L]))
 })
 
 test_that("glance describes the fit in one row", {
@@ -132,8 +146,31 @@ test_that("glance describes the fit in one row", {
   expect_equal(nrow(g), 1L)
   expect_equal(g$measure, "OR")
   expect_equal(g$n, nrow(foresty_cohort))
+  expect_equal(g$conf.level, 0.95)
   expect_false(g$robust)
   expect_true(is.finite(g$interaction.p.value))
+})
+
+test_that("glance says nothing of one model on a figure of several", {
+  d <- foresty_cohort
+  x <- foresty_main(
+    list(glm(asthma ~ no2 + sex, family = binomial, data = d),
+         glm(asthma ~ black_carbon + sex, family = binomial, data = d[1:2000, ])),
+    exposure = c("no2", "black_carbon")
+  )
+  g <- broom::glance(x)
+
+  # What the figure is holds for the whole of it; what a model was fitted to
+  # does not, and reporting the first model's counts beside n_models = 2 says
+  # they are the figure's.
+  expect_equal(g$n_models, 2L)
+  expect_equal(g$measure, "OR")
+  expect_true(is.na(g$n))
+  expect_true(is.na(g$events))
+
+  # Naming the model gives that model's, as it does for every other method.
+  expect_equal(broom::glance(x, model = 1)$n, nrow(d))
+  expect_equal(broom::glance(x, model = 2)$n, 2000L)
 })
 
 test_that("the model methods pass through to the fit", {

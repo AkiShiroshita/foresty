@@ -141,6 +141,33 @@ test_that("what the estimates are is said, and decides which side of the null", 
   expect_true(fy_result(own)$exponentiate)
   expect_false(fy_result(fy_data_figure(measure = "Risk difference",
                                         ratio = FALSE))$exponentiate)
+
+  # And is refused without it: a difference drawn about 1 is a wrong figure,
+  # and which side of the null a name of one's own sits on cannot be read off
+  # the name.
+  expect_error(fy_data_figure(measure = "Standardised mean difference"),
+               "`ratio` has to say")
+  expect_error(fy_data_figure(measure = "Prevalence ratio"), "ratio = TRUE")
+})
+
+test_that("columns that cannot be the ones they were taken for are refused", {
+  rows <- data.frame(
+    level = c("A", "B"), estimate = c(1.2, 10), conf.low = c(1.0, 1.1),
+    conf.high = c(1.5, 2.0), stringsAsFactors = FALSE
+  )
+  # The mark would sit off the end of its own bar, which reads as a finding
+  # rather than as a pair of columns read for each other.
+  expect_error(foresty_data(rows, label = "level"), "outside their own")
+  expect_error(foresty_data(rows, label = "level"), "row 2")
+
+  # A block every row is in, or none: a row belonging to no block is drawn
+  # under a heading reading NA.
+  blocked <- data.frame(
+    level = c("A", "B"), estimate = c(1.2, 1.3), conf.low = c(1.0, 1.1),
+    conf.high = c(1.5, 1.6), block = c("Sex", NA), stringsAsFactors = FALSE
+  )
+  expect_error(foresty_data(blocked, label = "level", group = "block"),
+               "belong to no block")
 })
 
 test_that("a column that is not there is said to be, and named", {

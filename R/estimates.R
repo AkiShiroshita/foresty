@@ -24,7 +24,14 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
     counts <- fy_counts(
       info,
       fy_estimate_rows(info, exposure, v, modifier = modifier,
-                       modifier_level = modifier_level),
+                       modifier_level = modifier_level,
+                       # The level of the outcome the others are read against
+                       # is one row for every value of the exposure at once, so
+                       # the people counted beside it are all of them rather
+                       # than the ones at whichever level happens to be drawn
+                       # first. A subgroup of a modifier is still a subgroup:
+                       # that row belongs to it and is counted within it.
+                       whole_exposure = isTRUE(cmp$is_reference)),
       outcome_level = cmp$level
     )
 
@@ -86,6 +93,24 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
   }
 
   out <- do.call(rbind, rows)
+
+  # Every row of the contrast matrix belongs to exactly one row of the figure,
+  # taken in the order the two were built in: the rows skipped here -- the
+  # reference level of a categorical exposure, and the level of the outcome the
+  # others are read against -- are the rows fy_contrast_matrix() left out. The
+  # two orders are settled in different functions, so that they still agree is
+  # checked rather than assumed: a mismatch would put an estimate against the
+  # wrong label, which is not something a reader of the figure could catch.
+  if (position != NROW(estimated)) {
+    stop(
+      "internal error: the figure has ", position, " estimated row",
+      if (position == 1L) "" else "s", " but ", NROW(estimated),
+      " were computed for it, so the two could not be matched up. Please ",
+      "report this with the model that produced it.",
+      call. = FALSE
+    )
+  }
+
   rownames(out) <- NULL
   out
 }
@@ -165,9 +190,11 @@ fy_reference_phrase <- function(result) {
          result$modifier, " = ", cell$modifier_level)
 }
 
-# 10 rather than 10.0, 0.5 rather than 0.500.
+# 10 rather than 10.0, 0.5 rather than 0.500, and 1000000 rather than 1e+06:
+# these numbers are written on a figure and into the sentences that explain it,
+# where an exponent is read as a mistake rather than as a number.
 fy_trim_number <- function(x) {
-  format(x, trim = TRUE, drop0trailing = TRUE)
+  format(x, trim = TRUE, scientific = FALSE, drop0trailing = TRUE)
 }
 
 # A label written where the variable is named: `interaction = c(Sex = "sex")`

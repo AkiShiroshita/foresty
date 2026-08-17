@@ -8,9 +8,12 @@
 # Fixed-effect coefficients and their covariance, aligned to each other -------
 
 # Returns a list of `coef` (named numeric) and `vcov` (matching square matrix).
-# The two are intersected by name, because several classes report more rows in
-# vcov() than in coef(): MASS::polr() keeps the cutpoints in vcov() only, and
-# aliased coefficients are NA in coef() but absent from vcov().
+# The two are intersected by name, because the classes do not agree on what
+# either holds: MASS::polr() keeps the cutpoints in vcov() only, and an aliased
+# coefficient is NA in coef() and, depending on the class, either dropped from
+# vcov() or kept there as a row of nothing. Taking the names they have in
+# common, once the NA coefficients are out of the way, leaves the coefficients
+# that were actually estimated and a covariance of the same ones.
 fy_coefs <- function(fit, vcov_matrix = NULL) {
   UseMethod("fy_coefs")
 }
@@ -58,6 +61,10 @@ fy_align_coefs <- function(b, v, fit) {
 
   # When the covariance matrix is unnamed, the coefficients are taken to be in
   # the order they were reported and any extra trailing parameters are dropped.
+  # There is nothing to check that against: a matrix passed to `vcov` without
+  # dimnames is trusted to be in the order coef() reports, and one in another
+  # order would be used as though it were in that one. Name its rows and
+  # columns and it is matched by name instead.
   if (is.null(colnames(v)) && nrow(v) >= length(b)) {
     v <- v[seq_along(b), seq_along(b), drop = FALSE]
     dimnames(v) <- list(names(b), names(b))
@@ -175,6 +182,9 @@ fy_cluster_vector <- function(fit, cluster, data) {
     )
   }
   if (is.character(cluster) && length(cluster) == 1L) {
+    # The source data rather than the model frame: a cluster identifier is
+    # rarely a term of the model -- a practice, a household, a centre -- so the
+    # model frame usually does not carry it at all.
     frame <- data %||% fy_model_frame(fit)
     if (is.null(frame[[cluster]])) {
       stop(
@@ -183,7 +193,7 @@ fy_cluster_vector <- function(fit, cluster, data) {
         call. = FALSE
       )
     }
-    return(frame[[cluster]])
+    return(fy_cluster_column(fit, frame[[cluster]], cluster))
   }
 
   used <- stats::nobs(fit)
@@ -197,6 +207,38 @@ fy_cluster_vector <- function(fit, cluster, data) {
     )
   }
   cluster
+}
+
+# A cluster column taken from the source data, checked against the rows the
+# model was actually fitted to.
+#
+# The two differ whenever the fit dropped rows, and sandwich puts back only the
+# ones it can account for: it drops the rows recorded in the fit's `na.action`,
+# so a column with a missing value in it needs nothing done to it here. Rows
+# left out any other way -- `subset =` most of all -- are recorded nowhere, and
+# left to itself the mismatch surfaces from inside sandwich as a complaint
+# about estfun() that says nothing about what was asked for or what to do.
+fy_cluster_column <- function(fit, values, name) {
+  used <- stats::nobs(fit)
+  if (is.null(used) || is.na(used) || length(values) == used) {
+    return(values)
+  }
+  dropped <- fit[["na.action"]]
+  if (!is.null(dropped) && length(values) - length(dropped) == used) {
+    return(values)
+  }
+  stop(
+    "\"", name, "\" has ", length(values), " value",
+    if (length(values) == 1L) "" else "s", " in the data this model was ",
+    "fitted from, but the model was fitted to ", used, " observation",
+    if (used == 1L) "" else "s", ", so the clusters cannot be matched to the ",
+    "rows behind the estimates. That happens when rows were left out by ",
+    "something the fit does not record, `subset =` most often. Pass the ",
+    "clusters as a one-sided formula, `cluster = ~", name,
+    "`, which sandwich evaluates over the rows the model kept, or fit the ",
+    "model to the subset itself.",
+    call. = FALSE
+  )
 }
 
 # Fits holding more than one equation -----------------------------------------
@@ -288,10 +330,15 @@ fy_term_map <- function(fit, coef_names) {
   assign <- if (isS4(fit)) NULL else fit[["assign"]]
 
   # Some model classes carry `assign` as a named list of coefficient positions.
+  # It indexes the coefficient vector, so it is of no use to a class whose
+  # coef() is a matrix -- the positions would be read down the wrong shape --
+  # and such a fit is left to the design matrix below.
   if (is.list(assign) && !is.null(names(assign)) && length(assign)) {
     full <- names(stats::coef(fit))
-    out <- lapply(assign, function(idx) intersect(full[idx], coef_names))
-    return(out[lengths(out) > 0])
+    if (!is.null(full)) {
+      out <- lapply(assign, function(idx) intersect(full[idx], coef_names))
+      return(out[lengths(out) > 0])
+    }
   }
 
   # lm and glm need the design matrix, whose `assign` attribute indexes into
@@ -577,6 +624,12 @@ fy_call_name <- function(x) {
   sub("^.*::", "", paste(deparse(x[[1L]]), collapse = ""))
 }
 
+# The measures the package knows by name, which is what tells one of them from
+# a measure a caller has described in words of their own.
+fy_measure_codes <- function() {
+  c("OR", "RR", "HR", "IRR", "MD", "Coefficient")
+}
+
 fy_measure_spec <- function(measure, outcome = NA_character_) {
   spec <- switch(
     measure,
@@ -710,7 +763,17 @@ fy_events <- function(mf, rows = NULL) {
   }
   if (inherits(y, "Surv")) {
     status <- y[, ncol(y)]
-    return(as.integer(sum(status == max(status), na.rm = TRUE)))
+    seen <- unique(status[!is.na(status)])
+    # The event is the higher of the two codes, which reads 0/1 and the 1/2
+    # coding survival also takes. An outcome of more than one kind of event --
+    # a competing risk, a multi-state model -- has no single count to put
+    # beside a hazard ratio, and the highest code is one cause of several
+    # rather than the events, so nothing is reported rather than one cause
+    # labelled as though it were all of them.
+    if (length(seen) > 2L || !is.null(attr(y, "states"))) {
+      return(NA_integer_)
+    }
+    return(as.integer(sum(status == max(seen), na.rm = TRUE)))
   }
   if (is.matrix(y)) {
     # A two-column binomial response: successes and failures.

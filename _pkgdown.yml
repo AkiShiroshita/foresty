@@ -13,7 +13,7 @@ reference:
   - title: Layout
     contents:
       - foresty_layout
-      - foresty_colours
+      - foresty_colors
   - title: Reporting
     contents:
       - foresty_report

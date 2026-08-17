@@ -43,8 +43,11 @@ opened or sent on its own.
 }
 \details{
 A figure drawn from several models -- \code{\link[=foresty_main]{foresty_main()}} over a list of them --
-carries each of them on the page, in a section of its own headed with the
-exposure it was fitted for. \code{model} cuts that down to one.
+describes each of them on the page and gives each its own coefficient table,
+headed with the exposure it was fitted for. \code{model} cuts those sections down
+to one. The rest of the page is the figure itself -- the estimates, the test
+and the plot -- and is the whole of it whichever model is named, a figure
+being one figure however many models went into it.
 }
 \examples{
 fit <- glm(asthma ~ no2 + sex + maternal_age, family = binomial,

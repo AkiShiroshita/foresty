@@ -8,9 +8,9 @@ foresty_layout(
   style = c("classic", "jama", "nejm", "lancet", "bmj", "revman"),
   base_size = NULL,
   family = NULL,
-  colour = NULL,
-  colour_by = NULL,
-  colours = NULL,
+  color = NULL,
+  color_by = NULL,
+  colors = NULL,
   theme = NULL,
   palette = NULL,
   point_shape = NULL,
@@ -56,45 +56,50 @@ modified.}
 to it.}
 
 \item{family}{Font family, as \code{"serif"} or \code{"Times New Roman"}. \code{NULL}
-leaves the device's default.}
+leaves the device's default. How wide each column of text is made is
+worked out from a table of character widths rather than by asking the
+device, so a family far from the default one may leave a column slightly
+wide or slightly narrow; the columns still hold what is in them.}
 
-\item{colour}{One colour for the estimates and their intervals, which is the
-usual thing to change. \code{palette} changes them apart, and \code{colour_by} draws
-the rows in colours of their own instead. \code{\link[=foresty_colours]{foresty_colours()}} names a
-colour of a ColorBrewer palette without pasting a hex code, as
-\code{colour = foresty_colours("Dark2")[3]}.}
+\item{color}{One color for the estimates and their intervals, which is the
+usual thing to change. \code{palette} changes them apart, and \code{color_by} draws
+the rows in colors of their own instead. \code{\link[=foresty_colors]{foresty_colors()}} names a
+color of a ColorBrewer palette without pasting a hex code, as
+\code{color = foresty_colors("Dark2")[3]}.}
 
-\item{colour_by}{What the colours change with, for a figure drawn in more
-than one. \code{"none"}, the default, draws the whole figure in \code{colour}.
-\code{"category"} gives every category of the rows a colour of its own: the
+\item{color_by}{What the colors change with, for a figure drawn in more
+than one. \code{"none"}, the default, draws the whole figure in \code{color}.
+\code{"category"} gives every category of the rows a color of its own: the
 levels of a categorical exposure -- "Yes" and "No" -- where the rows are
 levels, and the subgroups of the modifier where they are subgroups, which
-is what an interaction figure draws. A category keeps its colour wherever
+is what an interaction figure draws. A category keeps its color wherever
 it appears, so a combined figure reads across its blocks. \code{"row"} gives
-every row a colour, whatever it is of. The reference level of a
+every row a color, whatever it is of. The reference level of a
 categorical exposure is drawn hollow either way, being a definition rather
 than an estimate. No legend is drawn: every row is labelled already, and a
 legend repeating the labels is a second copy of them to keep in step.}
 
-\item{colours}{The colours \code{colour_by} draws the categories in, in order,
-and cycled where there are more categories than colours. The name of a
+\item{colors}{The colors \code{color_by} draws the categories in, in order,
+and cycled where there are more categories than colors. The name of a
 ColorBrewer palette -- \code{"Dark2"}, the default, \code{"Set1"} or \code{"Set2"} -- or
-the colours themselves, as \code{c("#1B9E77", "#D95F02")}. \code{\link[=foresty_colours]{foresty_colours()}}
+the colors themselves, as \code{c("#1B9E77", "#D95F02")}. \code{\link[=foresty_colors]{foresty_colors()}}
 builds one starting from a chosen place in a palette, as
-\code{colours = foresty_colours("Dark2", start = 3)}.}
+\code{colors = foresty_colors("Dark2", start = 3)}.}
 
 \item{theme}{The \code{ggplot2} theme the plot itself is drawn on: \code{"void"}, the
 default, which is the plain panel a forest plot is usually drawn as, or
 the name of one of \code{ggplot2}'s own -- \code{"minimal"}, \code{"bw"}, \code{"classic"},
 \code{"light"}, \code{"linedraw"}, \code{"grey"} or \code{"dark"} -- for its background, its
-border and its grid. A theme object or a theme function is also accepted.
+border and its grid. A theme object is also accepted, as is a theme
+function, which is called with \code{base_size} and \code{base_family} and so has to
+take them, as \code{ggplot2}'s own do.
 It is the plot's theme, not the figure's: the columns of numbers beside it
 are a table rather than a plot and keep their own. Everything the layout
-sets -- the sizes, the colours of the text, whether the axis line and the
+sets -- the sizes, the colors of the text, whether the axis line and the
 grid are drawn -- is applied over it, so \code{grid = TRUE} and \code{theme = "bw"}
 are not two answers to the same question.}
 
-\item{palette}{Named character vector overriding single colours, as
+\item{palette}{Named character vector overriding single colors, as
 \code{c(estimate = "#B24745", null = "grey60")}. The names are \code{estimate},
 \code{border} (the outline of the marks), \code{reference} (the fill of the
 reference level's hollow mark), \code{interval}, \code{null}, \code{rule}, \code{band},
@@ -227,7 +232,7 @@ the caption; a title passed by hand is always drawn.}
 An object of class \code{foresty_layout}.
 }
 \description{
-Every drawing decision the figure makes is held in one object: the colours,
+Every drawing decision the figure makes is held in one object: the colors,
 the marks, the rules between the rows, how the numbers beside the plot are
 written, and where the columns sit. Pass the name of a style to
 \code{\link[=foresty_main]{foresty_main()}} or \code{\link[=foresty_interaction]{foresty_interaction()}} as \code{layout = "jama"}, or build
@@ -267,7 +272,7 @@ foresty_interaction(fit, "no2", "sex", table = TRUE, layout = "jama")
 # A style, changed where it needs to be.
 foresty_interaction(
   fit, "no2", "sex", table = TRUE,
-  layout = foresty_layout("jama", colour = "#B24745", base_size = 11)
+  layout = foresty_layout("jama", color = "#B24745", base_size = 11)
 )
 
 # Trimming a wide interval rather than letting it flatten the figure.

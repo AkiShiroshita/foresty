@@ -68,9 +68,13 @@
 #'   the figure, which saves repeating it in `labels`.
 #' @param measure Effect measure, one of `"OR"`, `"RR"`, `"HR"`, `"IRR"`,
 #'   `"MD"` or `"Coefficient"`. The default reads it from the model: a logistic
-#'   regression gives an odds ratio, a Cox model a hazard ratio, a Poisson
+#'   regression gives an odds ratio, as do the ordinal and multinomial forms of
+#'   one, a Cox model a hazard ratio, a Poisson
 #'   model with an offset an incidence rate ratio, and a linear model a mean
-#'   difference. Ratios are exponentiated; differences are not.
+#'   difference. Ratios are exponentiated; differences are not. What an offset
+#'   holds is not recorded anywhere, so a Poisson model offset by something
+#'   other than person-time -- the size of a population, say -- is named here
+#'   instead, as `measure = "RR"`.
 #' @param exponentiate Whether a ratio measure is drawn as a ratio. `TRUE`, the
 #'   default, draws an odds ratio as an odds ratio. `FALSE` leaves it on the
 #'   scale the model was fitted on: the figure reports a log odds ratio, read
@@ -92,7 +96,8 @@
 #' @param outcome_reference For a multinomial logistic regression, the level of
 #'   the outcome every estimate is read against, as
 #'   `outcome_reference = "None"`. `NULL`, the default, is the level the model
-#'   itself was referred to, which is the first level of the outcome factor.
+#'   itself was referred to, read off the fit as the level it holds no equation
+#'   for rather than assumed to be any particular one.
 #'   Naming another does not refit anything: the odds ratio of one level
 #'   against another is the difference between their two equations, and the
 #'   covariance of the pair is already in the model. Every other level is then
@@ -108,8 +113,11 @@
 #'   rows are differences from, so it is `1` on the ratio scale and `0` on the
 #'   scale the model was fitted on, with no interval, no test and no p-value.
 #'   It is one row whatever the exposure is, since it is the same definition at
-#'   every value of it, and the counts beside it are of the people in that
-#'   level. It says nothing about a model of one equation.
+#'   every value of it, and the counts beside it are of everybody in that level
+#'   of the outcome for the same reason: the row is not about a value of the
+#'   exposure, so it is not counted at one. On a figure of subgroups it is drawn
+#'   once inside each and counted within it. It says nothing about a model of
+#'   one equation.
 #' @param xlab The label under the plot, which by default names the measure and
 #'   the outcome, as `"Adjusted odds ratio for asthma"`. A string is drawn as it
 #'   was given -- `xlab = "Odds ratio (95% CI), NO2 per 10 ug/m3"` -- and `NA`
@@ -148,9 +156,16 @@
 #'   on each of them. An exposure entered as a spline, or in any other way that
 #'   spreads it over more than one coefficient, has no single effect to report
 #'   and is drawn only when `at` names the two values; any other exposure may
-#'   be given them too, `at` and `contrast` being two ways of saying the same
-#'   thing and only one of them accepted at a time. For a categorical exposure
-#'   the two values are two of its levels.
+#'   be given them too. `at` and `contrast` both say which two values are
+#'   compared, so only one of them is accepted at a time, but they do not say it
+#'   the same way: `contrast` is an increment taken from the middle of the
+#'   exposure's own distribution, and `at` is the two values themselves. Where
+#'   the exposure enters the model as it stands the two come to the same number,
+#'   an increment being the same difference wherever it is taken; where it
+#'   enters transformed -- `log(no2)`, a spline, a polynomial -- they do not,
+#'   and `at` is the one that says where on the curve the difference was taken.
+#'   For a categorical exposure the two values are two of its levels, and the
+#'   figure is then that one comparison rather than a row for every level.
 #' @param vcov Robust standard errors. `NULL`, the default, uses the model's
 #'   own. `"robust"` gives the heteroskedasticity-consistent sandwich estimator
 #'   (`HC1`), and `"HC0"` to `"HC4"` name one exactly; both come from the

@@ -277,6 +277,33 @@ test_that("figures that are not comparable are refused", {
                "argument 2 is of class")
 })
 
+test_that("figures of different outcomes are a figure of no one outcome", {
+  d <- foresty_cohort
+  asthma <- foresty_main(
+    list(glm(asthma ~ no2 + sex, family = binomial, data = d)),
+    exposure = "no2"
+  )
+  wheeze <- foresty_main(
+    list(glm(wheeze ~ no2 + sex, family = binomial, data = d)),
+    exposure = "no2"
+  )
+
+  # Two outcomes on one axis: naming whichever came first would head the
+  # figure with an outcome half its rows are not about.
+  both <- foresty_combine(Asthma = asthma, Wheeze = wheeze)
+  expect_false(grepl("asthma", fy_axis_text(both), fixed = TRUE))
+  expect_equal(fy_axis_text(both), "Adjusted odds ratio")
+
+  # One outcome throughout is still named, and one named by hand is used
+  # whatever the figures were of.
+  same <- foresty_combine(A = asthma, B = asthma)
+  expect_equal(fy_axis_text(same), "Adjusted odds ratio for asthma")
+  named <- foresty_combine(Asthma = asthma, Wheeze = wheeze,
+                           outcome = "any respiratory outcome")
+  expect_equal(fy_axis_text(named),
+               "Adjusted odds ratio for any respiratory outcome")
+})
+
 test_that("the combined figure carries its estimates onward", {
   p <- fy_combine_pieces()
   x <- foresty_combine(Overall = p$overall, Sex = p$by_sex)

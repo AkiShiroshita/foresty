@@ -44,9 +44,10 @@ fy_lincom <- function(info, L, ci_level = 0.95, exponentiate = info$exponentiate
   out$conf.low <- out$estimate - crit * out$se
   out$conf.high <- out$estimate + crit * out$se
 
-  # A signed z, or t for a gaussian model, rather than the chi-square car
-  # reports. It is the statistic a model summary shows, and it says which way
-  # the estimate went, which a squared one does not.
+  # A signed Wald statistic -- a z, or a t where the error degrees of freedom
+  # are finite -- rather than the squared one car reports. It is the statistic
+  # a model summary shows, and it says which way the estimate went, which a
+  # squared one does not.
   out$statistic <- out$estimate / out$se
 
   if (exponentiate) {
@@ -150,9 +151,10 @@ fy_lrt_test <- function(info, reduced, columns) {
   statistic <- 2 * (full$value - null$value)
   if (!is.na(statistic) && statistic < 0) {
     warning(
-      "the model without the interaction fits better than the model with it, ",
-      "which means one of the two did not converge; the likelihood ratio ",
-      "test is not reported",
+      "the model without the interaction reports a higher likelihood than the ",
+      "model with it, which cannot happen when both have been fitted to the ",
+      "same data and one is nested in the other; it usually means one of the ",
+      "two did not converge. The likelihood ratio test is not reported",
       call. = FALSE
     )
     return(list(statistic = NA_real_, df = df, p.value = NA_real_,
@@ -183,7 +185,21 @@ fy_for_likelihood <- function(fit) {
     return(fit)
   }
   refitted <- try(lme4::refitML(fit), silent = TRUE)
-  if (inherits(refitted, "try-error")) fit else refitted
+  # Handing back the REML fit instead would take the test over a likelihood
+  # that is not comparable between the two models, and it would look like an
+  # ordinary result. There is no test to be had here, so none is given.
+  if (inherits(refitted, "try-error")) {
+    stop(
+      "this mixed model was fitted by REML and could not be refitted by ",
+      "maximum likelihood, so its likelihood is not comparable with that of ",
+      "the model without the interaction and a likelihood ratio test cannot ",
+      "be taken between them: ",
+      conditionMessage(attr(refitted, "condition")),
+      "\nUse `test = \"wald\"`.",
+      call. = FALSE
+    )
+  }
+  refitted
 }
 
 # The log-likelihood of a fit and the parameters it spent, or an error naming

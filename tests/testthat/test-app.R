@@ -2,12 +2,12 @@
 # setting one of them and not also filling in the rest.
 #
 # The controls belonging to an exposure carry its name, since each exposure has
-# a set of its own: `contrast_kind_no2` and `colour_maternal_age`.
+# a set of its own: `contrast_kind_no2` and `color_maternal_age`.
 fy_app_defaults <- function(...) {
   utils::modifyList(
     list(exposure = "no2", modifier = character(0), overall = TRUE,
          combine = TRUE, style = "classic", table = TRUE,
-         colour_by = "none", palette = "Dark2", colours_hex = "",
+         color_by = "none", palette = "Dark2", colors_hex = "",
          columns = character(0), test = "lrt", scale = "ratio",
          ci_level = 0.95, digits = 2, use_xlim = FALSE, xlim_low = 0.5,
          xlim_high = 2, title = "", no_title = FALSE, no_subtitle = FALSE,
@@ -215,7 +215,7 @@ test_that("each exposure is asked separately, and keeps its own answer", {
   })
 })
 
-test_that("an exposure can be given a colour of its own", {
+test_that("an exposure can be given a color of its own", {
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -223,47 +223,47 @@ test_that("an exposure can be given a colour of its own", {
   shiny::testServer(app, {
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_no2 = "#B24745"))
-    expect_match(output$code, "colour = \"#B24745\"", fixed = TRUE)
+                            color_no2 = "#B24745"))
+    expect_match(output$code, "color = \"#B24745\"", fixed = TRUE)
     expect_null(figure()$error)
 
-    # Two exposures are two colours, so the layout stops being something the
+    # Two exposures are two colors, so the layout stops being something the
     # figures share and moves into the list they are drawn from.
     do.call(session$setInputs,
             fy_app_defaults(exposure = c("no2", "maternal_age"),
                             overall = TRUE, combine = FALSE,
-                            colour_no2 = "#B24745",
-                            colour_maternal_age = "#1A476F"))
+                            color_no2 = "#B24745",
+                            color_maternal_age = "#1A476F"))
     code <- output$code
-    expect_match(code, "colour = \"#B24745\"", fixed = TRUE)
-    expect_match(code, "colour = \"#1A476F\"", fixed = TRUE)
+    expect_match(code, "color = \"#B24745\"", fixed = TRUE)
+    expect_match(code, "color = \"#1A476F\"", fixed = TRUE)
 
     env <- new.env(parent = environment())
     # The script says what the interaction test came to; the test log need not.
     invisible(utils::capture.output(eval(parse(text = code), envir = env)))
     expect_length(env$figures, 2L)
 
-    # A colour no menu holds is typed as a hex code instead.
+    # A color no menu holds is typed as a hex code instead.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_no2 = "hex", colour_hex_no2 = "2E7D32"))
-    expect_match(output$code, "colour = \"#2E7D32\"", fixed = TRUE)
+                            color_no2 = "hex", color_hex_no2 = "2E7D32"))
+    expect_match(output$code, "color = \"#2E7D32\"", fixed = TRUE)
     expect_null(figure()$error)
 
-    # Half a code is not a colour, and is left as though nothing had been
-    # chosen rather than drawn as an error. Three figures are a colour, since
+    # Half a code is not a color, and is left as though nothing had been
+    # chosen rather than drawn as an error. Three figures are a color, since
     # that is a hex code too.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_no2 = "hex", colour_hex_no2 = "#2E7D3"))
-    expect_false(grepl("colour = ", output$code, fixed = TRUE))
+                            color_no2 = "hex", color_hex_no2 = "#2E7D3"))
+    expect_false(grepl("color = ", output$code, fixed = TRUE))
     expect_null(figure()$error)
 
-    # The style's own colour is written by leaving it out.
+    # The style's own color is written by leaving it out.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_no2 = "", colour_maternal_age = ""))
-    expect_false(grepl("colour", output$code, fixed = TRUE))
+                            color_no2 = "", color_maternal_age = ""))
+    expect_false(grepl("color", output$code, fixed = TRUE))
   })
 })
 
@@ -289,7 +289,7 @@ test_that("an exposure is asked about with the values it actually takes", {
                fixed = TRUE)
   expect_match(html, paste0("runs from ", ends[1L], " to ", ends[2L]),
                fixed = TRUE)
-  # The colours are offered by their place in the palette as well as by name.
+  # The colors are offered by their place in the palette as well as by name.
   expect_match(html, "Dark2 3", fixed = TRUE)
 
   expect_match(
@@ -509,27 +509,7 @@ test_that("the outcome reference row is not written for a one-equation fit", {
   })
 })
 
-test_that("the plain script says why it is not written for a multinomial fit", {
-  skip_if_not_installed("shiny")
-  skip_if_not_installed("nnet")
-  # Every helper it writes is built around one design matrix and one
-  # coefficient vector, which a fit of several equations is not.
-  my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
-                           data = foresty_cohort, trace = FALSE)
-  app <- foresty_app(my_fit, launch = FALSE)
-  shiny::testServer(app, {
-    do.call(session$setInputs,
-            fy_app_defaults(modifier = "sex", overall = FALSE))
-    expect_match(output$code_plain, "Not written for this model")
-    expect_match(output$code_plain, "3 outcome levels")
-    expect_false(grepl("effect_of <- function", output$code_plain, fixed = TRUE))
-    # Every line still fits the width the tab is read at.
-    lines <- strsplit(output$code_plain, "\n", fixed = TRUE)[[1L]]
-    expect_true(all(nchar(lines) <= 78L))
-  })
-})
-
-test_that("the rows can be coloured by their category rather than the exposure", {
+test_that("the rows can be colored by their category rather than the exposure", {
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -537,42 +517,42 @@ test_that("the rows can be coloured by their category rather than the exposure",
   shiny::testServer(app, {
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_by = "category", palette = "Dark2"))
-    expect_match(output$code, "colour_by = \"category\"", fixed = TRUE)
-    expect_match(output$code, "colours = \"Dark2\"", fixed = TRUE)
+                            color_by = "category", palette = "Dark2"))
+    expect_match(output$code, "color_by = \"category\"", fixed = TRUE)
+    expect_match(output$code, "colors = \"Dark2\"", fixed = TRUE)
     expect_null(figure()$error)
     expect_equal(sort(unique(fy_marks(figure()$value)$fill)),
-                 sort(foresty_colours("Dark2")[1:2]))
+                 sort(foresty_colors("Dark2")[1:2]))
 
-    # Colours of your own are typed as hex codes, which is how a figure is
-    # drawn to match colours no palette holds. They win over the palette, since
+    # Colors of your own are typed as hex codes, which is how a figure is
+    # drawn to match colors no palette holds. They win over the palette, since
     # having typed them is the answer to the question the menu asks.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_by = "category", palette = "Dark2",
-                            colours_hex = "#B24745, 1A476F"))
-    expect_match(output$code, "colours = c(\"#B24745\", \"#1A476F\")",
+                            color_by = "category", palette = "Dark2",
+                            colors_hex = "#B24745, 1A476F"))
+    expect_match(output$code, "colors = c(\"#B24745\", \"#1A476F\")",
                  fixed = TRUE)
     expect_equal(sort(unique(fy_marks(figure()$value)$fill)),
                  sort(c("#B24745", "#1A476F")))
 
-    # A code half typed is not a colour yet, so the palette is drawn rather
+    # A code half typed is not a color yet, so the palette is drawn rather
     # than an error.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_by = "category", palette = "Dark2",
-                            colours_hex = "#B247"))
-    expect_match(output$code, "colours = \"Dark2\"", fixed = TRUE)
+                            color_by = "category", palette = "Dark2",
+                            colors_hex = "#B247"))
+    expect_match(output$code, "colors = \"Dark2\"", fixed = TRUE)
     expect_null(figure()$error)
 
-    # A figure whose rows carry colours of their own has no one colour to be
+    # A figure whose rows carry colors of their own has no one color to be
     # drawn in, so the exposure's own is left out rather than written and
     # overridden.
     do.call(session$setInputs,
             fy_app_defaults(modifier = "male", overall = FALSE,
-                            colour_by = "row", colour_no2 = "#B24745"))
-    expect_false(grepl("colour = ", output$code, fixed = TRUE))
-    expect_match(output$code, "colour_by = \"row\"", fixed = TRUE)
+                            color_by = "row", color_no2 = "#B24745"))
+    expect_false(grepl("color = ", output$code, fixed = TRUE))
+    expect_match(output$code, "color_by = \"row\"", fixed = TRUE)
   })
 })
 
@@ -1193,6 +1173,14 @@ fy_plain_session <- function(fit, data) {
   env
 }
 
+# The script's prose as one line: its comments are wrapped to the width the tab
+# is read at, so a sentence tested for here would otherwise have to be tested
+# for in whichever two halves the wrapping happened to leave it in.
+fy_plain_prose <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1L]]
+  gsub("\\s+", " ", paste(sub("^\\s*#\\s?", "", lines), collapse = " "))
+}
+
 fy_plain_fit <- function(cohort) {
   glm(asthma ~ no2 + male + urbanicity + maternal_age, family = binomial,
       data = cohort)
@@ -1219,12 +1207,19 @@ test_that("the R code tab writes where the estimates came from", {
     # part of the figure is rebuilt here.
     expect_match(code, "car::linearHypothesis.default(", fixed = TRUE)
     expect_false(grepl("ggplot(", code, fixed = TRUE))
+    # The test it took is named and written out; the other one is neither.
+    expect_match(fy_plain_prose(code),
+                 "the likelihood ratio test of the interaction", fixed = TRUE)
+    expect_false(grepl("wald_p <- function", code, fixed = TRUE))
     # Nothing it runs comes from the package. The comments above the code do
     # name it, since saying what is not being reproduced means naming the
     # function that would have.
     runs <- grep("^\\s*#", strsplit(code, "\n")[[1L]], value = TRUE,
                  invert = TRUE)
     expect_false(any(grepl("foresty", runs, fixed = TRUE)))
+    # Every line fits the width the tab is read at, since a line that does not
+    # is read with a scrollbar or not at all.
+    expect_true(all(nchar(strsplit(code, "\n", fixed = TRUE)[[1L]]) <= 78L))
 
     # And it runs, beside the model, and comes to the numbers on the figure.
     env <- fy_plain_session(my_fit, cohort)
@@ -1252,6 +1247,194 @@ test_that("the R code tab writes where the estimates came from", {
     drawn <- as.data.frame(figure()$value)
     expect_equal(nrow(env$rows_1), nrow(drawn))
     expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+  })
+})
+
+test_that("the plain script writes out a multinomial fit's arithmetic", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("nnet")
+  # A fit of several equations has a coefficient vector holding a block for
+  # each of them, so its contrast is a difference of blocks rather than a
+  # difference of two rows of the design. The script says so and does it.
+  cohort <- foresty_cohort
+  my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
+                           data = cohort, trace = FALSE)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE))
+    code <- output$code_plain
+
+    expect_match(code, "3 outcome levels")
+    expect_match(code, "equation_row <- function", fixed = TRUE)
+    expect_match(code, "car::linearHypothesis.default(", fixed = TRUE)
+    # One row per comparison between outcome levels, within each subgroup.
+    expect_match(code, "lapply(outcomes, function(oc) {", fixed = TRUE)
+    expect_match(code, "outcome = oc$level, against = oc$against,", fixed = TRUE)
+    expect_false(grepl("ggplot(", code, fixed = TRUE))
+    # Nothing it runs comes from the package it is the alternative to.
+    runs <- grep("^\\s*#", strsplit(code, "\n")[[1L]], value = TRUE,
+                 invert = TRUE)
+    expect_false(any(grepl("foresty", runs, fixed = TRUE)))
+    # Every line still fits the width the tab is read at.
+    expect_true(all(nchar(strsplit(code, "\n", fixed = TRUE)[[1L]]) <= 78L))
+
+    # And it runs, beside the model, and comes to the numbers on the figure:
+    # the same rows in the same order, and the same joint test.
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+
+    drawn <- as.data.frame(figure()$value)
+    expect_equal(nrow(env$rows_1), nrow(drawn))
+    expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+    expect_equal(env$rows_1$conf.low, drawn$conf.low, tolerance = 1e-8)
+    expect_equal(env$rows_1$conf.high, drawn$conf.high, tolerance = 1e-8)
+    expect_equal(env$p_interaction_1,
+                 fy_result(figure()$value)$interaction_test$p.value,
+                 tolerance = 1e-8)
+
+    # A categorical exposure, on the scale the model was fitted on, with the
+    # Wald test: the coefficients it is taken over are one per equation, and
+    # they are written a line apiece rather than off the side of the tab.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "maternal_smoking", modifier = "sex",
+                            overall = FALSE, test = "wald", scale = "log"))
+    code <- output$code_plain
+    expect_match(code, "\"Transient:sexMale:maternal_smokingYes\",", fixed = TRUE)
+    expect_true(all(nchar(strsplit(code, "\n", fixed = TRUE)[[1L]]) <= 78L))
+
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    drawn <- as.data.frame(figure()$value)
+    expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+    expect_equal(env$p_interaction_1,
+                 fy_result(figure()$value)$interaction_test$p.value,
+                 tolerance = 1e-8)
+  })
+})
+
+test_that("the multinomial script reads its rows against the level chosen", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("nnet")
+  cohort <- foresty_cohort
+  my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
+                           data = cohort, trace = FALSE)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs, fy_app_defaults(exposure = "no2"))
+    # Left on the level the model was fitted against, there is no row that is
+    # the reference and nothing is written about one.
+    expect_match(output$code_plain, "against = \"None\", reference = FALSE)",
+                 fixed = TRUE)
+    expect_false(grepl("drawn <- drawn[1]", output$code_plain, fixed = TRUE))
+
+    # Another level is not a refit: the comparisons change and the model does
+    # not, which is what the difference of two blocks buys.
+    session$setInputs(outcome_reference = "Transient",
+                      outcome_reference_row = TRUE)
+    code <- output$code_plain
+    expect_match(code, "against = \"Transient\"", fixed = TRUE)
+    expect_match(code, "if (isTRUE(oc$reference)) drawn <- drawn[1]",
+                 fixed = TRUE)
+    expect_false(grepl("update(my_fit", code, fixed = TRUE))
+
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    drawn <- as.data.frame(figure()$value)
+    expect_equal(nrow(env$rows_1), nrow(drawn))
+    expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+    expect_equal(env$rows_1$conf.low, drawn$conf.low, tolerance = 1e-8)
+    # The level everything is read against carries no estimate, and is drawn
+    # once for the whole of the exposure rather than once per value of it.
+    expect_equal(sum(is.na(env$rows_1$conf.low)), 1L)
+  })
+})
+
+test_that("the plain script writes the test the figure actually reported", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("geepack")
+  # The sidebar asks for a likelihood ratio test and this model has no
+  # likelihood to take one over, so the figure reports the joint Wald test
+  # instead. The script has to write that one: writing the other would print a
+  # p-value that is not the one on the figure, and for this model would not run
+  # at all.
+  cohort <- foresty_cohort
+  cohort$id <- seq_len(nrow(cohort))
+  my_fit <- geepack::geeglm(asthma ~ no2 + sex + maternal_smoking,
+                            family = binomial, id = id, data = cohort,
+                            corstr = "independence")
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE, test = "lrt"))
+    reported <- fy_result(figure()$value)$interaction_test
+    expect_match(reported$test, "Wald")
+
+    code <- output$code_plain
+    expect_match(code, "wald_p(", fixed = TRUE)
+    expect_false(grepl("lrt_p", code, fixed = TRUE))
+    expect_match(fy_plain_prose(code), "the joint Wald test of the interaction",
+                 fixed = TRUE)
+
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    expect_equal(env$p_interaction_1, reported$p.value, tolerance = 1e-8)
+  })
+})
+
+test_that("a splined exposure spends its interaction across the equations", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("nnet")
+  skip_if_not_installed("splines")
+  # The interaction of a spline with the modifier adds one coefficient per
+  # basis column to each equation of the fit, so the term the script adds and
+  # the term it takes away again have to be that whole set: a reduced model
+  # missing some of it would be a test of the wrong thing, and would still
+  # produce a p-value.
+  cohort <- foresty_cohort
+  my_fit <- nnet::multinom(
+    wheeze_phenotype ~ splines::ns(no2, 4) + sex + maternal_smoking,
+    data = cohort, trace = FALSE)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE, test = "wald"))
+    code <- output$code_plain
+    # Four basis columns in each of the two equations.
+    expect_equal(lengths(regmatches(code, gregexpr("sexMale\"", code))), 8L)
+
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    expect_equal(env$p_interaction_1,
+                 fy_result(figure()$value)$interaction_test$p.value,
+                 tolerance = 1e-8)
+    expect_equal(fy_result(figure()$value)$interaction_test$df, 8)
+
+    # And the likelihood ratio test spends the same degrees of freedom, which
+    # is what says the model the script subtracts the term from is the model
+    # without it rather than a model missing something else as well.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE, test = "lrt"))
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(
+      eval(parse(text = output$code_plain), envir = env)
+    ))
+    expect_equal(attr(logLik(env$fit_int_1), "df") -
+                   attr(logLik(update(env$fit_int_1,
+                                      . ~ . - splines::ns(no2, 4):sex)), "df"),
+                 8L)
+    expect_equal(env$p_interaction_1,
+                 fy_result(figure()$value)$interaction_test$p.value,
+                 tolerance = 1e-8)
+    expect_equal(fy_result(figure()$value)$interaction_test$df, 8)
   })
 })
 
@@ -1300,6 +1483,43 @@ test_that("one reference group is offered per modifier and drawn per pair", {
   })
 })
 
+test_that("a label with a quote in it still writes a script that parses", {
+  skip_if_not_installed("shiny")
+  cohort <- foresty_cohort
+  cohort$male <- as.numeric(cohort$sex == "Male")
+  my_fit <- fy_plain_fit(cohort)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    # A subgroup label is typed by hand, so it can hold anything a person
+    # types. Pasted into the script unquoted, a quotation mark in it ends the
+    # string early and the script no longer parses.
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE))
+    session$setInputs(level_label_male_1 = 'girls ("female")',
+                      level_label_male_2 = "boys \\ males")
+
+    for (code in list(output$code, output$code_plain)) {
+      expect_silent(parsed <- parse(text = code))
+      expect_true(length(parsed) > 0L)
+    }
+    expect_match(output$code, 'girls (\\"female\\")', fixed = TRUE)
+  })
+})
+
+test_that("two quantiles the wrong way round are not a reversed figure", {
+  skip_if_not_installed("shiny")
+  info <- fy_model_info(fy_app_fit())
+
+  # The lower one first, as the boxes read. A pair the other way round would
+  # draw the effect of a fall in the exposure under labels saying it was a
+  # rise, which is what the "Reverse the direction" box is for.
+  expect_length(fy_app_quantile_values(info, "no2", c(0.1, 0.9)), 2L)
+  expect_null(fy_app_quantile_values(info, "no2", c(0.9, 0.1)))
+  expect_null(fy_app_quantile_values(info, "no2", c(0.5, 0.5)))
+  expect_null(fy_app_quantile_values(info, "no2", c(-0.1, 0.9)))
+})
+
 test_that("the plain script follows the scale and the test that were chosen", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
@@ -1317,6 +1537,11 @@ test_that("the plain script follows the scale and the test that were chosen", {
     expect_match(code, "ci_level     <- 0.9", fixed = TRUE)
     expect_match(code, "wald_p(", fixed = TRUE)
     expect_false(grepl("lrt_p(", code, fixed = TRUE))
+    # The test it does not take is not written out either, and the one it does
+    # take is named rather than left for the reader to work out.
+    expect_false(grepl("lrt_p <- function", code, fixed = TRUE))
+    expect_match(fy_plain_prose(code), "the joint Wald test of the interaction",
+                 fixed = TRUE)
 
     env <- fy_plain_session(my_fit, cohort)
     # The script says what the interaction test came to; the test log need not.

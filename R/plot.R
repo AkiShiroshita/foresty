@@ -74,7 +74,7 @@ fy_forest_plot <- function(estimates,
   rows <- fy_layout_rows(estimates, grouped = grouped, as_rows = as_rows,
                          separators = layout$separators, fold = fold,
                          gaps = gaps)
-  estimates <- fy_row_colours(rows$estimates, layout)
+  estimates <- fy_row_colors(rows$estimates, layout)
   row_labels <- if (folded) {
     as.character(estimates$group)
   } else {
@@ -181,11 +181,11 @@ fy_compose <- function(panels, forest_at, layout, title = NULL,
     theme = ggplot2::theme(
       plot.title = ggplot2::element_text(
         size = layout$base_size * 1.15, face = "bold",
-        colour = layout$palette$text, family = layout$family,
+        color = layout$palette$text, family = layout$family,
         margin = ggplot2::margin(b = 2)
       ),
       plot.subtitle = ggplot2::element_text(
-        size = layout$base_size * 0.95, colour = layout$palette$text,
+        size = layout$base_size * 0.95, color = layout$palette$text,
         family = layout$family, margin = ggplot2::margin(b = 6)
       )
     )
@@ -259,7 +259,19 @@ fy_emphasis_gaps <- function(estimates, layout) {
 # direction a y axis runs in.
 fy_row_order <- function(estimates, group) {
   if (!is.null(group)) {
-    estimates <- estimates[order(as.integer(estimates[[group]])), , drop = FALSE]
+    # The blocks come out in the order the grouping column puts them in, which
+    # for the factor every caller builds is the order of its levels: those of
+    # the modifier, the blocks of a combined figure, those of the outcome.
+    # Anything else is blocked in the order it first appears, since a
+    # figure of two models is drawn in the order the models were given and
+    # sorting the blocks alphabetically would reorder them behind the caller.
+    keys <- estimates[[group]]
+    keys <- if (is.factor(keys)) {
+      as.integer(keys)
+    } else {
+      match(as.character(keys), unique(as.character(keys)))
+    }
+    estimates <- estimates[order(keys), , drop = FALSE]
     estimates$group <- estimates[[group]]
   } else {
     estimates$group <- factor("")
@@ -438,13 +450,13 @@ fy_furniture <- function(geo, layout) {
     out <- c(out, list(ggplot2::annotate(
       "rect", xmin = -Inf, xmax = Inf,
       ymin = shaded - 0.5, ymax = shaded + 0.5,
-      fill = layout$palette$band, colour = NA
+      fill = layout$palette$band, color = NA
     )))
   }
   if (length(separators)) {
     out <- c(out, list(ggplot2::annotate(
       "segment", x = -Inf, xend = Inf, y = separators, yend = separators,
-      colour = layout$palette$rule, linewidth = 0.25
+      color = layout$palette$rule, linewidth = 0.25
     )))
   }
 
@@ -455,7 +467,7 @@ fy_furniture <- function(geo, layout) {
   if (ruled) {
     out <- c(out, list(ggplot2::annotate(
       "segment", x = -Inf, xend = Inf, y = Inf, yend = Inf,
-      colour = layout$palette$rule, linewidth = 0.45
+      color = layout$palette$rule, linewidth = 0.45
     )))
   }
   # The rule over the headings has no height in the panel to be drawn at, so it
@@ -471,7 +483,7 @@ fy_furniture <- function(geo, layout) {
   if (identical(layout$rules, "full")) {
     out <- c(out, list(ggplot2::annotate(
       "segment", x = -Inf, xend = Inf, y = geo$bottom, yend = geo$bottom,
-      colour = layout$palette$rule, linewidth = 0.45
+      color = layout$palette$rule, linewidth = 0.45
     )))
   }
   out
@@ -541,7 +553,7 @@ fy_label_panel <- function(labels, positions, headings, header, geo, layout,
       ggplot2::aes(x = .data$x, y = .data$y, label = .data$label,
                    fontface = .data$face),
       hjust = 0, vjust = 0.5, size = fy_text_size(size),
-      colour = layout$palette$text, family = layout$family %||% ""
+      color = layout$palette$text, family = layout$family %||% ""
     )
 
   if (!is.null(headings) && nrow(headings)) {
@@ -549,7 +561,7 @@ fy_label_panel <- function(labels, positions, headings, header, geo, layout,
       data = headings,
       ggplot2::aes(x = 0, y = .data$position, label = .data$label),
       hjust = 0, vjust = 0.5, size = fy_text_size(size),
-      fontface = layout$group_face, colour = layout$palette$group,
+      fontface = layout$group_face, color = layout$palette$group,
       family = layout$family %||% ""
     )
   }
@@ -570,7 +582,7 @@ fy_group_panel <- function(headings, geo, layout) {
       data = headings,
       ggplot2::aes(x = 0, y = .data$position, label = .data$label),
       hjust = 0, vjust = 0.5, size = fy_text_size(layout$base_size),
-      fontface = layout$group_face, colour = layout$palette$group,
+      fontface = layout$group_face, color = layout$palette$group,
       family = layout$family %||% ""
     )
   fy_finish_text_panel(out, fy_em(headings$label, layout$group_face) + 0.6,
@@ -585,7 +597,7 @@ fy_table_panel <- function(cells, geo, layout) {
       data = cells$values,
       ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
       hjust = 0.5, vjust = 0.5, size = fy_text_size(layout$base_size),
-      colour = layout$palette$text, family = layout$family %||% ""
+      color = layout$palette$text, family = layout$family %||% ""
     ) +
     fy_header_layer(cells$headers$label, at = cells$headers$x / cells$width,
                     hjust = 0.5, geo = geo, layout = layout)
@@ -619,7 +631,7 @@ fy_forest_panel <- function(estimates, exponentiate, measure_label, null_value,
       "segment", x = null_value, xend = null_value,
       y = geo$bottom, yend = geo$top,
       linetype = layout$null_line, linewidth = 0.4,
-      colour = layout$palette$null
+      color = layout$palette$null
     )
   }
 
@@ -631,7 +643,7 @@ fy_forest_panel <- function(estimates, exponentiate, measure_label, null_value,
     fy_interval_layers(drawn[!diamonds, , drop = FALSE], layout) +
     fy_point_layers(drawn[!diamonds, , drop = FALSE], layout) +
     fy_diamond_layer(drawn[diamonds, , drop = FALSE], layout) +
-    fy_colour_scales(layout) +
+    fy_color_scales(layout) +
     fy_arrow_labels(geo, layout, null_value) +
     ggplot2::labs(title = title, subtitle = subtitle,
                   x = fy_wrap(measure_label, 34), y = NULL) +
@@ -652,14 +664,14 @@ fy_forest_panel <- function(estimates, exponentiate, measure_label, null_value,
 
 # How the marks are filled.
 #
-# A figure drawn in one colour maps the fill to whether the row is the
+# A figure drawn in one color maps the fill to whether the row is the
 # reference level, so that a scale added by hand still reaches it. A figure
-# whose rows carry colours of their own has those colours on the rows already,
+# whose rows carry colors of their own has those colors on the rows already,
 # and takes them as they are.
-fy_colour_scales <- function(layout) {
-  if (fy_colours_rows(layout)) {
+fy_color_scales <- function(layout) {
+  if (fy_colors_rows(layout)) {
     return(list(ggplot2::scale_fill_identity(),
-                ggplot2::scale_colour_identity()))
+                ggplot2::scale_color_identity()))
   }
   ggplot2::scale_fill_manual(
     values = c(`FALSE` = layout$palette$estimate,
@@ -743,19 +755,19 @@ fy_diamond_layer <- function(part, layout) {
                         part$position, part$position - half)),
     stringsAsFactors = FALSE
   )
-  if (fy_colours_rows(layout)) {
-    corners$colour <- rep(part$row_colour, each = 4L)
+  if (fy_colors_rows(layout)) {
+    corners$color <- rep(part$row_color, each = 4L)
     return(ggplot2::geom_polygon(
       data = corners,
       ggplot2::aes(x = .data$x, y = .data$y, group = .data$id,
-                   fill = .data$colour, colour = .data$colour),
+                   fill = .data$color, color = .data$color),
       linewidth = 0.35, na.rm = TRUE, show.legend = FALSE
     ))
   }
   ggplot2::geom_polygon(
     data = corners,
     ggplot2::aes(x = .data$x, y = .data$y, group = .data$id),
-    fill = layout$palette$estimate, colour = layout$palette$border,
+    fill = layout$palette$estimate, color = layout$palette$border,
     linewidth = 0.35, na.rm = TRUE
   )
 }
@@ -787,11 +799,11 @@ fy_point_layer <- function(part, shape, size, layout) {
   if (!nrow(part)) {
     return(NULL)
   }
-  if (fy_colours_rows(layout)) {
+  if (fy_colors_rows(layout)) {
     return(ggplot2::geom_point(
       data = part,
       ggplot2::aes(x = .data$estimate_drawn, y = .data$position,
-                   fill = .data$fill_colour, colour = .data$row_colour),
+                   fill = .data$fill_color, color = .data$row_color),
       shape = shape, size = size, stroke = 0.5, show.legend = FALSE,
       na.rm = TRUE
     ))
@@ -801,7 +813,7 @@ fy_point_layer <- function(part, shape, size, layout) {
     ggplot2::aes(x = .data$estimate_drawn, y = .data$position,
                  fill = .data$reference),
     shape = shape, size = size, stroke = 0.5,
-    colour = layout$palette$border, show.legend = FALSE, na.rm = TRUE
+    color = layout$palette$border, show.legend = FALSE, na.rm = TRUE
   )
 }
 
@@ -826,12 +838,12 @@ fy_interval_layers <- function(drawn, layout) {
     if (!nrow(part)) {
       return(NULL)
     }
-    if (fy_colours_rows(layout)) {
+    if (fy_colors_rows(layout)) {
       return(ggplot2::geom_segment(
         data = part,
         ggplot2::aes(x = .data$low, xend = .data$high,
                      y = .data$position, yend = .data$position,
-                     colour = .data$row_colour),
+                     color = .data$row_color),
         linewidth = layout$interval_width, lineend = "butt",
         arrow = kind$arrow, na.rm = TRUE, show.legend = FALSE
       ))
@@ -841,7 +853,7 @@ fy_interval_layers <- function(drawn, layout) {
       ggplot2::aes(x = .data$low, xend = .data$high,
                    y = .data$position, yend = .data$position),
       linewidth = layout$interval_width, lineend = "butt",
-      colour = layout$palette$interval, arrow = kind$arrow, na.rm = TRUE
+      color = layout$palette$interval, arrow = kind$arrow, na.rm = TRUE
     )
   })
 }
@@ -858,21 +870,21 @@ fy_arrow_labels <- function(geo, layout, null_value) {
     ggplot2::annotate(
       "segment", x = null_value, xend = -Inf,
       y = geo$arrow_y, yend = geo$arrow_y,
-      colour = layout$palette$axis, linewidth = 0.3, arrow = head
+      color = layout$palette$axis, linewidth = 0.3, arrow = head
     ),
     ggplot2::annotate(
       "segment", x = null_value, xend = Inf,
       y = geo$arrow_y, yend = geo$arrow_y,
-      colour = layout$palette$axis, linewidth = 0.3, arrow = head
+      color = layout$palette$axis, linewidth = 0.3, arrow = head
     ),
     ggplot2::annotate(
       "text", x = -Inf, y = geo$arrow_label_y, label = layout$arrows[1L],
-      hjust = -0.02, vjust = 0.5, size = size, colour = layout$palette$text,
+      hjust = -0.02, vjust = 0.5, size = size, color = layout$palette$text,
       family = layout$family %||% ""
     ),
     ggplot2::annotate(
       "text", x = Inf, y = geo$arrow_label_y, label = layout$arrows[2L],
-      hjust = 1.02, vjust = 0.5, size = size, colour = layout$palette$text,
+      hjust = 1.02, vjust = 0.5, size = size, color = layout$palette$text,
       family = layout$family %||% ""
     )
   )
@@ -887,26 +899,26 @@ fy_forest_theme <- function(layout, has_axis_labels, geo) {
     # rows of one panel meet the rows of the next.
     plot.margin = ggplot2::margin(2 + geo$pad_top_pt, 4, 2, 4),
     axis.line.x = if (layout$axis_line) {
-      ggplot2::element_line(colour = layout$palette$axis, linewidth = 0.35)
+      ggplot2::element_line(color = layout$palette$axis, linewidth = 0.35)
     } else {
       ggplot2::element_blank()
     },
-    axis.ticks.x = ggplot2::element_line(colour = layout$palette$axis,
+    axis.ticks.x = ggplot2::element_line(color = layout$palette$axis,
                                          linewidth = 0.35),
     axis.ticks.length.x = grid::unit(2.5, "pt"),
     axis.text.x = ggplot2::element_text(
-      size = layout$base_size * 0.9, colour = layout$palette$text,
+      size = layout$base_size * 0.9, color = layout$palette$text,
       margin = ggplot2::margin(t = 2)
     ),
     axis.title.x = ggplot2::element_text(
-      size = layout$base_size, colour = layout$palette$text,
+      size = layout$base_size, color = layout$palette$text,
       margin = ggplot2::margin(t = 4)
     ),
     # The grid is the layout's to say, whatever theme it is drawn over: a
     # theme's own would be a second answer to the same question. The rows are
     # the figure's own rules, so there is never a horizontal one.
     panel.grid.major.x = if (layout$grid) {
-      ggplot2::element_line(colour = layout$palette$band, linewidth = 0.3)
+      ggplot2::element_line(color = layout$palette$band, linewidth = 0.3)
     } else {
       ggplot2::element_blank()
     },
@@ -916,17 +928,17 @@ fy_forest_theme <- function(layout, has_axis_labels, geo) {
     axis.ticks.y = ggplot2::element_blank(),
     plot.title = ggplot2::element_text(
       size = layout$base_size * 1.15, face = "bold",
-      colour = layout$palette$text, margin = ggplot2::margin(b = 2)
+      color = layout$palette$text, margin = ggplot2::margin(b = 2)
     ),
     plot.subtitle = ggplot2::element_text(
-      size = layout$base_size * 0.95, colour = layout$palette$text,
+      size = layout$base_size * 0.95, color = layout$palette$text,
       margin = ggplot2::margin(b = 6)
     )
   )
   if (has_axis_labels) {
     out <- out + ggplot2::theme(
       axis.text.y = ggplot2::element_text(
-        size = layout$base_size, colour = layout$palette$text, hjust = 1,
+        size = layout$base_size, color = layout$palette$text, hjust = 1,
         margin = ggplot2::margin(r = 3)
       )
     )
@@ -1219,12 +1231,13 @@ fy_format_person_time <- function(x, spec = NULL) {
 }
 
 # "default" writes 0.032 and <0.001. "jama" drops the leading zero and rounds
-# the way the journal asks: three places up to 0.01, two above it, and neither
-# an exact 0 nor an exact 1 written as though it had been measured.
+# the way the journal asks: three places below 0.01 and two from 0.01 up, so
+# that .01 itself is written .01, and neither an exact 0 nor an exact 1 written
+# as though it had been measured.
 fy_format_p <- function(x, style = "default", decimal_mark = ".") {
   x <- as.numeric(x)
   out <- if (identical(style, "jama")) {
-    rounded <- ifelse(x <= 0.01, formatC(x, digits = 3, format = "f"),
+    rounded <- ifelse(x < 0.01, formatC(x, digits = 3, format = "f"),
                       formatC(x, digits = 2, format = "f"))
     ifelse(
       is.na(x), "",
