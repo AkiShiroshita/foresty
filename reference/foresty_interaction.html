@@ -64,6 +64,8 @@ self-contained HTML page carrying the joint test of the interaction.</p>
 <span>  level_labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  reference <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  outcome <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  outcome_reference <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  outcome_reference_row <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  contrast <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  at <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -161,6 +163,33 @@ should say the effect is an effect on. It is written wherever the outcome
 is named: the axis under the plot, the title the package writes for itself,
 and the HTML report. <code>NA</code> names none, leaving "Adjusted odds ratio" on its
 own for a figure whose caption says what of.</p></dd>
+
+
+<dt id="arg-outcome-reference">outcome_reference<a class="anchor" aria-label="anchor" href="#arg-outcome-reference"></a></dt>
+<dd><p>For a multinomial logistic regression, the level of
+the outcome every estimate is read against, as
+<code>outcome_reference = "None"</code>. <code>NULL</code>, the default, is the level the model
+itself was referred to, which is the first level of the outcome factor.
+Naming another does not refit anything: the odds ratio of one level
+against another is the difference between their two equations, and the
+covariance of the pair is already in the model. Every other level is then
+drawn against it, one row apiece, each row saying which two levels it
+compares. It says nothing about a model of one equation, whose reference
+is fixed by how the outcome is coded, and is refused there rather than
+ignored.</p></dd>
+
+
+<dt id="arg-outcome-reference-row">outcome_reference_row<a class="anchor" aria-label="anchor" href="#arg-outcome-reference-row"></a></dt>
+<dd><p>Whether that level is drawn as a row of its
+own. <code>FALSE</code>, the default, draws only the levels compared with it, each
+row saying which two levels it compares. <code>TRUE</code> adds a row for the
+reference level itself, the way the reference level of a categorical
+exposure is drawn: it carries no estimate, being the definition the other
+rows are differences from, so it is <code>1</code> on the ratio scale and <code>0</code> on the
+scale the model was fitted on, with no interval, no test and no p-value.
+It is one row whatever the exposure is, since it is the same definition at
+every value of it, and the counts beside it are of the people in that
+level. It says nothing about a model of one equation.</p></dd>
 
 
 <dt id="arg-ci-level">ci_level<a class="anchor" aria-label="anchor" href="#arg-ci-level"></a></dt>
@@ -452,6 +481,19 @@ applied to the table of numbers beside the plot will spoil it. Use <code>+</code
 <span class="r-in"><span><span class="fu">foresty_interaction</span><span class="op">(</span><span class="va">fit</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, interaction <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
 <span class="r-in"><span>                    layout <span class="op">=</span> <span class="st">"jama"</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="foresty_interaction-5.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A multinomial outcome. Each subgroup carries one row per comparison</span></span></span>
+<span class="r-in"><span><span class="co"># between outcome levels, and the interaction is tested jointly across the</span></span></span>
+<span class="r-in"><span><span class="co"># equations, so it has one degree of freedom for each of them.</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"nnet"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">fit_phenotype</span> <span class="op">&lt;-</span> <span class="fu">nnet</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">multinom</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="va">wheeze_phenotype</span> <span class="op">~</span> <span class="va">no2</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">maternal_smoking</span>,</span></span>
+<span class="r-in"><span>    data <span class="op">=</span> <span class="va">foresty_cohort</span>, trace <span class="op">=</span> <span class="cn">FALSE</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu">foresty_interaction</span><span class="op">(</span><span class="va">fit_phenotype</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>,</span></span>
+<span class="r-in"><span>                            interaction <span class="op">=</span> <span class="st">"sex"</span>, contrast <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-plt img"><img src="foresty_interaction-6.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

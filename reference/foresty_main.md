@@ -17,6 +17,8 @@ foresty_main(
   exponentiate = TRUE,
   labels = NULL,
   outcome = NULL,
+  outcome_reference = NULL,
+  outcome_reference_row = FALSE,
   ci_level = 0.95,
   contrast = NULL,
   at = NULL,
@@ -87,6 +89,32 @@ foresty_main(
   writes for itself, and the HTML report. `NA` names none, leaving
   "Adjusted odds ratio" on its own for a figure whose caption says what
   of.
+
+- outcome_reference:
+
+  For a multinomial logistic regression, the level of the outcome every
+  estimate is read against, as `outcome_reference = "None"`. `NULL`, the
+  default, is the level the model itself was referred to, which is the
+  first level of the outcome factor. Naming another does not refit
+  anything: the odds ratio of one level against another is the
+  difference between their two equations, and the covariance of the pair
+  is already in the model. Every other level is then drawn against it,
+  one row apiece, each row saying which two levels it compares. It says
+  nothing about a model of one equation, whose reference is fixed by how
+  the outcome is coded, and is refused there rather than ignored.
+
+- outcome_reference_row:
+
+  Whether that level is drawn as a row of its own. `FALSE`, the default,
+  draws only the levels compared with it, each row saying which two
+  levels it compares. `TRUE` adds a row for the reference level itself,
+  the way the reference level of a categorical exposure is drawn: it
+  carries no estimate, being the definition the other rows are
+  differences from, so it is `1` on the ratio scale and `0` on the scale
+  the model was fitted on, with no interval, no test and no p-value. It
+  is one row whatever the exposure is, since it is the same definition
+  at every value of it, and the counts beside it are of the people in
+  that level. It says nothing about a model of one equation.
 
 - ci_level:
 
@@ -350,4 +378,50 @@ foresty_main(list(fit_no2), exposure = c(`NO2, ug/m3` = "no2"),
 # Person-time reported per 1,000 rather than as the total.
 foresty_main(list(fit_rate), exposure = "no2", person_time = 1000)
 
+
+# A multinomial logistic regression has one equation per non-reference level
+# of the outcome, so the exposure has one effect per level and the figure
+# has one row per level. `outcome_reference` says which level they are all
+# read against.
+if (requireNamespace("nnet", quietly = TRUE)) {
+  fit_phenotype <- nnet::multinom(
+    wheeze_phenotype ~ no2 + sex + maternal_smoking,
+    data = foresty_cohort, trace = FALSE
+  )
+  # Against "None", which is the level the model itself was fitted against,
+  # and drawn as a row of its own so that the figure says so.
+  print(foresty_main(list(fit_phenotype), exposure = "no2", contrast = 10,
+                     outcome_reference_row = TRUE))
+
+  # The same estimates read against another level instead.
+  against_transient <- foresty_main(list(fit_phenotype), exposure = "no2",
+                                    contrast = 10,
+                                    outcome_reference = "Transient")
+  summary(against_transient)
+}
+
+#> 
+#> Call:
+#> nnet::multinom(formula = wheeze_phenotype ~ no2 + sex + maternal_smoking, 
+#>     data = foresty_cohort, trace = FALSE)
+#> 
+#> Model:      multinom, nnet
+#> Measure:    Odds ratio for wheeze_phenotype
+#> Observations: 4,000
+#> 
+#> Coefficients:
+#>                                 Estimate Std. Error z value Pr(>|z|)
+#> Transient:(Intercept)          -0.972611   0.131120  -7.418 1.19e-13
+#> Transient:no2                   0.025137   0.006426   3.912 9.15e-05
+#> Transient:sexMale               0.227565   0.072119   3.155  0.00160
+#> Transient:maternal_smokingYes   0.036794   0.095343   0.386  0.69956
+#> Persistent:(Intercept)         -2.456297   0.166546 -14.748  < 2e-16
+#> Persistent:no2                  0.063286   0.007736   8.181 2.82e-16
+#> Persistent:sexMale              0.538588   0.086947   6.194 5.85e-10
+#> Persistent:maternal_smokingYes  0.329175   0.107258   3.069  0.00215
+#> 
+#> Odds ratio for wheeze_phenotype (95% CI):
+#>      Variable                   Level   OR    95% CI      p     N Events
+#>  no2 (per 10)       None vs Transient 0.78 0.69-0.88 <0.001 4,000  1,925
+#>  no2 (per 10) Persistent vs Transient 1.46 1.25-1.72 <0.001 4,000    776
 ```

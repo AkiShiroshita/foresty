@@ -19,6 +19,8 @@ foresty_interaction(
   level_labels = NULL,
   reference = NULL,
   outcome = NULL,
+  outcome_reference = NULL,
+  outcome_reference_row = FALSE,
   ci_level = 0.95,
   contrast = NULL,
   at = NULL,
@@ -121,6 +123,32 @@ foresty_interaction(
   writes for itself, and the HTML report. `NA` names none, leaving
   "Adjusted odds ratio" on its own for a figure whose caption says what
   of.
+
+- outcome_reference:
+
+  For a multinomial logistic regression, the level of the outcome every
+  estimate is read against, as `outcome_reference = "None"`. `NULL`, the
+  default, is the level the model itself was referred to, which is the
+  first level of the outcome factor. Naming another does not refit
+  anything: the odds ratio of one level against another is the
+  difference between their two equations, and the covariance of the pair
+  is already in the model. Every other level is then drawn against it,
+  one row apiece, each row saying which two levels it compares. It says
+  nothing about a model of one equation, whose reference is fixed by how
+  the outcome is coded, and is refused there rather than ignored.
+
+- outcome_reference_row:
+
+  Whether that level is drawn as a row of its own. `FALSE`, the default,
+  draws only the levels compared with it, each row saying which two
+  levels it compares. `TRUE` adds a row for the reference level itself,
+  the way the reference level of a categorical exposure is drawn: it
+  carries no estimate, being the definition the other rows are
+  differences from, so it is `1` on the ratio scale and `0` on the scale
+  the model was fitted on, with no interval, no test and no p-value. It
+  is one row whatever the exposure is, since it is the same definition
+  at every value of it, and the counts beside it are of the people in
+  that level. It says nothing about a model of one equation.
 
 - ci_level:
 
@@ -428,5 +456,18 @@ foresty_interaction(fit2, exposure = "urbanicity", interaction = "sex",
 # interaction, in the layout of a journal.
 foresty_interaction(fit, exposure = "no2", interaction = "sex",
                     layout = "jama")
+
+
+# A multinomial outcome. Each subgroup carries one row per comparison
+# between outcome levels, and the interaction is tested jointly across the
+# equations, so it has one degree of freedom for each of them.
+if (requireNamespace("nnet", quietly = TRUE)) {
+  fit_phenotype <- nnet::multinom(
+    wheeze_phenotype ~ no2 + sex + maternal_smoking,
+    data = foresty_cohort, trace = FALSE
+  )
+  print(foresty_interaction(fit_phenotype, exposure = "no2",
+                            interaction = "sex", contrast = 10))
+}
 
 ```

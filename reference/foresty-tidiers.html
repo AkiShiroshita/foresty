@@ -123,12 +123,15 @@ them, and call them as <code>broom::tidy(x)</code> or after <code><a href="https
 <span class="r-out co"><span class="r-pr">#&gt;</span>   variable level contrast_label reference estimate          se conf.low</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1      no2  &lt;NA&gt;           &lt;NA&gt;     FALSE 1.033391 0.010784218 1.011778</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2      no2  &lt;NA&gt;           &lt;NA&gt;     FALSE 1.083628 0.009736242 1.063145</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   conf.high statistic      p.value    n events person_time modifier_level</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1.055466  3.045733 2.321135e-03 2009    327          NA         Female</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1.104505  8.249037 1.596761e-16 1991    475          NA           Male</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   interaction_p modifier variable_label label modifier_label</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1   0.001076479      sex            no2   no2         Female</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   0.001076479      sex            no2   no2           Male</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   conf.high statistic      p.value    n events person_time outcome_level</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1.055466  3.045733 2.321135e-03 2009    327          NA          &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1.104505  8.249037 1.596761e-16 1991    475          NA          &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   outcome_reference outcome_label modifier_level interaction_p modifier</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1              &lt;NA&gt;          &lt;NA&gt;         Female   0.001076479      sex</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2              &lt;NA&gt;          &lt;NA&gt;           Male   0.001076479      sex</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   variable_label label modifier_label</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1            no2   no2         Female</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2            no2   no2           Male</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"broom"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></span>

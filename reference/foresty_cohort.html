@@ -53,11 +53,19 @@ up, and are here so that the examples run without a real cohort.</p>
 
     <div class="section level2">
     <h2 id="format">Format<a class="anchor" aria-label="anchor" href="#format"></a></h2>
-    <p>A data frame with 4,000 rows and 11 columns:</p><dl><dt>asthma</dt>
+    <p>A data frame with 4,000 rows and 13 columns:</p><dl><dt>asthma</dt>
 <dd><p>Asthma by school age, 1 or 0.</p></dd>
+
+<dt>asthma_severity</dt>
+<dd><p>Asthma severity by school age, an ordered factor:
+<code>None</code> &lt; <code>Mild</code> &lt; <code>Moderate</code> &lt; <code>Severe</code>.</p></dd>
 
 <dt>wheeze</dt>
 <dd><p>First wheeze episode observed before censoring, 1 or 0.</p></dd>
+
+<dt>wheeze_phenotype</dt>
+<dd><p>Wheeze phenotype, an unordered factor: <code>None</code>,
+<code>Transient</code> or <code>Persistent</code>.</p></dd>
 
 <dt>followup_years</dt>
 <dd><p>Years to the wheeze episode or to censoring.</p></dd>
@@ -101,6 +109,14 @@ girls, and to be the same whether or not the mother smoked, although
 maternal smoking raises the risk of asthma on its own. The two modifiers
 therefore show what a real interaction and an absent one look like when the
 subgroup estimates are drawn beside the joint test.</p>
+<p>The outcome comes in four shapes, so that the same interaction can be
+followed through the model classes that carry it: binary (<code>asthma</code>),
+time to event (<code>wheeze</code> with <code>followup_years</code>), ordinal
+(<code>asthma_severity</code>) and nominal (<code>wheeze_phenotype</code>). The ordinal outcome
+was drawn from a latent logistic variable cut at three fixed thresholds, so
+it is a proportional odds model by construction; the nominal one was drawn
+from two multinomial logits whose exposure effects differ, so its levels
+cannot be collapsed into an ordering.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

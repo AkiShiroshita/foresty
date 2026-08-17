@@ -21,6 +21,16 @@ First release.
   [`lm()`](https://rdrr.io/r/stats/lm.html), `survival` models, and
   `lme4` models, with robust and cluster-robust standard errors through
   `sandwich`.
+- Supports ordinal outcomes through
+  [`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) and nominal
+  outcomes through
+  [`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html). A
+  multinomial fit holds one equation per non-reference level of the
+  outcome, so the figure carries one row per level. `outcome_reference`
+  says which level they are all read against and `outcome_reference_row`
+  draws that level as a row of its own. The interaction is tested
+  jointly across the equations, so its p-value is a chunk test spending
+  one degree of freedom for each coefficient the interaction added.
 - Supports categorical and continuous exposures, including spline terms
   and contrasts between specified exposure values.
 - [`summary()`](https://rdrr.io/r/base/summary.html),

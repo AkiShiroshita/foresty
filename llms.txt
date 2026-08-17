@@ -90,7 +90,7 @@ covariance matrix, and a model frame. Tested model classes include:
 | base R | [`glm()`](https://rdrr.io/r/stats/glm.html), [`lm()`](https://rdrr.io/r/stats/lm.html) |
 | `survival` | `coxph()`, `survreg()` |
 | `lme4` | `lmer()`, `glmer()` |
-| other | [`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html), [`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html), [`geepack::geeglm()`](https://rdrr.io/pkg/geepack/man/geeglm.html) |
+| other | [`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) (logistic), [`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html), [`geepack::geeglm()`](https://rdrr.io/pkg/geepack/man/geeglm.html) |
 
 The effect measure is inferred from the model where possible, including
 odds ratios, hazard ratios, risk ratios, incidence rate ratios, and mean

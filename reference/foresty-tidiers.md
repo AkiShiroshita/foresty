@@ -81,12 +81,15 @@ as.data.frame(x)
 #>   variable level contrast_label reference estimate          se conf.low
 #> 1      no2  <NA>           <NA>     FALSE 1.033391 0.010784218 1.011778
 #> 2      no2  <NA>           <NA>     FALSE 1.083628 0.009736242 1.063145
-#>   conf.high statistic      p.value    n events person_time modifier_level
-#> 1  1.055466  3.045733 2.321135e-03 2009    327          NA         Female
-#> 2  1.104505  8.249037 1.596761e-16 1991    475          NA           Male
-#>   interaction_p modifier variable_label label modifier_label
-#> 1   0.001076479      sex            no2   no2         Female
-#> 2   0.001076479      sex            no2   no2           Male
+#>   conf.high statistic      p.value    n events person_time outcome_level
+#> 1  1.055466  3.045733 2.321135e-03 2009    327          NA          <NA>
+#> 2  1.104505  8.249037 1.596761e-16 1991    475          NA          <NA>
+#>   outcome_reference outcome_label modifier_level interaction_p modifier
+#> 1              <NA>          <NA>         Female   0.001076479      sex
+#> 2              <NA>          <NA>           Male   0.001076479      sex
+#>   variable_label label modifier_label
+#> 1            no2   no2         Female
+#> 2            no2   no2           Male
 
 if (requireNamespace("broom", quietly = TRUE)) {
   broom::tidy(x)

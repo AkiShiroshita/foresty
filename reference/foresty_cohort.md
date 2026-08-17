@@ -13,15 +13,25 @@ foresty_cohort
 
 ## Format
 
-A data frame with 4,000 rows and 11 columns:
+A data frame with 4,000 rows and 13 columns:
 
 - asthma:
 
   Asthma by school age, 1 or 0.
 
+- asthma_severity:
+
+  Asthma severity by school age, an ordered factor: `None` \< `Mild` \<
+  `Moderate` \< `Severe`.
+
 - wheeze:
 
   First wheeze episode observed before censoring, 1 or 0.
+
+- wheeze_phenotype:
+
+  Wheeze phenotype, an unordered factor: `None`, `Transient` or
+  `Persistent`.
 
 - followup_years:
 
@@ -71,3 +81,12 @@ in girls, and to be the same whether or not the mother smoked, although
 maternal smoking raises the risk of asthma on its own. The two modifiers
 therefore show what a real interaction and an absent one look like when
 the subgroup estimates are drawn beside the joint test.
+
+The outcome comes in four shapes, so that the same interaction can be
+followed through the model classes that carry it: binary (`asthma`),
+time to event (`wheeze` with `followup_years`), ordinal
+(`asthma_severity`) and nominal (`wheeze_phenotype`). The ordinal
+outcome was drawn from a latent logistic variable cut at three fixed
+thresholds, so it is a proportional odds model by construction; the
+nominal one was drawn from two multinomial logits whose exposure effects
+differ, so its levels cannot be collapsed into an ordering.

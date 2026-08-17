@@ -58,6 +58,8 @@ anything; use <code><a href="foresty_interaction.html">foresty_interaction()</a>
 <span>  exponentiate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  outcome <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  outcome_reference <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  outcome_reference_row <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  contrast <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  at <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -124,6 +126,33 @@ should say the effect is an effect on. It is written wherever the outcome
 is named: the axis under the plot, the title the package writes for itself,
 and the HTML report. <code>NA</code> names none, leaving "Adjusted odds ratio" on its
 own for a figure whose caption says what of.</p></dd>
+
+
+<dt id="arg-outcome-reference">outcome_reference<a class="anchor" aria-label="anchor" href="#arg-outcome-reference"></a></dt>
+<dd><p>For a multinomial logistic regression, the level of
+the outcome every estimate is read against, as
+<code>outcome_reference = "None"</code>. <code>NULL</code>, the default, is the level the model
+itself was referred to, which is the first level of the outcome factor.
+Naming another does not refit anything: the odds ratio of one level
+against another is the difference between their two equations, and the
+covariance of the pair is already in the model. Every other level is then
+drawn against it, one row apiece, each row saying which two levels it
+compares. It says nothing about a model of one equation, whose reference
+is fixed by how the outcome is coded, and is refused there rather than
+ignored.</p></dd>
+
+
+<dt id="arg-outcome-reference-row">outcome_reference_row<a class="anchor" aria-label="anchor" href="#arg-outcome-reference-row"></a></dt>
+<dd><p>Whether that level is drawn as a row of its
+own. <code>FALSE</code>, the default, draws only the levels compared with it, each
+row saying which two levels it compares. <code>TRUE</code> adds a row for the
+reference level itself, the way the reference level of a categorical
+exposure is drawn: it carries no estimate, being the definition the other
+rows are differences from, so it is <code>1</code> on the ratio scale and <code>0</code> on the
+scale the model was fitted on, with no interval, no test and no p-value.
+It is one row whatever the exposure is, since it is the same definition at
+every value of it, and the counts beside it are of the people in that
+level. It says nothing about a model of one equation.</p></dd>
 
 
 <dt id="arg-ci-level">ci_level<a class="anchor" aria-label="anchor" href="#arg-ci-level"></a></dt>
@@ -366,6 +395,52 @@ applied to the table of numbers beside the plot will spoil it. Use <code>+</code
 <span class="r-in"><span><span class="co"># Person-time reported per 1,000 rather than as the total.</span></span></span>
 <span class="r-in"><span><span class="fu">foresty_main</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_rate</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, person_time <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="foresty_main-10.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A multinomial logistic regression has one equation per non-reference level</span></span></span>
+<span class="r-in"><span><span class="co"># of the outcome, so the exposure has one effect per level and the figure</span></span></span>
+<span class="r-in"><span><span class="co"># has one row per level. `outcome_reference` says which level they are all</span></span></span>
+<span class="r-in"><span><span class="co"># read against.</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"nnet"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">fit_phenotype</span> <span class="op">&lt;-</span> <span class="fu">nnet</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">multinom</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="va">wheeze_phenotype</span> <span class="op">~</span> <span class="va">no2</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">maternal_smoking</span>,</span></span>
+<span class="r-in"><span>    data <span class="op">=</span> <span class="va">foresty_cohort</span>, trace <span class="op">=</span> <span class="cn">FALSE</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># Against "None", which is the level the model itself was fitted against,</span></span></span>
+<span class="r-in"><span>  <span class="co"># and drawn as a row of its own so that the figure says so.</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu">foresty_main</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_phenotype</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, contrast <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                     outcome_reference_row <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span>  <span class="co"># The same estimates read against another level instead.</span></span></span>
+<span class="r-in"><span>  <span class="va">against_transient</span> <span class="op">&lt;-</span> <span class="fu">foresty_main</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_phenotype</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>,</span></span>
+<span class="r-in"><span>                                    contrast <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                                    outcome_reference <span class="op">=</span> <span class="st">"Transient"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">against_transient</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-plt img"><img src="foresty_main-11.png" alt="" width="700" height="433"></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> nnet::multinom(formula = wheeze_phenotype ~ no2 + sex + maternal_smoking, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     data = foresty_cohort, trace = FALSE)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Model:      multinom, nnet</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Measure:    Odds ratio for wheeze_phenotype</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 4,000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Coefficients:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                 Estimate Std. Error z value Pr(&gt;|z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Transient:(Intercept)          -0.972611   0.131120  -7.418 1.19e-13</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Transient:no2                   0.025137   0.006426   3.912 9.15e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Transient:sexMale               0.227565   0.072119   3.155  0.00160</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Transient:maternal_smokingYes   0.036794   0.095343   0.386  0.69956</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Persistent:(Intercept)         -2.456297   0.166546 -14.748  &lt; 2e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Persistent:no2                  0.063286   0.007736   8.181 2.82e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Persistent:sexMale              0.538588   0.086947   6.194 5.85e-10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Persistent:maternal_smokingYes  0.329175   0.107258   3.069  0.00215</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Odds ratio for wheeze_phenotype (95% CI):</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Variable                   Level   OR    95% CI      p     N Events</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  no2 (per 10)       None vs Transient 0.78 0.69-0.88 &lt;0.001 4,000  1,925</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  no2 (per 10) Persistent vs Transient 1.46 1.25-1.72 &lt;0.001 4,000    776</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
