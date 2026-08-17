@@ -14,11 +14,21 @@ It also makes **publication-ready** forest plots easy to produce, with a
 Shiny app for exploring the results interactively and an **HTML report**
 that documents the model behind them.
 
-![](reference/figures/demo.png)
+![Forest plot produced by foresty, showing subgroup-specific odds ratios
+with confidence intervals alongside interaction
+p-values.](reference/figures/demo.png)
+
+Forest plot produced by foresty, showing subgroup-specific odds ratios
+with confidence intervals alongside interaction p-values.
 
 ## Try it first
 
-![](reference/figures/ui.png)
+![Screenshot of the foresty Shiny app, with the subgroup settings panel
+on the left and the resulting forest plot on the
+right.](reference/figures/ui.png)
+
+Screenshot of the foresty Shiny app, with the subgroup settings panel on
+the left and the resulting forest plot on the right.
 
 Installation:
 
@@ -177,7 +187,10 @@ foresty_data(
 )
 ```
 
-![](reference/figures/README-unnamed-chunk-3-1.png)
+![Forest plot built from a prepared data frame, showing odds ratios for
+the overall population and for subgroups defined by sex and maternal
+age, with interaction
+p-values.](reference/figures/README-foresty-data-example-1.png)
 
 ## Acknowledgements
 

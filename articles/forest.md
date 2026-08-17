@@ -1,4 +1,4 @@
-# foresty
+# Getting started with foresty
 
 ``` r
 

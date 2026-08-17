@@ -41,7 +41,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/forest.html">foresty</a></li>
+<li><a class="dropdown-item" href="articles/forest.html">Getting started with foresty</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -69,11 +69,15 @@
 <p>Visualize interaction effects with publication-ready forest plots.</p>
 <p>An interaction p-value tells you whether the effect differs between subgroups, but not <strong>which subgroup shows the effect, in which direction, or by how much</strong>. <code>foresty</code> puts the interaction test and the subgroup estimates side by side, making interaction effects easier to interpret and report.</p>
 <p>It also makes <strong>publication-ready</strong> forest plots easy to produce, with a Shiny app for exploring the results interactively and an <strong>HTML report</strong> that documents the model behind them.</p>
-<p><img src="reference/figures/demo.png"></p>
+<div class="float">
+<img src="reference/figures/demo.png" alt="Forest plot produced by foresty, showing subgroup-specific odds ratios with confidence intervals alongside interaction p-values."><div class="figcaption">Forest plot produced by foresty, showing subgroup-specific odds ratios with confidence intervals alongside interaction p-values.</div>
+</div>
 <div class="section level2">
 <h2 id="try-it-first">Try it first<a class="anchor" aria-label="anchor" href="#try-it-first"></a>
 </h2>
-<p><img src="reference/figures/ui.png"></p>
+<div class="float">
+<img src="reference/figures/ui.png" alt="Screenshot of the foresty Shiny app, with the subgroup settings panel on the left and the resulting forest plot on the right."><div class="figcaption">Screenshot of the foresty Shiny app, with the subgroup settings panel on the left and the resulting forest plot on the right.</div>
+</div>
 <p>Installation:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
@@ -228,7 +232,7 @@
 <span>  interaction_p <span class="op">=</span> <span class="st">"p_int"</span>,</span>
 <span>  measure <span class="op">=</span> <span class="st">"OR"</span>, outcome <span class="op">=</span> <span class="st">"asthma"</span>, adjusted <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-3-1.png" style="width:100.0%"></p>
+<p><img src="reference/figures/README-foresty-data-example-1.png" style="width:100.0%" alt="Forest plot built from a prepared data frame, showing odds ratios for the overall population and for subgroups defined by sex and maternal age, with interaction p-values."></p>
 </div>
 <div class="section level2">
 <h2 id="acknowledgements">Acknowledgements<a class="anchor" aria-label="anchor" href="#acknowledgements"></a>
