@@ -61,9 +61,12 @@ The path written to, invisibly.
 
 A figure drawn from several models –
 [`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)
-over a list of them – carries each of them on the page, in a section of
-its own headed with the exposure it was fitted for. `model` cuts that
-down to one.
+over a list of them – describes each of them on the page and gives each
+its own coefficient table, headed with the exposure it was fitted for.
+`model` cuts those sections down to one. The rest of the page is the
+figure itself – the estimates, the test and the plot – and is the whole
+of it whichever model is named, a figure being one figure however many
+models went into it.
 
 ## Examples
 

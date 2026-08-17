@@ -58,10 +58,12 @@ up, and are here so that the examples run without a real cohort.</p>
 
 <dt>asthma_severity</dt>
 <dd><p>Asthma severity by school age, an ordered factor:
-<code>None</code> &lt; <code>Mild</code> &lt; <code>Moderate</code> &lt; <code>Severe</code>.</p></dd>
+<code>None</code> &lt; <code>Mild</code> &lt; <code>Moderate</code> &lt; <code>Severe</code>. Drawn on its own rather than
+from <code>asthma</code>.</p></dd>
 
 <dt>wheeze</dt>
-<dd><p>First wheeze episode observed before censoring, 1 or 0.</p></dd>
+<dd><p>The event indicator for <code>followup_years</code>: 1 where a first
+wheeze episode was seen, 0 where the child was censored without one.</p></dd>
 
 <dt>wheeze_phenotype</dt>
 <dd><p>Wheeze phenotype, an unordered factor: <code>None</code>,
@@ -117,6 +119,12 @@ was drawn from a latent logistic variable cut at three fixed thresholds, so
 it is a proportional odds model by construction; the nominal one was drawn
 from two multinomial logits whose exposure effects differ, so its levels
 cannot be collapsed into an ordering.</p>
+<p>The four are four separate draws, sharing the covariates and the same
+exposure effect rather than describing one event four ways: each is there
+to be the outcome of a model, and a child may be an asthma case in one of
+them and not in another. So <code>asthma</code> is not the <code>asthma_severity</code> of the
+same child collapsed to two levels, and cross-tabulating one outcome
+against another says nothing about anything. Fit them one at a time.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

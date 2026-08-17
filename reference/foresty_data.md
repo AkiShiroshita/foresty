@@ -110,7 +110,9 @@ foresty_data(
 
   Whether the estimates are ratios, drawn about 1 on a scale where the
   null is 1, rather than differences drawn about 0. `NULL`, the default,
-  takes it from `measure`.
+  takes it from `measure`, which can only be done for a measure named by
+  one of the codes above; a measure described in words of your own has
+  to say, and it is an error not to.
 
 - adjusted:
 
@@ -170,10 +172,10 @@ the estimate and its interval, and the figure is the same figure.
 
 ## The data
 
-A `data.frame`, a `tibble` or a `data.table` – anything
-[`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html) makes a
-data frame of. One row is one row of the figure, drawn in the order the
-rows are in, so sort the data the way the figure should read.
+A `data.frame`, a `tibble`, a `data.table` or a matrix, all of which are
+read as the plain data frame the columns are taken from. One row is one
+row of the figure, drawn in the order the rows are in, so sort the data
+the way the figure should read.
 
 The estimate and the two ends of its interval are the only columns the
 figure cannot be drawn without. They are looked for by name when they

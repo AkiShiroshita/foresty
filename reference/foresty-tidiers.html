@@ -61,7 +61,7 @@ one row describing the fit.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'foresty'</span></span>
-<span><span class="fu">glance</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">glance</span><span class="op">(</span><span class="va">x</span>, model <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'foresty'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">x</span>, row.names <span class="op">=</span> <span class="cn">NULL</span>, optional <span class="op">=</span> <span class="cn">FALSE</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
@@ -88,7 +88,11 @@ instead, on the scale it was fitted on.</p></dd>
 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>Which model to take the coefficients from, when the figure
-covers several.</p></dd>
+covers several. <code>glance()</code> takes the counts of that model too; without it
+a figure of several models is glanced at as a figure – its measure, its
+confidence level, its test and how many models it holds – and the columns
+describing what one model was fitted to are <code>NA</code>, no one of them being the
+figure's.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -137,8 +141,8 @@ them, and call them as <code>broom::tidy(x)</code> or after <code><a href="https
 <span class="r-in"><span>  <span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   measure    n events person_time conf.ci_level robust n_models</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1      OR 4000    802          NA          0.95  FALSE        1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   measure    n events person_time conf.level robust n_models</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1      OR 4000    802          NA       0.95  FALSE        1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   interaction.statistic interaction.df interaction.p.value</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1              10.69117              1         0.001076479</span>
 <span class="r-in"><span></span></span>

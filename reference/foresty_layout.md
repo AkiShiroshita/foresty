@@ -1,7 +1,7 @@
 # Layout and style of a foresty figure
 
 Every drawing decision the figure makes is held in one object: the
-colours, the marks, the rules between the rows, how the numbers beside
+colors, the marks, the rules between the rows, how the numbers beside
 the plot are written, and where the columns sit. Pass the name of a
 style to
 [`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)
@@ -16,9 +16,9 @@ foresty_layout(
   style = c("classic", "jama", "nejm", "lancet", "bmj", "revman"),
   base_size = NULL,
   family = NULL,
-  colour = NULL,
-  colour_by = NULL,
-  colours = NULL,
+  color = NULL,
+  color_by = NULL,
+  colors = NULL,
   theme = NULL,
   palette = NULL,
   point_shape = NULL,
@@ -70,41 +70,44 @@ foresty_layout(
 - family:
 
   Font family, as `"serif"` or `"Times New Roman"`. `NULL` leaves the
-  device's default.
+  device's default. How wide each column of text is made is worked out
+  from a table of character widths rather than by asking the device, so
+  a family far from the default one may leave a column slightly wide or
+  slightly narrow; the columns still hold what is in them.
 
-- colour:
+- color:
 
-  One colour for the estimates and their intervals, which is the usual
-  thing to change. `palette` changes them apart, and `colour_by` draws
-  the rows in colours of their own instead.
-  [`foresty_colours()`](https://akishiroshita.github.io/foresty/reference/foresty_colours.md)
-  names a colour of a ColorBrewer palette without pasting a hex code, as
-  `colour = foresty_colours("Dark2")[3]`.
+  One color for the estimates and their intervals, which is the usual
+  thing to change. `palette` changes them apart, and `color_by` draws
+  the rows in colors of their own instead.
+  [`foresty_colors()`](https://akishiroshita.github.io/foresty/reference/foresty_colors.md)
+  names a color of a ColorBrewer palette without pasting a hex code, as
+  `color = foresty_colors("Dark2")[3]`.
 
-- colour_by:
+- color_by:
 
-  What the colours change with, for a figure drawn in more than one.
-  `"none"`, the default, draws the whole figure in `colour`.
-  `"category"` gives every category of the rows a colour of its own: the
-  levels of a categorical exposure – "Yes" and "No" – where the rows are
-  levels, and the subgroups of the modifier where they are subgroups,
-  which is what an interaction figure draws. A category keeps its colour
-  wherever it appears, so a combined figure reads across its blocks.
-  `"row"` gives every row a colour, whatever it is of. The reference
-  level of a categorical exposure is drawn hollow either way, being a
-  definition rather than an estimate. No legend is drawn: every row is
-  labelled already, and a legend repeating the labels is a second copy
-  of them to keep in step.
+  What the colors change with, for a figure drawn in more than one.
+  `"none"`, the default, draws the whole figure in `color`. `"category"`
+  gives every category of the rows a color of its own: the levels of a
+  categorical exposure – "Yes" and "No" – where the rows are levels, and
+  the subgroups of the modifier where they are subgroups, which is what
+  an interaction figure draws. A category keeps its color wherever it
+  appears, so a combined figure reads across its blocks. `"row"` gives
+  every row a color, whatever it is of. The reference level of a
+  categorical exposure is drawn hollow either way, being a definition
+  rather than an estimate. No legend is drawn: every row is labelled
+  already, and a legend repeating the labels is a second copy of them to
+  keep in step.
 
-- colours:
+- colors:
 
-  The colours `colour_by` draws the categories in, in order, and cycled
-  where there are more categories than colours. The name of a
-  ColorBrewer palette – `"Dark2"`, the default, `"Set1"` or `"Set2"` –
-  or the colours themselves, as `c("#1B9E77", "#D95F02")`.
-  [`foresty_colours()`](https://akishiroshita.github.io/foresty/reference/foresty_colours.md)
+  The colors `color_by` draws the categories in, in order, and cycled
+  where there are more categories than colors. The name of a ColorBrewer
+  palette – `"Dark2"`, the default, `"Set1"` or `"Set2"` – or the colors
+  themselves, as `c("#1B9E77", "#D95F02")`.
+  [`foresty_colors()`](https://akishiroshita.github.io/foresty/reference/foresty_colors.md)
   builds one starting from a chosen place in a palette, as
-  `colours = foresty_colours("Dark2", start = 3)`.
+  `colors = foresty_colors("Dark2", start = 3)`.
 
 - theme:
 
@@ -112,17 +115,18 @@ foresty_layout(
   default, which is the plain panel a forest plot is usually drawn as,
   or the name of one of `ggplot2`'s own – `"minimal"`, `"bw"`,
   `"classic"`, `"light"`, `"linedraw"`, `"grey"` or `"dark"` – for its
-  background, its border and its grid. A theme object or a theme
-  function is also accepted. It is the plot's theme, not the figure's:
-  the columns of numbers beside it are a table rather than a plot and
-  keep their own. Everything the layout sets – the sizes, the colours of
-  the text, whether the axis line and the grid are drawn – is applied
-  over it, so `grid = TRUE` and `theme = "bw"` are not two answers to
-  the same question.
+  background, its border and its grid. A theme object is also accepted,
+  as is a theme function, which is called with `base_size` and
+  `base_family` and so has to take them, as `ggplot2`'s own do. It is
+  the plot's theme, not the figure's: the columns of numbers beside it
+  are a table rather than a plot and keep their own. Everything the
+  layout sets – the sizes, the colors of the text, whether the axis line
+  and the grid are drawn – is applied over it, so `grid = TRUE` and
+  `theme = "bw"` are not two answers to the same question.
 
 - palette:
 
-  Named character vector overriding single colours, as
+  Named character vector overriding single colors, as
   `c(estimate = "#B24745", null = "grey60")`. The names are `estimate`,
   `border` (the outline of the marks), `reference` (the fill of the
   reference level's hollow mark), `interval`, `null`, `rule`, `band`,
@@ -370,7 +374,7 @@ foresty_interaction(fit, "no2", "sex", table = TRUE, layout = "jama")
 # A style, changed where it needs to be.
 foresty_interaction(
   fit, "no2", "sex", table = TRUE,
-  layout = foresty_layout("jama", colour = "#B24745", base_size = 11)
+  layout = foresty_layout("jama", color = "#B24745", base_size = 11)
 )
 
 

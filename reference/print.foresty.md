@@ -10,6 +10,10 @@ plot a centimetre and the numbers under its axis printed one on top of
 another. The floor is applied here, where the width being drawn at is
 known: see the `min_plot_width` argument of
 [`foresty_layout()`](https://akishiroshita.github.io/foresty/reference/foresty_layout.md).
+Where it has to act, the columns of text stop being as wide as what they
+hold and share what the plot leaves in proportion to it, which is where
+the room for the axis comes from; a figure with room for its columns
+already is drawn exactly as it was built.
 
 ## Usage
 

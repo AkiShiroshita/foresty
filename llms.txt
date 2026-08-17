@@ -212,8 +212,8 @@ GPL-3.
 
 - [`foresty_layout()`](https://akishiroshita.github.io/foresty/reference/foresty_layout.md)
   : Layout and style of a foresty figure
-- [`foresty_colours()`](https://akishiroshita.github.io/foresty/reference/foresty_colours.md)
-  : The qualitative palettes a figure can be coloured from
+- [`foresty_colors()`](https://akishiroshita.github.io/foresty/reference/foresty_colors.md)
+  : The qualitative palettes a figure can be colored from
 
 ## Reporting
 

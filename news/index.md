@@ -8,7 +8,14 @@ First release.
 
 - [`foresty_app()`](https://akishiroshita.github.io/foresty/reference/foresty_app.md)
   provides a Shiny interface for interactively selecting exposures,
-  modifiers, contrasts, colours, and plot layouts.
+  modifiers, contrasts, colors, and plot layouts. Its R code tab writes
+  the code twice over: the `foresty` calls that drew the figures, and
+  the same estimates worked out in base R and the `car` package with
+  nothing from this package in them – the interaction term, the linear
+  combination of the coefficients each subgroup estimate is, and the
+  joint test beside it. For a multinomial fit that linear combination is
+  a difference of blocks of coefficients, one block per equation, and
+  the script writes that out too.
 - [`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md)
   draws the same figure – the forest plot and the table of numbers
   beside it, aligned row for row, in any of the journal styles – from

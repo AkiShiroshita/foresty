@@ -162,9 +162,9 @@ of a data set, and a column is called what the data set calls it.
 **Figure style** renames the outcome – which is otherwise taken from the
 left of your formula, `asthma_ever_dx` and all – replaces the label
 under the plot outright, and names each selected exposure. A model
-carrying person-time is also asked what unit to count it in, 1,000 or
-100,000 being how a paper reports a rate and six figures beside the plot
-being width the plot could have had.
+carrying person-time is also asked what unit to count it in – any
+number, 1,000 and 100,000 being how a paper usually reports a rate and
+six figures beside the plot being width the plot could have had.
 
 ## A model too slow to redraw
 
@@ -180,17 +180,17 @@ writing the call they come to, which is what to paste into the script
 and run once. The other tabs report on models the app fitted and say so
 instead.
 
-## Colours and the panel
+## Colors and the panel
 
-A figure is drawn in one colour, which is asked for per exposure and can
-be named as a place in a ColorBrewer palette – the third colour of Dark2
-– or typed as a hex code, which is how a figure is drawn in the colour a
-journal or a slide deck already uses. **What the colours change with**
-draws it in more than one instead: a colour per category of the rows,
+A figure is drawn in one color, which is asked for per exposure and can
+be named as a place in a ColorBrewer palette – the third color of Dark2
+– or typed as a hex code, which is how a figure is drawn in the color a
+journal or a slide deck already uses. **What the colors change with**
+draws it in more than one instead: a color per category of the rows,
 which is the levels of a categorical exposure or the subgroups of the
-modifier, or a colour per row. Those come from a palette, or from hex
+modifier, or a color per row. Those come from a palette, or from hex
 codes typed beside it – `#1B9E77, #D95F02` – which is the same list
-`colours` takes. See `colour_by` in
+`colors` takes. See `color_by` in
 [`foresty_layout()`](https://akishiroshita.github.io/foresty/reference/foresty_layout.md).
 
 ## The tabs
@@ -223,6 +223,11 @@ being done on their behalf than take it on trust. It comes to the
 estimates on the Plot tab exactly – the same design matrix, the same
 coefficients and covariance, the same degrees of freedom and the same
 test – and draws nothing: drawing them is what the call above it is for.
+A multinomial fit is written out too: it holds one equation for each
+level of the outcome other than the one it was fitted against, so an
+estimate is a difference of blocks of coefficients rather than a
+difference of two rows of the design, and the script does that placing
+where it does the rest of the arithmetic.
 
 ## What comes out
 

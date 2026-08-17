@@ -18,7 +18,7 @@ tidy(
 )
 
 # S3 method for class 'foresty'
-glance(x, ...)
+glance(x, model = NULL, ...)
 
 # S3 method for class 'foresty'
 as.data.frame(x, row.names = NULL, optional = FALSE, ...)
@@ -44,7 +44,11 @@ as.data.frame(x, row.names = NULL, optional = FALSE, ...)
 - model:
 
   Which model to take the coefficients from, when the figure covers
-  several.
+  several. `glance()` takes the counts of that model too; without it a
+  figure of several models is glanced at as a figure – its measure, its
+  confidence level, its test and how many models it holds – and the
+  columns describing what one model was fitted to are `NA`, no one of
+  them being the figure's.
 
 - ...:
 
@@ -95,8 +99,8 @@ if (requireNamespace("broom", quietly = TRUE)) {
   broom::tidy(x)
   broom::glance(x)
 }
-#>   measure    n events person_time conf.ci_level robust n_models
-#> 1      OR 4000    802          NA          0.95  FALSE        1
+#>   measure    n events person_time conf.level robust n_models
+#> 1      OR 4000    802          NA       0.95  FALSE        1
 #>   interaction.statistic interaction.df interaction.p.value
 #> 1              10.69117              1         0.001076479
 ```

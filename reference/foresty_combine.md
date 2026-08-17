@@ -39,10 +39,11 @@ foresty_combine(
 - emphasize:
 
   Which blocks are drawn as the figure's summary rather than as another
-  subgroup: `"auto"`, the default, takes the overall estimates, a
-  character vector names blocks by the names they are drawn under, and
-  `NULL` draws every block alike. See *Singling out the overall
-  estimate*.
+  subgroup: `"auto"`, the default, takes the overall estimates that are
+  a single row; `TRUE` takes every overall estimate, a block of several
+  rows included; a character vector names blocks by the names they are
+  drawn under; and `NULL` or `FALSE` draws every block alike. See
+  *Singling out the overall estimate*.
 
 - outcome:
 
