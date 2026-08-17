@@ -52,9 +52,59 @@ censor <- stats::runif(n, 0.5, 6)
 followup_years <- round(pmax(pmin(time_to_event, censor), 0.01), 3)
 wheeze <- as.integer(time_to_event <= censor)
 
+# Asthma severity, for an ordinal outcome. It is drawn from a latent logistic
+# variable cut at three fixed thresholds, which is the proportional odds model
+# the data are meant to be fitted by: one exposure effect shared by all three
+# cutpoints, doubled again in boys, so MASS::polr() has the same interaction to
+# find that the binary outcome has.
+severity_lp <- 0.045 * (no2 - 18) +
+  0.050 * (no2 - 18) * (sex == "Male") +
+  0.30 * (sex == "Male") +
+  0.40 * (maternal_smoking == "Yes") +
+  0.85 * (maternal_asthma == "Yes") +
+  0.012 * (maternal_age - 29)
+severity_latent <- severity_lp + stats::rlogis(n)
+asthma_severity <- cut(
+  severity_latent,
+  breaks = c(-Inf, 0.3, 1.6, 2.6, Inf),
+  labels = c("None", "Mild", "Moderate", "Severe")
+)
+asthma_severity <- factor(asthma_severity,
+                          levels = c("None", "Mild", "Moderate", "Severe"),
+                          ordered = TRUE)
+
+# A wheeze phenotype, for a nominal outcome with three unordered levels. The
+# two non-reference levels are drawn from their own multinomial logits, and the
+# NO2 effect differs between them -- small for the transient phenotype and
+# raised in boys for the persistent one -- so the levels cannot be collapsed
+# and nnet::multinom() has something an ordinal model would miss.
+phenotype_transient <- -0.60 +
+  0.030 * (no2 - 18) +
+  0.010 * (no2 - 18) * (sex == "Male") +
+  0.15 * (sex == "Male") +
+  0.30 * (maternal_smoking == "Yes") +
+  0.55 * (maternal_asthma == "Yes")
+phenotype_persistent <- -1.40 +
+  0.040 * (no2 - 18) +
+  0.060 * (no2 - 18) * (sex == "Male") +
+  0.35 * (sex == "Male") +
+  0.45 * (maternal_smoking == "Yes") +
+  0.95 * (maternal_asthma == "Yes")
+phenotype_odds <- cbind(1, exp(phenotype_transient), exp(phenotype_persistent))
+phenotype_probs <- phenotype_odds / rowSums(phenotype_odds)
+phenotype_draw <- apply(phenotype_probs, 1L, function(p) {
+  sample.int(3L, size = 1L, prob = p)
+})
+wheeze_phenotype <- factor(
+  c("None", "Transient", "Persistent")[phenotype_draw],
+  levels = c("None", "Transient", "Persistent")
+)
+
 foresty_cohort <- data.frame(
   asthma = asthma,
+  asthma_severity = asthma_severity,
   wheeze = wheeze,
+  wheeze_phenotype = wheeze_phenotype,
   followup_years = followup_years,
   no2 = no2,
   black_carbon = black_carbon,

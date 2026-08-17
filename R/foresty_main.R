@@ -89,6 +89,27 @@
 #'   is named: the axis under the plot, the title the package writes for itself,
 #'   and the HTML report. `NA` names none, leaving "Adjusted odds ratio" on its
 #'   own for a figure whose caption says what of.
+#' @param outcome_reference For a multinomial logistic regression, the level of
+#'   the outcome every estimate is read against, as
+#'   `outcome_reference = "None"`. `NULL`, the default, is the level the model
+#'   itself was referred to, which is the first level of the outcome factor.
+#'   Naming another does not refit anything: the odds ratio of one level
+#'   against another is the difference between their two equations, and the
+#'   covariance of the pair is already in the model. Every other level is then
+#'   drawn against it, one row apiece, each row saying which two levels it
+#'   compares. It says nothing about a model of one equation, whose reference
+#'   is fixed by how the outcome is coded, and is refused there rather than
+#'   ignored.
+#' @param outcome_reference_row Whether that level is drawn as a row of its
+#'   own. `FALSE`, the default, draws only the levels compared with it, each
+#'   row saying which two levels it compares. `TRUE` adds a row for the
+#'   reference level itself, the way the reference level of a categorical
+#'   exposure is drawn: it carries no estimate, being the definition the other
+#'   rows are differences from, so it is `1` on the ratio scale and `0` on the
+#'   scale the model was fitted on, with no interval, no test and no p-value.
+#'   It is one row whatever the exposure is, since it is the same definition at
+#'   every value of it, and the counts beside it are of the people in that
+#'   level. It says nothing about a model of one equation.
 #' @param xlab The label under the plot, which by default names the measure and
 #'   the outcome, as `"Adjusted odds ratio for asthma"`. A string is drawn as it
 #'   was given -- `xlab = "Odds ratio (95% CI), NO2 per 10 ug/m3"` -- and `NA`
@@ -229,6 +250,27 @@
 #' # Person-time reported per 1,000 rather than as the total.
 #' foresty_main(list(fit_rate), exposure = "no2", person_time = 1000)
 #'
+#' # A multinomial logistic regression has one equation per non-reference level
+#' # of the outcome, so the exposure has one effect per level and the figure
+#' # has one row per level. `outcome_reference` says which level they are all
+#' # read against.
+#' if (requireNamespace("nnet", quietly = TRUE)) {
+#'   fit_phenotype <- nnet::multinom(
+#'     wheeze_phenotype ~ no2 + sex + maternal_smoking,
+#'     data = foresty_cohort, trace = FALSE
+#'   )
+#'   # Against "None", which is the level the model itself was fitted against,
+#'   # and drawn as a row of its own so that the figure says so.
+#'   print(foresty_main(list(fit_phenotype), exposure = "no2", contrast = 10,
+#'                      outcome_reference_row = TRUE))
+#'
+#'   # The same estimates read against another level instead.
+#'   against_transient <- foresty_main(list(fit_phenotype), exposure = "no2",
+#'                                     contrast = 10,
+#'                                     outcome_reference = "Transient")
+#'   summary(against_transient)
+#' }
+#'
 #' @export
 foresty_main <- function(fits,
                          exposure,
@@ -236,6 +278,8 @@ foresty_main <- function(fits,
                          exponentiate = TRUE,
                          labels = NULL,
                          outcome = NULL,
+                         outcome_reference = NULL,
+                         outcome_reference_row = FALSE,
                          ci_level = 0.95,
                          contrast = NULL,
                          at = NULL,
@@ -277,7 +321,11 @@ foresty_main <- function(fits,
   pieces <- Map(function(info, e) {
     fy_guard_no_interaction(info, e)
     values <- fy_exposure_values(info, e, contrast = contrast, at = at)
-    fy_exposure_estimates(info, e, values, ci_level = ci_level)
+    fy_exposure_estimates(
+      info, e, values, ci_level = ci_level,
+      comparisons = fy_outcome_comparisons(info, outcome_reference,
+                                           outcome_reference_row)
+    )
   }, infos, exposure)
 
   estimates <- do.call(rbind, pieces)
@@ -293,13 +341,32 @@ foresty_main <- function(fits,
 
   info <- infos[[1L]]
   adjusted <- all(mapply(fy_is_adjusted, infos, exposure))
+
+  # A multinomial fit reports one estimate per comparison between outcome
+  # levels. Where the exposure has no levels of its own, those comparisons are
+  # what the rows are and they take the column of labels. Where it has -- a
+  # categorical exposure, whose rows are already its levels -- the comparisons
+  # become the blocks instead, so that each is read down as the levels of the
+  # exposure within that one comparison.
+  by_outcome <- any(!is.na(estimates$outcome_label))
+  by_level <- any(!is.na(estimates$level))
+  if (by_outcome && !by_level) {
+    estimates <- fy_fold_outcome_into_level(estimates)
+  }
   estimates <- fy_finish_estimates(estimates, labels)
+  if (by_outcome && by_level) {
+    estimates$outcome_label <- fy_outcome_label_factor(estimates)
+  }
 
   # What the rows are of. The column carries the exposures, so it is headed
   # with the word, and the figure says which effect it is showing and that it
   # comes from a model with no interaction in it -- which is what separates it
   # from a foresty_interaction() figure of the same exposure.
-  label_header <- layout$headings$label %||% "Exposure"
+  # Where the rows are comparisons between outcome levels, the column beside
+  # the plot carries outcomes rather than exposures and is headed for what is
+  # in it.
+  label_header <- layout$headings$label %||%
+    if (by_outcome && !by_level) "Outcome" else "Exposure"
   title <- fy_resolve_title(
     title, layout,
     fy_main_title(info, adjusted, ci_level, estimates, length(fits))
@@ -315,7 +382,11 @@ foresty_main <- function(fits,
     columns = columns,
     # A categorical exposure names its levels on the rows, so the variable it
     # belongs to is written once at the left instead of on every row.
-    group = if (any(!is.na(estimates$level))) "variable_label" else NULL,
+    group = if (by_outcome && by_level) {
+      "outcome_label"
+    } else if (any(!is.na(estimates$level))) {
+      "variable_label"
+    },
     title = title,
     subtitle = subtitle,
     layout = layout,

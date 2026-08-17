@@ -170,6 +170,18 @@
 #' foresty_interaction(fit, exposure = "no2", interaction = "sex",
 #'                     layout = "jama")
 #'
+#' # A multinomial outcome. Each subgroup carries one row per comparison
+#' # between outcome levels, and the interaction is tested jointly across the
+#' # equations, so it has one degree of freedom for each of them.
+#' if (requireNamespace("nnet", quietly = TRUE)) {
+#'   fit_phenotype <- nnet::multinom(
+#'     wheeze_phenotype ~ no2 + sex + maternal_smoking,
+#'     data = foresty_cohort, trace = FALSE
+#'   )
+#'   print(foresty_interaction(fit_phenotype, exposure = "no2",
+#'                             interaction = "sex", contrast = 10))
+#' }
+#'
 #' @export
 foresty_interaction <- function(fit,
                                 exposure,
@@ -180,6 +192,8 @@ foresty_interaction <- function(fit,
                                 level_labels = NULL,
                                 reference = NULL,
                                 outcome = NULL,
+                                outcome_reference = NULL,
+                                outcome_reference_row = FALSE,
                                 ci_level = 0.95,
                                 contrast = NULL,
                                 at = NULL,
@@ -241,12 +255,16 @@ foresty_interaction <- function(fit,
                                       modifier_levels, contrast = contrast,
                                       at = at)
   values <- fy_exposure_values(info, exposure, contrast = contrast, at = at)
+  # A multinomial fit has one effect per comparison between outcome levels, so
+  # every subgroup carries that whole set of comparisons rather than one row.
+  comparisons <- fy_outcome_comparisons(info, outcome_reference,
+                                        outcome_reference_row)
 
   estimates <- do.call(rbind, lapply(modifier_levels, function(lv) {
     out <- fy_exposure_estimates(
       info, exposure, fy_mark_reference(values, reference_cell, lv),
       ci_level = ci_level, modifier = interaction, modifier_level = lv,
-      reference_cell = reference_cell
+      reference_cell = reference_cell, comparisons = comparisons
     )
     out$modifier_level <- lv
     out
@@ -265,6 +283,10 @@ foresty_interaction <- function(fit,
     estimates$interaction_p_lrt <- tests$lrt$p.value
   }
   estimates$modifier <- interaction
+  # The blocks of this figure are the subgroups of the modifier, so a
+  # multinomial fit names its comparisons between outcome levels on the rows
+  # inside each block rather than taking blocks of its own.
+  estimates <- fy_fold_outcome_into_level(estimates)
   estimates <- fy_finish_estimates(estimates, labels)
   estimates$modifier_label <- factor(
     fy_apply_labels(estimates$modifier_level, level_labels),

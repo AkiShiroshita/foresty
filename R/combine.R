@@ -351,6 +351,16 @@ print.foresty_figures <- function(x, ...) {
 # "auto" is the overall estimate, which is the block that came from
 # foresty_main() and has no modifier behind it. A figure that is nothing but
 # overall estimates has none to single out, every row being one.
+#
+# It is also only the block holding a single row. Emphasis says "this one row
+# is what the rows below it are being read against", which is what an overall
+# estimate is; a block of several rows -- the levels of a categorical exposure,
+# or the comparisons between the levels of a multinomial outcome -- is not one
+# summary but several estimates that happen to be unstratified, and drawing
+# every one of them in bold with a diamond says the wrong thing about all of
+# them. Such a block is still named and still sits above the subgroups; it is
+# only not dressed as their summary. `emphasize = TRUE` or naming the block
+# asks for it anyway.
 fy_emphasized_blocks <- function(emphasize, results, blocks) {
   if (is.null(emphasize) || isFALSE(emphasize)) {
     return(character(0))
@@ -360,7 +370,8 @@ fy_emphasized_blocks <- function(emphasize, results, blocks) {
     if (all(overall)) {
       return(character(0))
     }
-    return(blocks[overall])
+    single <- vapply(results, function(r) nrow(r$estimates) == 1L, logical(1))
+    return(blocks[overall & single])
   }
   if (isTRUE(emphasize)) {
     return(blocks[overall])

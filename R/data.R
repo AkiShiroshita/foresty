@@ -10,10 +10,23 @@
 #' therefore show what a real interaction and an absent one look like when the
 #' subgroup estimates are drawn beside the joint test.
 #'
-#' @format A data frame with 4,000 rows and 11 columns:
+#' The outcome comes in four shapes, so that the same interaction can be
+#' followed through the model classes that carry it: binary (`asthma`),
+#' time to event (`wheeze` with `followup_years`), ordinal
+#' (`asthma_severity`) and nominal (`wheeze_phenotype`). The ordinal outcome
+#' was drawn from a latent logistic variable cut at three fixed thresholds, so
+#' it is a proportional odds model by construction; the nominal one was drawn
+#' from two multinomial logits whose exposure effects differ, so its levels
+#' cannot be collapsed into an ordering.
+#'
+#' @format A data frame with 4,000 rows and 13 columns:
 #' \describe{
 #'   \item{asthma}{Asthma by school age, 1 or 0.}
+#'   \item{asthma_severity}{Asthma severity by school age, an ordered factor:
+#'     `None` < `Mild` < `Moderate` < `Severe`.}
 #'   \item{wheeze}{First wheeze episode observed before censoring, 1 or 0.}
+#'   \item{wheeze_phenotype}{Wheeze phenotype, an unordered factor: `None`,
+#'     `Transient` or `Persistent`.}
 #'   \item{followup_years}{Years to the wheeze episode or to censoring.}
 #'   \item{no2}{Nitrogen dioxide during infancy, in parts per billion.}
 #'   \item{black_carbon}{Black carbon during infancy, in micrograms per cubic

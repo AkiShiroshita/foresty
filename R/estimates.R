@@ -6,24 +6,36 @@
 
 fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
                                   modifier = NULL, modifier_level = NULL,
-                                  reference_cell = NULL) {
+                                  reference_cell = NULL, comparisons = NULL) {
   L <- fy_contrast_matrix(info, exposure, values, modifier = modifier,
                           modifier_level = modifier_level,
-                          reference_cell = reference_cell)
+                          reference_cell = reference_cell,
+                          comparisons = comparisons)
   estimated <- if (is.null(L)) NULL else fy_lincom(info, L, ci_level = ci_level)
 
   null_value <- if (info$exponentiate) 1 else 0
   position <- 0L
 
-  rows <- lapply(values, function(v) {
-    counts <- fy_counts(info, fy_estimate_rows(
-      info, exposure, v, modifier = modifier, modifier_level = modifier_level
-    ))
+  # A fit of one equation has one comparison to make, which is the exposure
+  # against itself elsewhere; a multinomial fit repeats that comparison within
+  # each comparison of the outcome, and the rows are taken in the same order
+  # the contrast matrix put them in.
+  one <- function(v, cmp) {
+    counts <- fy_counts(
+      info,
+      fy_estimate_rows(info, exposure, v, modifier = modifier,
+                       modifier_level = modifier_level),
+      outcome_level = cmp$level
+    )
 
-    if (isTRUE(v$reference)) {
-      # The reference level of a categorical exposure is drawn so that the
-      # other levels can be read, but it is a definition rather than an
-      # estimate and carries no interval.
+    # The reference level of a categorical exposure, and the level of the
+    # outcome a multinomial figure reads its rows against, are both drawn so
+    # that the rows around them can be read. Neither is an estimate: each is
+    # the definition the others are differences from, so it is the null value
+    # of the scale -- 1 for a ratio, 0 for the scale the model was fitted on --
+    # and carries no interval, no statistic and no p-value.
+    is_definition <- isTRUE(v$reference) || isTRUE(cmp$is_reference)
+    if (is_definition) {
       out <- data.frame(
         estimate = null_value, se = NA_real_,
         conf.low = NA_real_, conf.high = NA_real_,
@@ -38,23 +50,65 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
 
     data.frame(
       variable = exposure,
-      level = v$level,
+      # The reference level of the outcome is one row whatever the exposure
+      # is: it is the same definition at every value of it, and three rows all
+      # reading 1.00 say nothing three times.
+      level = if (isTRUE(cmp$is_reference)) NA_character_ else v$level,
       # What the comparison was, where it is not the plain one unit: "per 10",
       # or "10 -> 20" from `at`. Carried on the estimates so that the figure
       # can say it and so that it survives into tidy().
       contrast_label = v$contrast_label %||% NA_character_,
-      reference = isTRUE(v$reference),
+      reference = is_definition,
       out,
       n = counts$n,
       events = counts$events,
       person_time = counts$person_time,
+      # Which two levels of the outcome the row compares, and how a figure
+      # says it. All three are NA for a fit of one equation, whose rows are of
+      # the outcome as a whole.
+      outcome_level = cmp$level %||% NA_character_,
+      outcome_reference = cmp$reference %||% NA_character_,
+      outcome_label = cmp$label %||% NA_character_,
       stringsAsFactors = FALSE
     )
-  })
+  }
+
+  rows <- if (is.null(comparisons)) {
+    lapply(values, one, cmp = NULL)
+  } else {
+    unlist(
+      lapply(comparisons, function(cmp) {
+        drawn <- if (isTRUE(cmp$is_reference)) values[1L] else values
+        lapply(drawn, one, cmp = cmp)
+      }),
+      recursive = FALSE
+    )
+  }
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
   out
+}
+
+# The comparison between outcome levels written into the column of levels, for
+# a figure whose blocks are already spoken for -- one per subgroup of the
+# modifier -- and which therefore has to name the outcome comparison on the
+# rows. Where the exposure has levels of its own, the row carries both.
+fy_fold_outcome_into_level <- function(estimates) {
+  outcome <- as.character(estimates$outcome_label)
+  if (!any(!is.na(outcome))) {
+    return(estimates)
+  }
+  level <- as.character(estimates$level)
+  estimates$level <- ifelse(is.na(level), outcome, paste0(level, ", ", outcome))
+  estimates
+}
+
+# The outcome comparisons as a factor in the order they are drawn, so that the
+# blocks of a figure follow the order of the outcome's own levels.
+fy_outcome_label_factor <- function(estimates) {
+  outcome <- as.character(estimates$outcome_label)
+  factor(outcome, levels = unique(outcome[!is.na(outcome)]))
 }
 
 # The label each row is drawn against.

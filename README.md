@@ -87,12 +87,12 @@ it can be passed to `summary()`, `predict()`, `broom::tidy()`, and
 `foresty` works with fitted models that provide coefficients, a
 covariance matrix, and a model frame. Tested model classes include:
 
-| Package    | Models                                                  |
-|------------|---------------------------------------------------------|
-| base R     | `glm()`, `lm()`                                         |
-| `survival` | `coxph()`, `survreg()`                                  |
-| `lme4`     | `lmer()`, `glmer()`                                     |
-| other      | `MASS::polr()`, `nnet::multinom()`, `geepack::geeglm()` |
+| Package | Models |
+|----|----|
+| base R | `glm()`, `lm()` |
+| `survival` | `coxph()`, `survreg()` |
+| `lme4` | `lmer()`, `glmer()` |
+| other | `MASS::polr()` (logistic), `nnet::multinom()`, `geepack::geeglm()` |
 
 The effect measure is inferred from the model where possible, including
 odds ratios, hazard ratios, risk ratios, incidence rate ratios, and mean

@@ -140,6 +140,18 @@ fy_check_sandwich_supported <- function(fit, cluster) {
       call. = FALSE
     )
   }
+  # sandwich works from the estimating function of a fit, and has no method for
+  # a multinomial one. Left to itself it comes back as a failure to dispatch
+  # estfun(), which says nothing about what was asked for.
+  if (inherits(fit, "multinom")) {
+    stop(
+      "the sandwich package has no estimating function for a ",
+      "nnet::multinom() fit, so robust standard errors cannot be computed ",
+      "for one here. Pass a covariance matrix of your own as `vcov`, or a ",
+      "function that returns one.",
+      call. = FALSE
+    )
+  }
   invisible(TRUE)
 }
 
@@ -185,6 +197,83 @@ fy_cluster_vector <- function(fit, cluster, data) {
     )
   }
   cluster
+}
+
+# Fits holding more than one equation -----------------------------------------
+
+# A multinomial logistic regression is K - 1 logistic regressions sharing one
+# likelihood: one equation per non-reference level of the outcome, each
+# comparing that level with the level the fit took as its reference. So the
+# exposure has K - 1 effects rather than one, and a figure of it has K - 1 rows.
+#
+# Returns NULL for a fit holding one equation, which is every other class and
+# also a multinom() of a two-level outcome -- that one is an ordinary logistic
+# regression fitted by a different algorithm, and coef() gives it back as a
+# plain named vector rather than as a matrix.
+#
+# `blocks` gives, for each non-reference level, where that equation's
+# coefficients sit in the flattened coefficient vector, in the order of `base`.
+# The reference level has no block: it is the zero every other equation is
+# measured from, which is what makes a comparison between two non-reference
+# levels the difference of their two blocks.
+fy_equations <- function(fit, coef_names) {
+  if (!inherits(fit, "multinom")) {
+    return(NULL)
+  }
+  b <- try(stats::coef(fit), silent = TRUE)
+  if (inherits(b, "try-error") || !is.matrix(b)) {
+    return(NULL)
+  }
+  fitted_levels <- rownames(b)
+  observed <- fy_outcome_levels(fit)
+  reference <- setdiff(observed, fitted_levels)
+  if (length(observed) != length(fitted_levels) + 1L ||
+      length(reference) != 1L) {
+    stop(
+      "the outcome levels of this nnet::multinom() fit could not be matched to ",
+      "its equations: it has coefficients for ",
+      paste0("\"", fitted_levels, "\"", collapse = ", "),
+      " and an outcome taking ", length(observed), " level",
+      if (length(observed) == 1L) "" else "s",
+      ". Refit with the outcome as a factor of the levels you want compared.",
+      call. = FALSE
+    )
+  }
+
+  base <- colnames(b)
+  blocks <- lapply(fitted_levels, function(lv) {
+    match(paste(lv, base, sep = ":"), coef_names)
+  })
+  names(blocks) <- fitted_levels
+  list(
+    # In the order the outcome's levels are in, the reference included, since
+    # that is the order the rows of a figure are drawn in.
+    levels = observed,
+    reference = reference,
+    base = base,
+    blocks = blocks
+  )
+}
+
+# The levels the outcome of a fit takes, in their own order and dropping any
+# the data never showed, since a level nobody was in is not a comparison.
+fy_outcome_levels <- function(fit) {
+  y <- try(stats::model.response(fy_model_frame(fit)), silent = TRUE)
+  if (inherits(y, "try-error") || is.null(y) || is.matrix(y)) {
+    return(character(0))
+  }
+  levels(droplevels(as.factor(y)))
+}
+
+# The term map of a multi-equation fit: every term contributes the coefficient
+# it produced in each of the equations, so a joint test of a term tests it
+# across all of them, which is the test of "does this term do anything at all".
+fy_expand_term_map <- function(base_map, equations, coef_names) {
+  out <- lapply(base_map, function(cols) {
+    flat <- as.vector(outer(names(equations$blocks), cols, paste, sep = ":"))
+    intersect(flat, coef_names)
+  })
+  out[lengths(out) > 0]
 }
 
 # Model terms mapped to the coefficients they produced ------------------------
@@ -298,6 +387,12 @@ fy_measure <- function(fit, outcome = fy_outcome_label(fit)) {
   if (inherits(fit, "polr")) {
     return(fy_measure_spec("OR", outcome))
   }
+  # A multinomial logit reports no family, and each of its equations is a
+  # logistic regression of one outcome level against the reference level, so
+  # what it produces is an odds ratio like any other logistic regression.
+  if (inherits(fit, "multinom")) {
+    return(fy_measure_spec("OR", outcome))
+  }
   if (!is.na(fam_name)) {
     if (fam_name == "binomial" && identical(link, "logit")) {
       return(fy_measure_spec("OR", outcome))
@@ -332,6 +427,26 @@ fy_reject_rms <- function(fit) {
   )
 }
 
+# MASS::polr() can fit several cumulative-link models.  An odds ratio is only
+# defined for its logistic link, so accepting another link and exponentiating
+# its coefficients would give a number that looks like an odds ratio but is
+# not one.
+fy_check_polr_link <- function(fit) {
+  if (!inherits(fit, "polr")) {
+    return(invisible(TRUE))
+  }
+  method <- fit[["method"]]
+  if (!identical(method, "logistic")) {
+    stop(
+      "foresty supports MASS::polr() only with method = \"logistic\". ",
+      "This fit uses method = \"", method, "\", whose coefficients are not ",
+      "log odds and cannot be reported as odds ratios.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 # What the model is called, in the words a paper calls it.
 #
 # A report saying "glm, lm" names the function that fitted the model rather
@@ -360,7 +475,15 @@ fy_model_name <- function(fit) {
   } else if (inherits(fit, "survreg")) {
     "Accelerated failure time model"
   } else if (inherits(fit, "polr")) {
-    "Ordinal logistic regression model"
+    "Ordinal (Ordered) logistic regression model"
+  } else if (inherits(fit, "multinom")) {
+    # A two-level outcome leaves multinom() fitting one equation, which is an
+    # ordinary logistic regression however it was reached.
+    if (is.matrix(stats::coef(fit))) {
+      "Multinomial (polytomous) logistic regression model"
+    } else {
+      "Logistic regression model"
+    }
   } else if (identical(fam_name, "negbin")) {
     "Negative binomial regression model"
   } else if (fy_family_is(fam_name, c("binomial", "quasibinomial"))) {
@@ -663,6 +786,7 @@ fy_error_df <- function(fit, ratio) {
 fy_model_info <- function(fit, measure = NULL, exponentiate = NULL, vcov = NULL,
                           cluster = NULL, outcome = NULL) {
   fy_reject_rms(fit)
+  fy_check_polr_link(fit)
   data <- fy_source_data(fit)
   robust <- fy_robust_vcov(fit, vcov = vcov, cluster = cluster, data = data)
   cv <- fy_coefs(fit, vcov_matrix = robust)
@@ -677,7 +801,16 @@ fy_model_info <- function(fit, measure = NULL, exponentiate = NULL, vcov = NULL,
   # of the formula, so that the axis reads "Adjusted odds ratio for incident
   # asthma" rather than "for asthma_ever_dx".
   spec <- fy_apply_outcome(spec, outcome)
-  term_map <- fy_term_map(fit, names(cv$coef))
+  # A multi-equation fit has one design matrix and several blocks of
+  # coefficients built from it, so its terms are mapped in the design's own
+  # names and then spread over the equations.
+  equations <- fy_equations(fit, names(cv$coef))
+  term_map <- if (is.null(equations)) {
+    fy_term_map(fit, names(cv$coef))
+  } else {
+    fy_expand_term_map(fy_term_map(fit, equations$base), equations,
+                       names(cv$coef))
+  }
   mf <- fy_model_frame(fit)
   # The names a symbol in a term has to be one of to be a variable of the
   # model rather than something named in the call, such as a knot vector.
@@ -691,6 +824,11 @@ fy_model_info <- function(fit, measure = NULL, exponentiate = NULL, vcov = NULL,
       vcov = cv$vcov,
       kept = cv$kept,
       n_full = cv$n_full,
+      # The equations the fit holds, or NULL where it holds one, and how wide
+      # its design matrix is: a multi-equation fit has more coefficients than
+      # design columns, one block of them per equation.
+      equations = equations,
+      n_base = if (is.null(equations)) cv$n_full else length(equations$base),
       robust = !is.null(robust) || fy_fit_is_robust(fit),
       term_map = term_map,
       term_vars = terms$vars,
@@ -817,12 +955,30 @@ fy_has_intercept <- function(b) {
 }
 
 # Counts behind one set of rows of the model frame.
-fy_counts <- function(info, rows = NULL) {
+fy_counts <- function(info, rows = NULL, outcome_level = NULL) {
   list(
     n = if (is.null(rows)) info$n else length(rows),
-    events = fy_events(info$mf, rows = rows),
+    # A row of a multinomial figure is about one level of the outcome, so what
+    # it counts is the people who were in that level rather than the events of
+    # a binary outcome it does not have.
+    events = if (is.null(outcome_level)) {
+      fy_events(info$mf, rows = rows)
+    } else {
+      fy_level_count(info$mf, outcome_level, rows = rows)
+    },
     person_time = fy_person_time(info$mf, rows = rows)
   )
+}
+
+fy_level_count <- function(mf, level, rows = NULL) {
+  y <- try(stats::model.response(mf), silent = TRUE)
+  if (inherits(y, "try-error") || is.null(y) || is.matrix(y)) {
+    return(NA_integer_)
+  }
+  if (!is.null(rows)) {
+    y <- y[rows]
+  }
+  as.integer(sum(as.character(y) == level, na.rm = TRUE))
 }
 
 `%||%` <- function(x, y) if (is.null(x)) y else x

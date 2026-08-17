@@ -47,23 +47,118 @@ fy_design_matrix <- function(info, newdata) {
   mm <- stats::model.matrix(tt, data = frame,
                             contrasts.arg = fy_contrasts(fit))
 
-  if (ncol(mm) == info$n_full + 1L && fy_is_intercept_column(colnames(mm)[1L])) {
+  # A multi-equation fit builds every one of its equations from this same
+  # design, so the matrix is as wide as one equation rather than as wide as the
+  # coefficient vector.
+  n_base <- info$n_base %||% info$n_full
+
+  if (ncol(mm) == n_base + 1L && fy_is_intercept_column(colnames(mm)[1L])) {
     # The fit carries no intercept, as survival fits do not.
     mm <- mm[, -1L, drop = FALSE]
   }
 
-  if (ncol(mm) != info$n_full) {
+  if (ncol(mm) != n_base) {
     stop(
       "the design matrix of this fit has ", ncol(mm), " columns but the model ",
-      "has ", info$n_full, " coefficients, so an exposure contrast cannot be ",
+      "has ", n_base, " coefficients, so an exposure contrast cannot be ",
       "built for a fit of class ", paste(class(fit), collapse = "/"),
       call. = FALSE
     )
   }
 
+  if (!is.null(info$equations)) {
+    # Left in the design's own space; fy_equation_row() places it in the block
+    # of whichever equation the row is of.
+    return(mm)
+  }
+
   # Drop the same positions that were dropped from the coefficient vector,
   # so aliased coefficients do not shift the alignment.
   mm[, info$kept, drop = FALSE]
+}
+
+# One row of the contrast matrix for one comparison between two outcome levels.
+#
+# `dx` is the difference between two rows of the design, in the design's own
+# space. The estimate wanted is the log odds ratio of `level` against
+# `reference`, and each equation is that level against the level the fit took
+# as its baseline, so the contrast is the block of one minus the block of the
+# other. The fitted reference level has no block, being the zero the others are
+# measured from, and drops out of the difference on its own.
+fy_equation_row <- function(info, dx, level, reference) {
+  out <- numeric(length(info$coef))
+  place <- function(lv, sign) {
+    block <- info$equations$blocks[[lv]]
+    if (is.null(block)) {
+      # The level the fit itself was referred to.
+      return(NULL)
+    }
+    keep <- !is.na(block)
+    out[block[keep]] <<- out[block[keep]] + sign * dx[keep]
+    NULL
+  }
+  place(level, 1)
+  place(reference, -1)
+  out
+}
+
+# The comparisons between outcome levels a figure of a multi-equation fit is
+# made of: every level except the one they are all read against, one row apiece.
+#
+# `reference` names that level. The default is the level the fit was referred
+# to, which is the first level of the outcome factor; naming another is not a
+# refit, because the odds ratio of A against B is the odds ratio of A against
+# the baseline less that of B against it, and the covariance of the two is
+# already in the model.
+fy_outcome_comparisons <- function(info, reference = NULL,
+                                   reference_row = FALSE) {
+  if (is.null(info$equations)) {
+    if (!is.null(reference)) {
+      stop(
+        "`outcome_reference` names the outcome level every estimate is read ",
+        "against, which only a model of more than two outcome levels has. ",
+        "This is a ", paste(class(info$fit), collapse = "/"),
+        " fit of one equation, whose reference is set by how the outcome ",
+        "itself is coded.",
+        call. = FALSE
+      )
+    }
+    return(NULL)
+  }
+
+  levels <- info$equations$levels
+  if (is.null(reference)) {
+    reference <- info$equations$reference
+  } else {
+    checkmate::assert_string(reference, min.chars = 1L)
+    if (!reference %in% levels) {
+      stop(
+        "\"", reference, "\" is not a level of the outcome of this model. Its ",
+        "levels are ", paste0("\"", levels, "\"", collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+  }
+
+  out <- lapply(setdiff(levels, reference), function(lv) {
+    list(level = lv, reference = reference, is_reference = FALSE,
+         label = paste0(lv, " vs ", reference))
+  })
+
+  # The level everything is read against, drawn as a row of its own. It carries
+  # no estimate -- it is the definition the others are differences from, and is
+  # 1 on a ratio scale and 0 on the scale the model was fitted on, with no
+  # interval either way -- but a reader who cannot see it on the figure has to
+  # take the reference from the row labels. It comes first, as the reference
+  # level of a categorical exposure does.
+  if (isTRUE(reference_row)) {
+    out <- c(
+      list(list(level = reference, reference = reference, is_reference = TRUE,
+                label = reference)),
+      out
+    )
+  }
+  out
 }
 
 fy_is_intercept_column <- function(x) {
@@ -338,7 +433,8 @@ fy_exposure_values <- function(info, exposure, contrast = NULL, at = NULL) {
 # both the level of the exposure and the level of the modifier the row is of, so
 # the estimate is that whole combination against the one reference combination.
 fy_contrast_matrix <- function(info, exposure, values, modifier = NULL,
-                               modifier_level = NULL, reference_cell = NULL) {
+                               modifier_level = NULL, reference_cell = NULL,
+                               comparisons = NULL) {
   reference <- fy_reference_row(info)
 
   # A splined exposure has no single effect to report, because the difference
@@ -359,7 +455,10 @@ fy_contrast_matrix <- function(info, exposure, values, modifier = NULL,
     return(NULL)
   }
 
-  rows <- lapply(wanted, function(v) {
+  # The difference between the two design rows, one comparison of the exposure
+  # at a time. It is the same difference whichever equation it is later placed
+  # in, so it is worked out once.
+  differences <- lapply(wanted, function(v) {
     baseline <- reference
     compared <- reference
     baseline[[exposure]] <- fy_coerce_like(
@@ -381,10 +480,40 @@ fy_contrast_matrix <- function(info, exposure, values, modifier = NULL,
     mm[2L, ] - mm[1L, ]
   })
 
-  L <- do.call(rbind, rows)
-  rownames(L) <- vapply(wanted, function(v) {
+  value_name <- function(v) {
     if (is.na(v$level)) exposure else as.character(v$level)
-  }, character(1))
+  }
+
+  # Without equations there is one row per comparison of the exposure. With
+  # them there is one per comparison of the exposure within each comparison of
+  # the outcome, taken outcome by outcome so that the rows come out in the
+  # order the figure draws them.
+  if (is.null(comparisons)) {
+    L <- do.call(rbind, differences)
+    rownames(L) <- vapply(wanted, value_name, character(1))
+  } else {
+    rows <- list()
+    names_out <- character(0)
+    for (cmp in comparisons) {
+      # The reference level is a definition rather than an estimate, so there
+      # is no contrast to take for it.
+      if (isTRUE(cmp$is_reference)) {
+        next
+      }
+      for (i in seq_along(differences)) {
+        rows[[length(rows) + 1L]] <- fy_equation_row(
+          info, differences[[i]], cmp$level, cmp$reference
+        )
+        names_out <- c(names_out, paste0(value_name(wanted[[i]]), ": ",
+                                         cmp$label))
+      }
+    }
+    if (!length(rows)) {
+      return(NULL)
+    }
+    L <- do.call(rbind, rows)
+    rownames(L) <- names_out
+  }
   colnames(L) <- names(info$coef)
   L
 }
@@ -414,7 +543,14 @@ fy_is_splined <- function(info, exposure) {
     return(FALSE)
   }
   terms <- fy_exposure_terms(info, exposure)
-  length(fy_term_columns(info, terms$main)) > 1L
+  # Counted per equation, since a multi-equation fit produces the same
+  # coefficient once in each of them and that is not a spread-out exposure.
+  per_equation <- if (is.null(info$equations)) {
+    1L
+  } else {
+    length(info$equations$blocks)
+  }
+  length(fy_term_columns(info, terms$main)) > per_equation
 }
 
 # The rows of the model frame an estimate was taken over, so that the counts

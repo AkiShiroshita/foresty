@@ -266,6 +266,15 @@ fy_app_variables <- function(info) {
     !is.null(x) && is.numeric(x) && !fy_is_categorical(x)
   }, logical(1))]
 
+  # A continuous exposure spread over several coefficients -- a spline, a
+  # polynomial -- has no single effect to report, so the difference it is
+  # reported for has to be two values rather than an increment. Knowing which
+  # exposures those are is what lets the menu offer only the questions they can
+  # answer instead of drawing an error until the reader finds the right one.
+  splined <- continuous[vapply(continuous, function(v) {
+    isTRUE(tryCatch(fy_is_splined(info, v), error = function(e) FALSE))
+  }, logical(1))]
+
   # A variable with levels of its own, which is what a combination of two of
   # them can be made out of: one reference group for a whole figure is a level
   # of the exposure and a level of the modifier, and a continuous exposure has
@@ -288,7 +297,12 @@ fy_app_variables <- function(info) {
     exposure = exposure,
     modifier = modifier,
     continuous = continuous,
+    splined = splined,
     categorical = categorical,
+    # The levels of the outcome of a multinomial fit, which are the choices of
+    # what every estimate is read against. Empty for a model of one equation.
+    outcome_levels = info$equations$levels %||% character(0),
+    outcome_reference = info$equations$reference,
     levels = fy_app_levels(info, union(modifier, categorical)),
     range = fy_app_ranges(info, continuous),
     ids = ids,
@@ -645,6 +659,7 @@ fy_app_ui <- function(info, variables, fit_name) {
             selected = "lrt"
           ),
           fy_app_scale_control(info),
+          fy_app_outcome_reference_control(info),
           shiny::numericInput("ci_level", "Confidence level", value = 0.95,
                               min = 0.5, max = 0.9999, step = 0.01),
           shiny::uiOutput("reference_controls")
@@ -755,6 +770,45 @@ fy_app_scale_control <- function(info) {
   )
 }
 
+# The level of the outcome every estimate is read against, for a multinomial
+# fit, which is the one choice such a model has that no other model does.
+#
+# Each of its equations compares one level of the outcome with the level the
+# model was referred to, and which level that is was settled by how the outcome
+# was coded rather than by anything about the question. Changing it here is not
+# a refit: the odds ratio of one level against another is the difference
+# between their two equations, and the covariance of the pair is in the model
+# already. A model of one equation has no such choice and is asked nothing.
+fy_app_outcome_reference_control <- function(info) {
+  levels <- info$equations$levels
+  if (is.null(levels) || length(levels) < 3L) {
+    return(NULL)
+  }
+  shiny::tagList(
+    shiny::selectInput(
+      "outcome_reference", "Outcome level the estimates are read against",
+      choices = levels, selected = info$equations$reference
+    ),
+    shiny::div(class = "fy-note", paste0(
+      "Every other level of ", info$outcome %||% "the outcome",
+      " is drawn against it, one row apiece. \"",
+      info$equations$reference, "\" is the level this model was fitted ",
+      "against; naming another does not refit anything."
+    )),
+    shiny::checkboxInput(
+      "outcome_reference_row",
+      "Draw that level as a row of its own", value = FALSE
+    ),
+    shiny::div(class = "fy-note", paste0(
+      "It carries no estimate -- it is the definition the other rows are ",
+      "differences from, so it is 1 on the ratio scale and 0 on the scale ",
+      "the model was fitted on, with no interval -- but it puts the level ",
+      "everything is read against on the figure rather than only in the ",
+      "row labels."
+    ))
+  )
+}
+
 # The unit person-time is counted in, for a model that carries any.
 #
 # A cohort of a few hundred thousand person-years puts six figures in a column
@@ -821,7 +875,8 @@ fy_app_hex <- function(x) {
 # The controls for one exposure. Two exposures are two sets of questions -- one
 # pollutant reported per interquartile range in red, an age per decade in blue
 # -- so each of them is asked separately and keeps its own answers.
-fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
+fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL,
+                               splined = FALSE) {
   kind <- paste0("contrast_kind_", id)
   colour <- paste0("colour_", id)
   # Whatever was chosen last time is what these come back as: the controls are
@@ -854,9 +909,16 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
     # so the two ends are written with an arrow between them and read at a
     # glance: lowest -> highest is the effect of being at the top rather than
     # the bottom, and the other way round is that same estimate inverted.
-    choices <- c("One unit increase" = "unit",
-                 "One interquartile range increase" = "iqr",
-                 "An increment increase I name" = "number")
+    # An exposure spread over several coefficients has no single effect to be
+    # reported per an increment of it: how much difference a unit makes depends
+    # on where along the curve it is taken. So the questions that name an
+    # increment are not offered for one, and the two values it is compared
+    # between are what is asked instead. Offering them and drawing an error
+    # until the reader found the one that works is the alternative.
+    per_increment <- c("One unit increase" = "unit",
+                       "One interquartile range increase" = "iqr",
+                       "An increment increase I name" = "number")
+    choices <- if (splined) character(0) else per_increment
     if (!is.null(range)) {
       choices <- c(
         choices,
@@ -869,11 +931,37 @@ fy_app_exposure_ui <- function(exposure, id, continuous, input, range = NULL) {
       )
     }
     choices <- c(choices, "Two values I name" = "at")
+    # Two quantiles are a comparison every exposure has, so they are where a
+    # splined one starts; a plain one is still reported per a unit by default.
+    default <- if (!splined) {
+      "unit"
+    } else if ("quantile" %in% choices) {
+      "quantile"
+    } else {
+      "at"
+    }
+    selected <- kept(kind, default)
+    if (!selected %in% choices) {
+      # The exposure was changed for one that cannot answer the question the
+      # menu was left on.
+      selected <- default
+    }
+    note <- if (!splined) {
+      NULL
+    } else {
+      list(shiny::div(class = "fy-note", paste0(
+        exposure, " enters this model through more than one coefficient -- a ",
+        "spline or a polynomial -- so the difference it makes depends on ",
+        "where along the curve it is taken, and there is no single effect ",
+        "per unit of it. The estimate is therefore between two values of it."
+      )))
+    }
     c(
+      note,
       list(
         shiny::selectInput(
           kind, "The difference each estimate is for",
-          choices = choices, selected = kept(kind, "unit")
+          choices = choices, selected = selected
         ),
         shiny::conditionalPanel(
           paste0("input.", kind, " == 'number'"),
@@ -1059,7 +1147,8 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
       }
       shiny::tagList(lapply(vars, function(v) {
         fy_app_exposure_ui(v, variables$ids[[v]], v %in% variables$continuous,
-                           input, range = variables$range[[v]])
+                           input, range = variables$range[[v]],
+                           splined = v %in% variables$splined)
       }))
     })
     output$exposure_labels <- shiny::renderUI({
@@ -1458,6 +1547,14 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
 
   if (!is.null(ctx$measure)) args$measure <- ctx$measure
   if (identical(input$scale, "log")) args$exponentiate <- FALSE
+  # Written only where it was moved off the level the model was fitted against,
+  # so that the code the app writes says what was chosen rather than repeating
+  # the default back.
+  chosen_outcome <- fy_app_outcome_reference(input, ctx)
+  if (!is.null(chosen_outcome)) args$outcome_reference <- chosen_outcome
+  if (fy_app_outcome_reference_row(input, ctx)) {
+    args$outcome_reference_row <- TRUE
+  }
   if (!fy_app_same(input$ci_level, 0.95)) args$ci_level <- input$ci_level
   args <- c(args, fy_app_contrast_args(input, pair$exposure, ctx))
   if (!is.null(modifier)) {
@@ -1481,6 +1578,29 @@ fy_app_call <- function(pair, input, ctx, many = FALSE) {
 
   fn <- if (is.null(modifier)) quote(foresty_main) else quote(foresty_interaction)
   as.call(c(fn, args))
+}
+
+# The outcome level chosen in the sidebar, or NULL where the model has no such
+# choice or the reader has left it on the one the model was fitted against.
+fy_app_outcome_reference <- function(input, ctx) {
+  levels <- ctx$variables$outcome_levels
+  if (!length(levels)) {
+    return(NULL)
+  }
+  chosen <- input$outcome_reference
+  if (is.null(chosen) || !nzchar(chosen) || !chosen %in% levels ||
+      identical(chosen, ctx$variables$outcome_reference)) {
+    return(NULL)
+  }
+  chosen
+}
+
+# Whether the level everything is read against is drawn as a row of its own.
+# Only a model that has such a level is asked, so the box being left over from
+# a model that had one cannot write the argument for a model that has not.
+fy_app_outcome_reference_row <- function(input, ctx) {
+  length(ctx$variables$outcome_levels) > 0L &&
+    isTRUE(input$outcome_reference_row)
 }
 
 # What this exposure is called on the figure, as the argument that says it.
@@ -1537,7 +1657,14 @@ fy_app_contrast_args <- function(input, exposure, ctx) {
   if (is.null(id) || !exposure %in% variables$continuous) {
     return(list())
   }
-  kind <- input[[paste0("contrast_kind_", id)]] %||% "unit"
+  # A splined exposure has no effect per an increment of it, so it starts at
+  # two quantiles rather than at one unit -- a comparison every exposure has,
+  # and one it can answer. What was actually chosen is used as it stands: a
+  # question this exposure cannot answer is refused rather than quietly
+  # replaced by a different one whose numbers would be drawn as though they
+  # were what was asked for.
+  default <- if (exposure %in% variables$splined) "quantile" else "unit"
+  kind <- input[[paste0("contrast_kind_", id)]] %||% default
   reverse <- isTRUE(input[[paste0("contrast_reverse_", id)]])
   range <- variables$range[[exposure]]
   if (identical(kind, "at")) {
@@ -2008,6 +2135,11 @@ fy_app_shared_args <- function(input, ctx, coloured = FALSE) {
   common <- list()
   if (!is.null(ctx$measure)) common$measure <- ctx$measure
   if (identical(input$scale, "log")) common$exponentiate <- FALSE
+  chosen_outcome <- fy_app_outcome_reference(input, ctx)
+  if (!is.null(chosen_outcome)) common$outcome_reference <- chosen_outcome
+  if (fy_app_outcome_reference_row(input, ctx)) {
+    common$outcome_reference_row <- TRUE
+  }
   if (!fy_app_same(input$ci_level, 0.95)) common$ci_level <- input$ci_level
   common <- c(common, if (coloured) {
     c(fy_app_table_args(input), fy_app_naming_args(input))
@@ -2096,12 +2228,54 @@ fy_app_plain_script <- function(states, input, ctx) {
   if (!length(states)) {
     return("")
   }
+  # The script below is written around one equation: one design matrix, one
+  # coefficient vector, and a contrast that is the difference between two rows
+  # of the design. A multinomial fit has one equation per non-reference level
+  # of the outcome and a coefficient vector holding a block of each, so the
+  # contrast is a difference of blocks rather than a difference of rows. Rather
+  # than write a second version of every helper below and have it drift from
+  # the one the figures are actually drawn by, the tab says so.
+  if (!is.null(ctx$info$equations)) {
+    return(paste(fy_app_plain_multi_equation_note(ctx), collapse = "\n"))
+  }
   blocks <- lapply(seq_along(states), function(i) {
     fy_app_plain_block(states[[i]], i, input, ctx)
   })
   paste(c(fy_app_plain_preamble(input, ctx),
           unlist(blocks, use.names = FALSE)),
         collapse = "\n")
+}
+
+# What this tab says for a model whose estimates it does not write out by hand.
+fy_app_plain_multi_equation_note <- function(ctx) {
+  equations <- ctx$info$equations
+  c(
+    strrep("#", 77),
+    "# How the effect estimate in each subgroup is calculated.",
+    "#",
+    "# Not written for this model. It is a multinomial logistic regression of",
+    paste0("# ", length(equations$levels), " outcome levels, so it holds ",
+           length(equations$blocks), " equations -- one for each level other"),
+    paste0("# than \"", equations$reference,
+           "\", which each of them is measured against -- and one block"),
+    "# of coefficients for each equation, all built from the same design",
+    "# matrix.",
+    "#",
+    "# The estimate on any one row is therefore not the difference between two",
+    "# rows of that design matrix, which is what the script written here for",
+    "# every other model is. It is that difference placed in the block of the",
+    "# equation the row belongs to, less the same difference in the block of",
+    "# the equation the row is read against, and zero everywhere else. The",
+    "# comparison between two levels neither of which the model was fitted",
+    "# against is the difference of their two blocks, with the covariance of",
+    "# the pair in its variance.",
+    "#",
+    "# The R code tab writes the foresty calls that drew the figures, and the",
+    "# HTML report carries the estimates, the joint test and the whole",
+    "# coefficient table. summary() and as.data.frame() report the same numbers",
+    "# at the console.",
+    strrep("#", 77)
+  )
 }
 
 # The heading, the helpers, and the handful of settings every estimate below is

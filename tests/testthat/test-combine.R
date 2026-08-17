@@ -152,6 +152,39 @@ test_that("which blocks are singled out can be said or refused", {
   expect_true(all(!fy_est(foresty_combine(A = p$overall, B = p$overall))$emphasis))
 })
 
+test_that("an overall block of several rows is not dressed as a summary", {
+  d <- foresty_cohort
+  # Emphasis says "this one row is what the rows below it are read against".
+  # An overall block holding the levels of a categorical exposure is not one
+  # summary but several estimates that happen to be unstratified, so drawing
+  # every one of them in bold with a diamond would say the wrong thing.
+  fit <- glm(asthma ~ urbanicity + sex + maternal_age, family = binomial,
+             data = d)
+  overall <- foresty_main(list(fit), exposure = "urbanicity")
+  by_sex <- foresty_interaction(fit, exposure = "urbanicity",
+                                interaction = "sex")
+  expect_true(all(!fy_est(foresty_combine(Overall = overall,
+                                          Sex = by_sex))$emphasis))
+
+  # Asking for it by name or with TRUE still gets it, the default being a
+  # judgement about what reads well rather than a refusal.
+  named <- fy_est(foresty_combine(Overall = overall, Sex = by_sex,
+                                  emphasize = "Overall"))
+  expect_true(all(named$emphasis[named$block == "Overall"]))
+  expect_true(all(!named$emphasis[named$block == "Sex"]))
+  expect_true(all(fy_est(foresty_combine(Overall = overall, Sex = by_sex,
+                                         emphasize = TRUE))$emphasis[1:3]))
+
+  # A single-row overall block is still singled out, which is the usual figure.
+  plain <- foresty_main(list(fy_test_logistic()), exposure = "no2")
+  single <- foresty_combine(
+    Overall = plain,
+    Sex = foresty_interaction(fy_test_logistic(), exposure = "no2",
+                              interaction = "sex")
+  )
+  expect_equal(fy_est(single)$emphasis, c(TRUE, FALSE, FALSE))
+})
+
 test_that("the interaction p-value is written once against each block", {
   p <- fy_combine_pieces()
   x <- foresty_combine(Overall = p$overall, Sex = p$by_sex,

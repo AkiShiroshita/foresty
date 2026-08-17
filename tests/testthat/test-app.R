@@ -420,6 +420,115 @@ test_that("a splined exposure can be reported between two quantiles", {
   })
 })
 
+test_that("a splined exposure starts on a question it can answer", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("splines")
+  d <- foresty_cohort
+  d$male <- as.numeric(d$sex == "Male")
+  my_fit <- glm(asthma ~ splines::ns(no2, 3) + male + maternal_age,
+                family = binomial, data = d)
+  info <- fy_model_info(my_fit)
+  v <- fy_app_variables(info)
+
+  # The exposure is known to enter through more than one coefficient, and the
+  # one that does not is not confused with it.
+  expect_equal(v$splined, "no2")
+  expect_true("maternal_age" %in% v$continuous)
+  expect_false("maternal_age" %in% v$splined)
+
+  # So the menu offers only the comparisons it can be asked for: naming an
+  # increment of it is not one of them.
+  ui <- fy_app_exposure_ui("no2", "no2", continuous = TRUE, input = list(),
+                           range = c(1, 40), splined = TRUE)
+  rendered <- as.character(shiny::tagList(ui))
+  expect_false(grepl("One unit increase", rendered, fixed = TRUE))
+  expect_false(grepl("One interquartile range increase", rendered, fixed = TRUE))
+  expect_true(grepl("Two values I name", rendered, fixed = TRUE))
+  expect_true(grepl("more than one coefficient", rendered, fixed = TRUE))
+
+  # And nothing has to be clicked for the figure to be drawn: the default is
+  # the two quartiles rather than the one unit a plain exposure starts on.
+  quartiles <- signif(unname(stats::quantile(d$no2, probs = c(0.25, 0.75))), 4)
+  app <- foresty_app(my_fit, launch = FALSE)
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE))
+    expect_null(figure()$error)
+    expect_match(output$code,
+                 paste0("at = c(", quartiles[1L], ", ", quartiles[2L], ")"),
+                 fixed = TRUE)
+  })
+})
+
+test_that("the app draws a multinomial fit and can move its outcome reference", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("nnet")
+  my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
+                           data = foresty_cohort, trace = FALSE)
+  v <- fy_app_variables(fy_model_info(my_fit))
+  expect_equal(v$outcome_levels, c("None", "Transient", "Persistent"))
+  expect_equal(v$outcome_reference, "None")
+
+  app <- foresty_app(my_fit, launch = FALSE)
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE))
+    expect_null(figure()$error)
+    # Left on the level the model was fitted against, the call says nothing.
+    expect_false(grepl("outcome_reference", output$code, fixed = TRUE))
+    est <- as.data.frame(figure()$value)
+    expect_equal(est$outcome_reference, rep("None", 4L))
+
+    session$setInputs(outcome_reference = "Transient")
+    expect_null(figure()$error)
+    expect_match(output$code, "outcome_reference = \"Transient\"", fixed = TRUE)
+    est <- as.data.frame(figure()$value)
+    expect_equal(unique(est$outcome_level), c("None", "Persistent"))
+
+    # The level everything is read against, drawn as a row of its own.
+    session$setInputs(outcome_reference_row = TRUE)
+    expect_null(figure()$error)
+    expect_match(output$code, "outcome_reference_row = TRUE", fixed = TRUE)
+    est <- as.data.frame(figure()$value)
+    expect_equal(unique(est$outcome_level), c("Transient", "None", "Persistent"))
+    expect_equal(est$estimate[est$reference], c(1, 1))
+  })
+})
+
+test_that("the outcome reference row is not written for a one-equation fit", {
+  skip_if_not_installed("shiny")
+  # The box belongs to a model that has such a level; one that has not is never
+  # shown it, and a stale input cannot write the argument for it.
+  app <- foresty_app(fy_app_fit(), launch = FALSE)
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "male", overall = FALSE,
+                            outcome_reference_row = TRUE))
+    expect_null(figure()$error)
+    expect_false(grepl("outcome_reference", output$code, fixed = TRUE))
+  })
+})
+
+test_that("the plain script says why it is not written for a multinomial fit", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("nnet")
+  # Every helper it writes is built around one design matrix and one
+  # coefficient vector, which a fit of several equations is not.
+  my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
+                           data = foresty_cohort, trace = FALSE)
+  app <- foresty_app(my_fit, launch = FALSE)
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE))
+    expect_match(output$code_plain, "Not written for this model")
+    expect_match(output$code_plain, "3 outcome levels")
+    expect_false(grepl("effect_of <- function", output$code_plain, fixed = TRUE))
+    # Every line still fits the width the tab is read at.
+    lines <- strsplit(output$code_plain, "\n", fixed = TRUE)[[1L]]
+    expect_true(all(nchar(lines) <= 78L))
+  })
+})
+
 test_that("the rows can be coloured by their category rather than the exposure", {
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
