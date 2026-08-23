@@ -46,15 +46,16 @@ vignette outputs, the PDF and HTML manuals and the test suite.
 The examples that show a function's every variation one after another are in
 `\donttest{}`, since there are several of them rather than because any one is
 slow. `R CMD check --as-cran` runs them: locally the timed pass comes in under
-the threshold that reports a time at all, and the `--run-donttest` pass takes
-27 seconds.
+the threshold that reports a time at all and the `--run-donttest` pass takes
+27 seconds, and win-builder runs the examples in 16 seconds under R-devel and
+15 seconds under R release.
 
 The tests run under `testthat` edition 3: 252 tests across 14 files. The 53
 tests of the Shiny interface in `test-app.R` are marked `skip_on_cran()`.
 They drive the app's server function and re-run the R code it writes, which
 makes that one file much the slowest of the suite, and skipping it keeps the
 check comfortably inside the time CRAN allows. That leaves 199 tests and 841
-expectations, none failing, which `R CMD check --as-cran` runs in 105 seconds
-locally. With `NOT_CRAN=true`, which is how they run on all five GitHub
-Actions platforms above, all 252 tests run, giving 1159 expectations, again
-none failing and none skipped.
+expectations, none failing, in 105 seconds locally, 298 on win-builder
+R-devel and 171 on win-builder R release. With `NOT_CRAN=true`, which is how
+they run on all five GitHub Actions platforms above, all 252 tests run,
+giving 1159 expectations, again none failing and none skipped.
