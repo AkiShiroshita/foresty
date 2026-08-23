@@ -355,6 +355,10 @@ fit_urban <- glm(asthma ~ urbanicity + sex + maternal_age,
 foresty_main(list(fit_urban), exposure = "urbanicity")
 
 
+# Every variation the figure has, drawn one after another. They are
+# skipped by the timed run of the examples only because there are many
+# of them, not because any one is slow.
+# \donttest{
 # In the layout of a journal, and without the numbers beside the plot.
 foresty_main(list(fit_urban), exposure = "urbanicity", layout = "jama")
 
@@ -440,4 +444,5 @@ if (requireNamespace("nnet", quietly = TRUE)) {
 #>      Variable                   Level   OR    95% CI      p     N Events
 #>  no2 (per 10)       None vs Transient 0.78 0.69-0.88 <0.001 4,000  1,925
 #>  no2 (per 10) Persistent vs Transient 1.46 1.25-1.72 <0.001 4,000    776
+# }
 ```

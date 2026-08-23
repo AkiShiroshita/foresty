@@ -13,7 +13,7 @@ anything; use foresty_interaction() for those."><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">foresty</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,7 +24,7 @@ anything; use foresty_interaction() for those."><meta property="og:image" conten
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/forest.html">Getting started with foresty</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/forest.html">Forest plots with foresty</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -371,6 +371,10 @@ applied to the table of numbers beside the plot will spoil it. Use <code>+</code
 <span class="r-in"><span><span class="fu">foresty_main</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_urban</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"urbanicity"</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="foresty_main-2.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Every variation the figure has, drawn one after another. They are</span></span></span>
+<span class="r-in"><span><span class="co"># skipped by the timed run of the examples only because there are many</span></span></span>
+<span class="r-in"><span><span class="co"># of them, not because any one is slow.</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="co"># In the layout of a journal, and without the numbers beside the plot.</span></span></span>
 <span class="r-in"><span><span class="fu">foresty_main</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_urban</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"urbanicity"</span>, layout <span class="op">=</span> <span class="st">"jama"</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="foresty_main-3.png" alt="" width="700" height="433"></span>
@@ -456,6 +460,7 @@ applied to the table of numbers beside the plot will spoil it. Use <code>+</code
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Variable                   Level   OR    95% CI      p     N Events</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  no2 (per 10)       None vs Transient 0.78 0.69-0.88 &lt;0.001 4,000  1,925</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  no2 (per 10) Persistent vs Transient 1.46 1.25-1.72 &lt;0.001 4,000    776</span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Getting started with foresty • foresty</title>
+<title>Forest plots with foresty • foresty</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -15,7 +15,7 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting started with foresty">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Forest plots with foresty">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">foresty</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/forest.html">Getting started with foresty</a></li>
+<li><a class="dropdown-item" href="../articles/forest.html">Forest plots with foresty</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -60,7 +60,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.png" class="logo" alt=""><h1>Getting started with foresty</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>Forest plots with foresty</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/AkiShiroshita/foresty/blob/main/vignettes/forest.Rmd" class="external-link"><code>vignettes/forest.Rmd</code></a></small>
@@ -202,6 +202,44 @@ analyses.</p>
 a figure with standard <code>ggplot2</code> layers.</p>
 </div>
 <div class="section level2">
+<h2 id="outcomes-with-more-than-two-levels">Outcomes with more than two levels<a class="anchor" aria-label="anchor" href="#outcomes-with-more-than-two-levels"></a>
+</h2>
+<p>An ordinal outcome fitted by <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code> is read as one
+proportional-odds model, so the exposure has a single effect and the
+figure has a single row, as it would for a binary outcome.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_severity</span> <span class="op">&lt;-</span> <span class="fu">MASS</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">polr</a></span><span class="op">(</span><span class="va">asthma_severity</span> <span class="op">~</span> <span class="va">no2</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">maternal_smoking</span>,</span>
+<span>                           data <span class="op">=</span> <span class="va">foresty_cohort</span>, Hess <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/foresty_main.html">foresty_main</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_severity</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, contrast <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></code></pre></div>
+<p>A nominal outcome fitted by <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code> is K - 1
+logistic regressions sharing one likelihood, one per non-reference level
+of the outcome. The exposure therefore has one effect per level, and the
+figure carries one row per level rather than one row in total.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_phenotype</span> <span class="op">&lt;-</span> <span class="fu">nnet</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">multinom</a></span><span class="op">(</span></span>
+<span>  <span class="va">wheeze_phenotype</span> <span class="op">~</span> <span class="va">no2</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">maternal_smoking</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">foresty_cohort</span>, trace <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/foresty_main.html">foresty_main</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit_phenotype</span><span class="op">)</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, contrast <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>             outcome_reference_row <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p><code>outcome_reference</code> says which level the other rows are
+read against, and <code>outcome_reference_row</code> draws that level as
+a row of its own so that the figure states the reference rather than
+leaving it to the row labels.</p>
+<p>In the table beside such a figure, <strong>N</strong> is the number
+of observations the model was fitted on, the same on every row, and
+<strong>Events</strong> is the number of observations at the level that
+row is about – not the number in the two levels the row compares.</p>
+<p>An interaction is tested jointly across the equations, so its p-value
+spends one degree of freedom for each coefficient the interaction
+added:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/foresty_interaction.html">foresty_interaction</a></span><span class="op">(</span><span class="va">fit_phenotype</span>, exposure <span class="op">=</span> <span class="st">"no2"</span>, interaction <span class="op">=</span> <span class="st">"sex"</span>,</span>
+<span>                    contrast <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="reproduce-and-export-results">Reproduce and export results<a class="anchor" aria-label="anchor" href="#reproduce-and-export-results"></a>
 </h2>
 <p>The app’s <strong>R code</strong> tab shows the code used to create
@@ -210,7 +248,7 @@ download PNG and SVG figures, HTML reports, and the resulting R objects.
 When downloading multiple figures, the app bundles them in a zip
 file.</p>
 <p>You can also create an HTML report from a result in R:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/foresty_report.html">foresty_report</a></span><span class="op">(</span><span class="va">by_sex</span>, file <span class="op">=</span> <span class="st">"no2_by_sex.html"</span><span class="op">)</span></span></code></pre></div>
 <p>The report records the subgroup estimates, interaction test, and
 model coefficients used for the figure.</p>

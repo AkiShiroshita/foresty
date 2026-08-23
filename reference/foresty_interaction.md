@@ -455,6 +455,9 @@ summary(by_sex)
 #> Interaction (no2 by sex):
 #>   Likelihood ratio chi-square = 10.31 on 1 df, p = 0.001
 
+# The rest of what the function can be asked for, drawn one after
+# another. Each is quick; there are simply several of them.
+# \donttest{
 # Maternal smoking, where it is not.
 foresty_interaction(fit, exposure = "no2", interaction = "maternal_smoking")
 
@@ -491,4 +494,5 @@ if (requireNamespace("nnet", quietly = TRUE)) {
                             interaction = "sex", contrast = 10))
 }
 
+# }
 ```

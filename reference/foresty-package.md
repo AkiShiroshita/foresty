@@ -13,8 +13,12 @@ holding the subgroup estimates, the joint test and the coefficient
 table. The 'car' package computes the linear combinations and their
 tests. Models fitted by stats::glm(), stats::lm(), the 'survival'
 package, the 'lme4' package and the 'geepack' package are supported, as
-is any fit supplying coef() and vcov(). Fits from the 'rms' package are
-refused, naming the function that fits the same model in their place.
+is any fit supplying coef() and vcov(). Ordinal outcomes are supported
+through the 'MASS' package and nominal ones through the 'nnet' package,
+where the figure carries one row per level of the outcome and the
+interaction is tested jointly across the equations. Fits from the 'rms'
+package are refused, naming the function that fits the same model in
+their place.
 
 ## See also
 

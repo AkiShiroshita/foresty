@@ -1,4 +1,4 @@
-# Getting started with foresty
+# Forest plots with foresty
 
 ``` r
 
@@ -145,6 +145,57 @@ figure
 Available layouts include `"classic"`, `"jama"`, `"nejm"`, `"lancet"`,
 `"bmj"`, and `"revman"`. You can further customize a figure with
 standard `ggplot2` layers.
+
+## Outcomes with more than two levels
+
+An ordinal outcome fitted by
+[`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) is read as one
+proportional-odds model, so the exposure has a single effect and the
+figure has a single row, as it would for a binary outcome.
+
+``` r
+
+fit_severity <- MASS::polr(asthma_severity ~ no2 + sex + maternal_smoking,
+                           data = foresty_cohort, Hess = TRUE)
+
+foresty_main(list(fit_severity), exposure = "no2", contrast = 10)
+```
+
+A nominal outcome fitted by
+[`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html) is K -
+1 logistic regressions sharing one likelihood, one per non-reference
+level of the outcome. The exposure therefore has one effect per level,
+and the figure carries one row per level rather than one row in total.
+
+``` r
+
+fit_phenotype <- nnet::multinom(
+  wheeze_phenotype ~ no2 + sex + maternal_smoking,
+  data = foresty_cohort, trace = FALSE
+)
+
+foresty_main(list(fit_phenotype), exposure = "no2", contrast = 10,
+             outcome_reference_row = TRUE)
+```
+
+`outcome_reference` says which level the other rows are read against,
+and `outcome_reference_row` draws that level as a row of its own so that
+the figure states the reference rather than leaving it to the row
+labels.
+
+In the table beside such a figure, **N** is the number of observations
+the model was fitted on, the same on every row, and **Events** is the
+number of observations at the level that row is about – not the number
+in the two levels the row compares.
+
+An interaction is tested jointly across the equations, so its p-value
+spends one degree of freedom for each coefficient the interaction added:
+
+``` r
+
+foresty_interaction(fit_phenotype, exposure = "no2", interaction = "sex",
+                    contrast = 10)
+```
 
 ## Reproduce and export results
 

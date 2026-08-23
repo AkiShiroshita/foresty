@@ -2,5 +2,5 @@
 
 ### All vignettes
 
-- [Getting started with
+- [Forest plots with
   foresty](https://akishiroshita.github.io/foresty/articles/forest.md):
