@@ -1,4 +1,4 @@
-# foresty 0.0.1
+# foresty 0.1.0
 
 First release.
 

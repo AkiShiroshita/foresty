@@ -233,6 +233,10 @@
 #'                  family = binomial, data = foresty_cohort)
 #' foresty_main(list(fit_urban), exposure = "urbanicity")
 #'
+#' # Every variation the figure has, drawn one after another. They are
+#' # skipped by the timed run of the examples only because there are many
+#' # of them, not because any one is slow.
+#' \donttest{
 #' # In the layout of a journal, and without the numbers beside the plot.
 #' foresty_main(list(fit_urban), exposure = "urbanicity", layout = "jama")
 #' foresty_main(list(fit_urban), exposure = "urbanicity", table = FALSE)
@@ -284,6 +288,7 @@
 #'                                     contrast = 10,
 #'                                     outcome_reference = "Transient")
 #'   summary(against_transient)
+#' }
 #' }
 #'
 #' @export

@@ -993,11 +993,30 @@ fy_xlevels <- function(fit) {
   # more than they do -- the grouping factor of a mixed model among them -- and
   # naming a variable the design does not use makes model.frame() complain that
   # it cannot find it.
+  #
+  # They are matched on the terms object's own variable labels rather than on
+  # all.vars(), because a factor entered as `factor(visit)` is a model frame
+  # column of that name and all.vars() would report the bare `visit`. Dropping
+  # it left the design matrix to recompute the factor from the two rows of a
+  # contrast, where it has one level and no contrasts can be applied.
   terms <- try(stats::terms(fit), silent = TRUE)
   if (!inherits(terms, "try-error")) {
-    factors <- factors & names(mf) %in% all.vars(terms)
+    factors <- factors & names(mf) %in% fy_variable_labels(terms)
   }
   lapply(mf[factors], levels)
+}
+
+# The names a terms object's variables take as model frame columns: the term
+# labels as written, so `factor(visit)` rather than `visit`. This is how
+# model.frame() names them, and so how `xlev` and `contrasts.arg` are matched.
+fy_variable_labels <- function(terms) {
+  vars <- attr(terms, "variables")
+  if (is.null(vars) || length(vars) < 2L) {
+    return(character(0))
+  }
+  vapply(as.list(vars)[-1L], function(v) {
+    paste(deparse(v, width.cutoff = 500L), collapse = " ")
+  }, character(1))
 }
 
 # The contrast coding each factor was fitted under.

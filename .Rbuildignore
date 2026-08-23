@@ -8,7 +8,7 @@
 ^README\.knit\.md$
 ^README_files$
 ^\.quarto$
-^Rplots\.pdf$
+(^|/)Rplots\.pdf$
 ^[^/]*\.html$
 ^[^/]*\.rds$
 ^\.claude$

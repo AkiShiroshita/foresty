@@ -2327,6 +2327,7 @@ fy_app_plain_preamble <- function(input, ctx, used) {
     "#",
     fy_app_plain_note(
       "Needs the car package", if (!is.null(equations)) " and nnet",
+      if (inherits(info$fit, "merMod")) " and lme4",
       ", and nothing else. Everything below is base R and car: the model the ",
       "interaction term was added to, the linear combination of its ",
       "coefficients each subgroup estimate is",
@@ -2349,7 +2350,7 @@ fy_app_plain_preamble <- function(input, ctx, used) {
     "library(car)",
     if (!is.null(equations)) "library(nnet)",
     "",
-    fy_app_plain_helpers(equations, used),
+    fy_app_plain_helpers(info, equations, used),
     "",
     paste0("# --- What the sidebar came to ", strrep("-", 47)),
     "",
@@ -2440,11 +2441,42 @@ fy_app_plain_at_line <- function(info, fit_name) {
   paste0("at <- ", taken)
 }
 
+# What a script has to put back before it can update the fit.
+#
+# A model fitted inside a loop or a function keeps the symbol its call was
+# written with -- `geeglm(..., corstr = cs)` -- rather than the value that
+# symbol stood for, and the frame the value lived in went with the loop. The
+# fit recorded what the argument came to, so the symbol is written back from
+# the fit itself, which is what foresty does before it refits.
+fy_app_lost_arg_lines <- function(fit, fit_name) {
+  # What the script needs is what the session it is pasted into can find, not
+  # what foresty could find where the formula was written: a fit made in an
+  # lapply() keeps that frame alive through its formula, and update() called
+  # from a script is not in it.
+  lost <- fy_lost_args(fit, env = globalenv())
+  if (!length(lost)) {
+    return(NULL)
+  }
+  c(
+    fy_app_plain_note(
+      "The call ", fit_name, " was fitted by still names ",
+      paste0("`", names(lost), "`", collapse = " and "),
+      ", which the loop or the function it was fitted inside took away with ",
+      "it. update() has to find ", if (length(lost) > 1L) "them" else "it",
+      " again, and the fit itself recorded what ",
+      if (length(lost) > 1L) "they came" else "it came", " to."
+    ),
+    paste0(names(lost), " <- ", fit_name, "$", lost),
+    ""
+  )
+}
+
 # The three functions foresty is, as functions of your own.
-fy_app_plain_helpers <- function(equations = NULL, used) {
+fy_app_plain_helpers <- function(info, equations = NULL, used) {
   if (!is.null(equations)) {
     return(fy_app_plain_multi_helpers(used))
   }
+  fit <- info$fit
   c(
 paste0("# --- What foresty does for you ", strrep("-", 45)),
 "",
@@ -2479,11 +2511,9 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "  if (!is.null(modifier)) rows[[modifier]] <- c(from_level, to_level)",
 "",
 "  tt <- delete.response(terms(model))",
-"  mf <- model.frame(tt, data = rows, xlev = model$xlevels,",
-"                    na.action = na.pass)",
-"  X  <- model.matrix(tt, data = mf, contrasts.arg = model$contrasts)",
+    fy_app_frame_lines(fit, "model", "  "),
 "",
-"  b <- coef(model)",
+    paste0("  b <- ", fy_app_coef_expr(fit, "model")),
 "  b <- b[!is.na(b)]        # an aliased coefficient has no column in vcov()",
 "  V <- vcov(model)[names(b), names(b), drop = FALSE]",
 "  # The contrast is matched to the coefficients by name. A coefficient with no",
@@ -2534,7 +2564,7 @@ paste0("# --- What foresty does for you ", strrep("-", 45)),
 "# The p-value for the interaction, the Wald way: the joint test that every",
 "# coefficient the interaction term added is zero.",
 "wald_p <- function(model, columns, error_df = Inf) {",
-"  b <- coef(model)",
+    paste0("  b <- ", fy_app_coef_expr(fit, "model")),
 "  b <- b[!is.na(b)]",
 "  columns <- intersect(columns, names(b))",
 "  if (!length(columns)) return(NA_real_)",
@@ -2930,6 +2960,7 @@ fy_app_plain_subgroups <- function(state, suffix, input, ctx, comparisons) {
   }
 
   c(
+    fy_app_lost_arg_lines(ctx$info$fit, fit_name),
     "# The model carrying the interaction.",
     paste0(int_name, " <- update(", fit_name, ", . ~ . + ",
            paste(added, collapse = " + "), ")"),
@@ -3017,6 +3048,7 @@ fy_app_plain_cells <- function(state, suffix, input, ctx, reference) {
   }
 
   c(
+    fy_app_lost_arg_lines(ctx$info$fit, fit_name),
     "# The model carrying the interaction.",
     paste0(int_name, " <- update(", fit_name, ", . ~ . + ",
            paste(added, collapse = " + "), ")"),
@@ -3470,6 +3502,10 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
   int_name <- paste0(fit_name, "_int")
 
   cat("  1. The interaction term\n\n")
+  lost <- fy_app_lost_arg_lines(info$fit, fit_name)
+  if (length(lost)) {
+    fy_app_say_code(lost[nzchar(lost)], 7L)
+  }
   if (length(added)) {
     cat("       ", int_name, " <- update(", fit_name, ", . ~ . + ",
         paste(added, collapse = " + "), ")\n\n", sep = "")
@@ -3665,11 +3701,7 @@ fy_app_design_lines <- function(info, fit_name) {
   aliased <- length(info$kept) < info$n_full
   out <- c(
     paste0("tt <- delete.response(terms(", fit_name, "))"),
-    paste0("mf <- model.frame(tt, data = rows, xlev = ", fit_name,
-           "$xlevels,"),
-    "                  na.action = na.pass)",
-    paste0("X  <- model.matrix(tt, data = mf, contrasts.arg = ", fit_name,
-           "$contrasts)")
+    fy_app_frame_lines(info$fit, fit_name)
   )
   if (aliased) {
     out <- c(out, "X  <- X[, names(b), drop = FALSE]")
@@ -3677,18 +3709,57 @@ fy_app_design_lines <- function(info, fit_name) {
   out
 }
 
+# Those two rows put back through model.frame() and model.matrix() with the
+# levels and the contrast coding the model was fitted under.
+#
+# Most fits keep a copy of both, which is what `xlevels` and `contrasts` are.
+# An S4 fit -- lme4's among them -- cannot be subsetted at all, so `$xlevels`
+# on one is an error rather than a NULL, and the two are taken from its own
+# model frame and design matrix instead. That is where the copies a fit keeps
+# came from in the first place, so the two agree.
+fy_app_frame_lines <- function(fit, name, indent = "") {
+  if (!isS4(fit)) {
+    return(paste0(indent, c(
+      paste0("mf <- model.frame(tt, data = rows, xlev = ", name, "$xlevels,"),
+      "                  na.action = na.pass)",
+      paste0("X  <- model.matrix(tt, data = mf, contrasts.arg = ", name,
+             "$contrasts)")
+    )))
+  }
+  paste0(indent, c(
+    "mf <- model.frame(tt, data = rows, na.action = na.pass,",
+    paste0("                  xlev = .getXlevels(tt, model.frame(", name,
+           ")))"),
+    "X  <- model.matrix(tt, data = mf,",
+    paste0("                   contrasts.arg = attr(model.matrix(", name,
+           "), \"contrasts\"))")
+  ))
+}
+
+# How the coefficients the contrast is taken over are asked for. Most fits
+# report them with coef(); an lme4 fit keeps coef() for the coefficients of
+# each group and reports the fixed effects, which are the ones this arithmetic
+# is over, with fixef(). It is the rule fy_coefs() dispatches on, written out.
+fy_app_coef_expr <- function(fit, name) {
+  if (inherits(fit, "merMod")) {
+    return(paste0("lme4::fixef(", name, ")"))
+  }
+  paste0("coef(", name, ")")
+}
+
 # The coefficients and the covariance the test is taken over. An aliased
 # coefficient is NA and has no column in vcov(), so it is dropped from both and
 # from the design matrix with them, which is what keeps the three lined up.
 fy_app_coef_lines <- function(info, fit_name) {
+  coefs <- fy_app_coef_expr(info$fit, fit_name)
   if (length(info$kept) < info$n_full) {
     return(c(
-      paste0("b <- coef(", fit_name, ")"),
+      paste0("b <- ", coefs),
       "b <- b[!is.na(b)]   # this model has aliased coefficients",
       paste0("V <- vcov(", fit_name, ")[names(b), names(b), drop = FALSE]")
     ))
   }
-  c(paste0("b <- coef(", fit_name, ")"),
+  c(paste0("b <- ", coefs),
     paste0("V <- vcov(", fit_name, ")",
            if (isTRUE(info$robust)) "   # already robust" else ""))
 }

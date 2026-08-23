@@ -1,3 +1,9 @@
+# The app's tests drive the Shiny server function and re-run the R code it
+# writes, which is the slowest file in the suite by a wide margin. Every
+# test here is skipped on CRAN so that the check stays well inside the time
+# CRAN allows it; they run in full locally and on every CI platform, where
+# `NOT_CRAN` is set.
+
 # The controls as the app leaves them, so that a test setting one of them is
 # setting one of them and not also filling in the rest.
 #
@@ -24,6 +30,7 @@ fy_app_fit <- function() {
 }
 
 test_that("the variables are sorted into what each of them can be asked to do", {
+  skip_on_cran()
   info <- fy_model_info(fy_app_fit())
   v <- fy_app_variables(info)
 
@@ -47,6 +54,7 @@ test_that("the variables are sorted into what each of them can be asked to do", 
 })
 
 test_that("a variable that cannot be a modifier is still offered, in its own group", {
+  skip_on_cran()
   v <- fy_app_variables(fy_model_info(fy_app_fit()))
   choices <- fy_app_modifier_choices(v)
 
@@ -58,6 +66,7 @@ test_that("a variable that cannot be a modifier is still offered, in its own gro
 })
 
 test_that("the columns are offered in words rather than by argument name", {
+  skip_on_cran()
   info <- fy_model_info(fy_app_fit())
   choices <- fy_app_column_choices(info)
 
@@ -72,6 +81,7 @@ test_that("the columns are offered in words rather than by argument name", {
 })
 
 test_that("a narrow panel scrolls the figure rather than squeezing the plot", {
+  skip_on_cran()
   # Text columns take fixed centimetres; the plot takes what they leave. If the
   # on-screen device followed the browser width, a narrow window would shrink
   # the axis between those columns. The figure is drawn at the export size and
@@ -80,6 +90,7 @@ test_that("a narrow panel scrolls the figure rather than squeezing the plot", {
 })
 
 test_that("person-time is offered, and drawn, where the model carries it", {
+  skip_on_cran()
   d <- foresty_cohort
   set.seed(1)
   d$follow_up <- stats::runif(nrow(d), 1, 5)
@@ -97,12 +108,14 @@ test_that("person-time is offered, and drawn, where the model carries it", {
 })
 
 test_that("the app object is built without being run", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
   expect_s3_class(app, "shiny.appobj")
 })
 
 test_that("the code tab writes only what was moved off its default", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -142,6 +155,7 @@ test_that("the code tab writes only what was moved off its default", {
 })
 
 test_that("the difference in the exposure is said once, and one way", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -186,6 +200,7 @@ test_that("the difference in the exposure is said once, and one way", {
 })
 
 test_that("each exposure is asked separately, and keeps its own answer", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -216,6 +231,7 @@ test_that("each exposure is asked separately, and keeps its own answer", {
 })
 
 test_that("an exposure can be given a color of its own", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -268,6 +284,7 @@ test_that("an exposure can be given a color of its own", {
 })
 
 test_that("an exposure is asked about with the values it actually takes", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   variables <- fy_app_variables(fy_model_info(fy_app_fit()))
   ends <- signif(range(foresty_cohort$no2), 4)
@@ -299,6 +316,7 @@ test_that("an exposure is asked about with the values it actually takes", {
 })
 
 test_that("the two ends of an exposure are a difference it can be reported for", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -334,6 +352,7 @@ test_that("the two ends of an exposure are a difference it can be reported for",
 })
 
 test_that("two quantiles of an exposure are a difference it can be reported for", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -391,6 +410,7 @@ test_that("two quantiles of an exposure are a difference it can be reported for"
 })
 
 test_that("a splined exposure can be reported between two quantiles", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("splines")
   d <- foresty_cohort
@@ -421,6 +441,7 @@ test_that("a splined exposure can be reported between two quantiles", {
 })
 
 test_that("a splined exposure starts on a question it can answer", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("splines")
   d <- foresty_cohort
@@ -461,6 +482,7 @@ test_that("a splined exposure starts on a question it can answer", {
 })
 
 test_that("the app draws a multinomial fit and can move its outcome reference", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("nnet")
   my_fit <- nnet::multinom(wheeze_phenotype ~ no2 + sex + maternal_smoking,
@@ -496,6 +518,7 @@ test_that("the app draws a multinomial fit and can move its outcome reference", 
 })
 
 test_that("the outcome reference row is not written for a one-equation fit", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   # The box belongs to a model that has such a level; one that has not is never
   # shown it, and a stale input cannot write the argument for it.
@@ -510,6 +533,7 @@ test_that("the outcome reference row is not written for a one-equation fit", {
 })
 
 test_that("the rows can be colored by their category rather than the exposure", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -557,6 +581,7 @@ test_that("the rows can be colored by their category rather than the exposure", 
 })
 
 test_that("the subtitle naming the exposure can be turned off on its own", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -580,6 +605,7 @@ test_that("the subtitle naming the exposure can be turned off on its own", {
 })
 
 test_that("the scale is a choice between the two things it is a choice between", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -599,6 +625,7 @@ test_that("the scale is a choice between the two things it is a choice between",
 })
 
 test_that("only the two tests the package reports are offered", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -618,6 +645,7 @@ test_that("only the two tests the package reports are offered", {
 })
 
 test_that("the code shown is the code that drew the figure", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -641,6 +669,7 @@ test_that("the code shown is the code that drew the figure", {
 })
 
 test_that("a modifier the guards refuse shows the remedy in place of a figure", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -661,6 +690,7 @@ test_that("a modifier the guards refuse shows the remedy in place of a figure", 
 })
 
 test_that("the menus come to every exposure against every modifier", {
+  skip_on_cran()
   # Two exposures and two modifiers, with the overall effect asked for beside
   # them rather than instead of them, are six figures.
   pairs <- fy_app_pairs(list(exposure = c("no2", "male"),
@@ -689,6 +719,7 @@ test_that("the menus come to every exposure against every modifier", {
 })
 
 test_that("the text size chosen is written into the layout", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -703,6 +734,7 @@ test_that("the text size chosen is written into the layout", {
 })
 
 test_that("several pairs are written as a loop over the pairs", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -755,6 +787,7 @@ test_that("several pairs are written as a loop over the pairs", {
 })
 
 test_that("the loop carries the style, and the combination carries it too", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -782,6 +815,7 @@ test_that("the loop carries the style, and the combination carries it too", {
 })
 
 test_that("figures of different exposures stay apart when combined", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -797,6 +831,7 @@ test_that("figures of different exposures stay apart when combined", {
 })
 
 test_that("a pair the guards refuse is left out of the combination", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -816,6 +851,7 @@ test_that("a pair the guards refuse is left out of the combination", {
 })
 
 test_that("the Models tab writes out how each figure was arrived at", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -881,6 +917,7 @@ test_that("the Models tab writes out how each figure was arrived at", {
 })
 
 test_that("what the Models tab writes out is what foresty ran", {
+  skip_on_cran()
   # Fitted here rather than through the fixture, because the code the tab
   # writes names the data frame the model's own call names -- which is what
   # makes it code a reader can paste beside the model -- and pasting it needs
@@ -940,6 +977,7 @@ test_that("what the Models tab writes out is what foresty ran", {
 })
 
 test_that("the summary tab shows the model fitted and the model with the term", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   my_fit <- fy_app_fit()
   app <- foresty_app(my_fit, launch = FALSE)
@@ -969,6 +1007,7 @@ test_that("the summary tab shows the model fitted and the model with the term", 
 })
 
 test_that("a model that already carries the interaction is not given it twice", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   d <- foresty_cohort
   d$male <- as.numeric(d$sex == "Male")
@@ -983,6 +1022,7 @@ test_that("a model that already carries the interaction is not given it twice", 
 })
 
 test_that("a download is named for what it is of", {
+  skip_on_cran()
   one <- list(list(exposure = "no2", modifier = "male"))
   expect_equal(fy_app_slug(one), "no2_male")
   expect_equal(fy_app_slug(list(list(exposure = "no2", modifier = NULL))),
@@ -1000,6 +1040,7 @@ test_that("a download is named for what it is of", {
 })
 
 test_that("the figures export as a named list to go on with", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   app <- foresty_app(fy_app_fit(), launch = FALSE)
 
@@ -1026,6 +1067,7 @@ test_that("the figures export as a named list to go on with", {
 })
 
 test_that("the figure is written as PNG and as SVG", {
+  skip_on_cran()
   fit <- fy_app_fit()
   figures <- list("no2 by male" = foresty_interaction(fit, exposure = "no2",
                                                       interaction = "male"))
@@ -1047,6 +1089,7 @@ test_that("the figure is written as PNG and as SVG", {
 })
 
 test_that("figures that were not combined come down as a file apiece", {
+  skip_on_cran()
   skip_if_not_installed("zip")
   fit <- fy_app_fit()
   figures <- list(
@@ -1067,6 +1110,7 @@ test_that("figures that were not combined come down as a file apiece", {
 })
 
 test_that("a report is written for each model rather than for the first", {
+  skip_on_cran()
   skip_if_not_installed("zip")
   skip_if_not_installed("gt")
   fit <- fy_app_fit()
@@ -1093,6 +1137,7 @@ test_that("a report is written for each model rather than for the first", {
 })
 
 test_that("what foresty says while it works is shown, not swallowed", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   # The model already carries the interaction, which foresty reports with a
   # message; the app has to pass that on, since it changes how the figure is
@@ -1114,6 +1159,7 @@ test_that("what foresty says while it works is shown, not swallowed", {
 # What things are called, and a model too slow to redraw ----------------------
 
 test_that("the outcome, the axis and the person-time unit reach the call", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   d <- foresty_cohort
   set.seed(1)
@@ -1156,6 +1202,7 @@ test_that("the outcome, the axis and the person-time unit reach the call", {
 })
 
 test_that("the app is opened in a browser unless it is told not to be", {
+  skip_on_cran()
   # A point-and-click tool that starts by printing a URL has not started. The
   # argument is named rather than left to `...` so that a caller who wants the
   # other behaviour -- a remote session, a scripted screenshot -- can say so.
@@ -1187,6 +1234,7 @@ fy_plain_fit <- function(cohort) {
 }
 
 test_that("the R code tab writes where the estimates came from", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   cohort <- foresty_cohort
@@ -1251,6 +1299,7 @@ test_that("the R code tab writes where the estimates came from", {
 })
 
 test_that("the plain script writes out a multinomial fit's arithmetic", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   skip_if_not_installed("nnet")
@@ -1316,6 +1365,7 @@ test_that("the plain script writes out a multinomial fit's arithmetic", {
 })
 
 test_that("the multinomial script reads its rows against the level chosen", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   skip_if_not_installed("nnet")
@@ -1355,6 +1405,7 @@ test_that("the multinomial script reads its rows against the level chosen", {
 })
 
 test_that("the plain script writes the test the figure actually reported", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   skip_if_not_installed("geepack")
@@ -1388,7 +1439,81 @@ test_that("the plain script writes the test the figure actually reported", {
   })
 })
 
+test_that("the plain script puts back what the loop took away with it", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("geepack")
+  # A model fitted in a loop records the symbol its call was written with --
+  # `corstr = cs` -- and not the string that symbol stood for. Pasted into a
+  # session where the loop is over, update() has nothing to find, so the
+  # script writes the symbol back from what the fit itself recorded.
+  cohort <- foresty_cohort
+  cohort$id <- rep(seq_len(nrow(cohort) / 4L), each = 4L)
+  fits <- lapply(c("independence", "exchangeable"), function(cs)
+    geepack::geeglm(asthma ~ no2 + sex + maternal_smoking, id = id,
+                    data = cohort, family = binomial, corstr = cs))
+  my_fit <- fits[[2L]]
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE))
+    drawn <- as.data.frame(figure()$value)
+
+    code <- output$code_plain
+    expect_match(code, "cs <- my_fit$corstr", fixed = TRUE)
+
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+    expect_equal(env$rows_1$conf.low, drawn$conf.low, tolerance = 1e-8)
+  })
+})
+
+test_that("the plain script runs for a fit that keeps no copies to subset", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("lme4")
+  # An S4 fit answers `$xlevels` with an error rather than with a NULL, and
+  # keeps coef() for the coefficients of each group rather than for the fixed
+  # effects, so a script written with those two would not run at all against
+  # the model it was written for. `factor(visit)` is in the formula because a
+  # factor written into it is what needs the levels most: rebuilt from the two
+  # rows of a contrast it has one level, which has no contrasts.
+  cohort <- foresty_cohort
+  cohort$site <- factor(rep(seq_len(20), length.out = nrow(cohort)))
+  cohort$visit <- rep(1:4, length.out = nrow(cohort))
+  my_fit <- lme4::glmer(asthma ~ no2 + sex + factor(visit) + (1 | site),
+                        family = binomial, data = cohort)
+  app <- foresty_app(my_fit, launch = FALSE)
+
+  shiny::testServer(app, {
+    do.call(session$setInputs,
+            fy_app_defaults(modifier = "sex", overall = FALSE))
+    drawn <- as.data.frame(figure()$value)
+    reported <- fy_result(figure()$value)$interaction_test
+
+    code <- output$code_plain
+    expect_match(code, "b <- lme4::fixef(model)", fixed = TRUE)
+    expect_match(code, "xlev = .getXlevels(tt, model.frame(model))",
+                 fixed = TRUE)
+    expect_match(code, "contrasts.arg = attr(model.matrix(model)",
+                 fixed = TRUE)
+    expect_false(grepl("model$xlevels", code, fixed = TRUE))
+
+    # And what it comes to is what was drawn.
+    env <- fy_plain_session(my_fit, cohort)
+    invisible(utils::capture.output(eval(parse(text = code), envir = env)))
+    expect_equal(env$rows_1$estimate, drawn$estimate, tolerance = 1e-8)
+    expect_equal(env$rows_1$conf.low, drawn$conf.low, tolerance = 1e-8)
+    expect_equal(env$p_interaction_1, reported$p.value, tolerance = 1e-8)
+  })
+})
+
 test_that("a splined exposure spends its interaction across the equations", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   skip_if_not_installed("nnet")
@@ -1439,6 +1564,7 @@ test_that("a splined exposure spends its interaction across the equations", {
 })
 
 test_that("one reference group is offered per modifier and drawn per pair", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   cohort <- foresty_cohort
@@ -1484,6 +1610,7 @@ test_that("one reference group is offered per modifier and drawn per pair", {
 })
 
 test_that("a label with a quote in it still writes a script that parses", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   cohort <- foresty_cohort
   cohort$male <- as.numeric(cohort$sex == "Male")
@@ -1508,6 +1635,7 @@ test_that("a label with a quote in it still writes a script that parses", {
 })
 
 test_that("two quantiles the wrong way round are not a reversed figure", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   info <- fy_model_info(fy_app_fit())
 
@@ -1521,6 +1649,7 @@ test_that("two quantiles the wrong way round are not a reversed figure", {
 })
 
 test_that("the plain script follows the scale and the test that were chosen", {
+  skip_on_cran()
   skip_if_not_installed("shiny")
   skip_if_not_installed("patchwork")
   cohort <- foresty_cohort

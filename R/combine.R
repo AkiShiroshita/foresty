@@ -114,6 +114,9 @@
 #' foresty_combine(Overall = overall, Sex = by_sex,
 #'                 `Maternal smoking` = by_smoking)
 #'
+#' # The rest of the ways the blocks can be combined, drawn one after
+#' # another. Each is quick; there are simply several of them.
+#' \donttest{
 #' # In the layout of a journal, the interaction p-value written once against
 #' # each block, and without the numbers beside the plot.
 #' foresty_combine(overall, by_sex, by_smoking, layout = "jama")
@@ -134,6 +137,7 @@
 #' )
 #' names(figures)
 #' figures[["NO2"]]
+#' }
 #'
 #' @export
 foresty_combine <- function(...,

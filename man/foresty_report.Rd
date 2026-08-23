@@ -50,10 +50,14 @@ and the plot -- and is the whole of it whichever model is named, a figure
 being one figure however many models went into it.
 }
 \examples{
+# Writing the page renders the figure and lays the tables out with `gt`,
+# which is the slow part, so it is left out of the timed run.
+\donttest{
 fit <- glm(asthma ~ no2 + sex + maternal_age, family = binomial,
            data = foresty_cohort)
 x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
 foresty_report(x, file = file.path(tempdir(), "no2_by_sex.html"))
+}
 
 # The same page as the figure is made, under a name written from the
 # variables it is about -- here no2_sex.html.

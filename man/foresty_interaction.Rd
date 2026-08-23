@@ -354,6 +354,9 @@ by_sex <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
 by_sex
 summary(by_sex)
 
+# The rest of what the function can be asked for, drawn one after
+# another. Each is quick; there are simply several of them.
+\donttest{
 # Maternal smoking, where it is not.
 foresty_interaction(fit, exposure = "no2", interaction = "maternal_smoking")
 
@@ -384,6 +387,7 @@ if (requireNamespace("nnet", quietly = TRUE)) {
   )
   print(foresty_interaction(fit_phenotype, exposure = "no2",
                             interaction = "sex", contrast = 10))
+}
 }
 
 }

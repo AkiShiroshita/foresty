@@ -826,3 +826,54 @@ test_that("lme4 fits of both kinds are supported, and are tested by ML", {
     tolerance = 1e-6
   )
 })
+
+test_that("a mixed model keeps the levels of a factor written in its formula", {
+  skip_if_not_installed("lme4")
+  d <- foresty_cohort
+  d$site <- factor(rep(seq_len(20), length.out = nrow(d)))
+  d$visit <- rep(1:4, length.out = nrow(d))
+
+  # `factor(visit)` is a model frame column of that name, and an S4 fit keeps
+  # no xlevels of its own to be asked for. Recovering them under the bare
+  # `visit` left them out, and the design matrix of a two row contrast then
+  # rebuilt the factor from those two rows, where it has one level and no
+  # contrasts can be applied to it.
+  fit <- lme4::glmer(asthma ~ no2 + sex + factor(visit) + (1 | site),
+                     family = binomial, data = d)
+  x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
+
+  expect_length(fy_est(x)$estimate, 2L)
+  expect_true(all(is.finite(fy_est(x)$se)))
+})
+
+test_that("a fit made in a loop is refitted with what it recorded itself", {
+  skip_if_not_installed("geepack")
+  d <- foresty_cohort
+  d$id <- rep(seq_len(nrow(d) / 4L), each = 4L)
+
+  # The call written inside the loop keeps the symbol `cs` rather than the
+  # string it stood for, and the frame it stood in is gone by the time foresty
+  # adds the interaction, so the working correlation has to be taken from the
+  # fit itself.
+  fits <- lapply(c("independence", "exchangeable"), function(cs)
+    geepack::geeglm(asthma ~ no2 + sex + maternal_age, id = id, data = d,
+                    family = binomial, corstr = cs))
+
+  x <- suppressMessages(
+    foresty_interaction(fits[[2L]], exposure = "no2", interaction = "sex")
+  )
+  same <- suppressMessages(foresty_interaction(
+    geepack::geeglm(asthma ~ no2 * sex + maternal_age, id = id, data = d,
+                    family = binomial, corstr = "exchangeable"),
+    exposure = "no2", interaction = "sex"
+  ))
+  other <- suppressMessages(foresty_interaction(
+    geepack::geeglm(asthma ~ no2 * sex + maternal_age, id = id, data = d,
+                    family = binomial, corstr = "independence"),
+    exposure = "no2", interaction = "sex"
+  ))
+
+  # It is the exchangeable fit that was carried over, not simply some fit.
+  expect_equal(fy_est(x)$estimate, fy_est(same)$estimate)
+  expect_false(isTRUE(all.equal(fy_est(x)$se, fy_est(other)$se)))
+})

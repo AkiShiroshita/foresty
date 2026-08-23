@@ -155,6 +155,9 @@
 #' by_sex
 #' summary(by_sex)
 #'
+#' # The rest of what the function can be asked for, drawn one after
+#' # another. Each is quick; there are simply several of them.
+#' \donttest{
 #' # Maternal smoking, where it is not.
 #' foresty_interaction(fit, exposure = "no2", interaction = "maternal_smoking")
 #'
@@ -185,6 +188,7 @@
 #'   )
 #'   print(foresty_interaction(fit_phenotype, exposure = "no2",
 #'                             interaction = "sex", contrast = 10))
+#' }
 #' }
 #'
 #' @export
@@ -737,7 +741,73 @@ fy_refit <- function(fit, info, added) {
       parent = env
     )
   }
-  eval(call, envir = env)
+  eval(call, envir = fy_bind_lost_args(call, fit, env))
+}
+
+# Arguments the call names but nothing can supply any more.
+#
+# A model fitted inside a loop or an lapply() records the symbol it was written
+# with rather than the value it stood for: `geeglm(..., corstr = cs)` fitted
+# over the four working correlations keeps `cs`, and the frame `cs` lived in is
+# gone by the time the fit reaches foresty, so the refit fails to find it.
+# Where the fit itself recorded what that argument came to -- geeglm() keeps
+# its `corstr` -- the lost symbol is bound to the fit's own copy for the refit.
+#
+# Only arguments written as a bare symbol that cannot be evaluated are looked
+# up, and only under the name the call gave them, so an argument that still
+# resolves keeps whatever it resolves to. The elements a fit stores under the
+# name of an argument without holding what was passed are left out: `weights`
+# is a glm's working weights rather than its prior ones, `na.action` the rows
+# it dropped rather than the function that dropped them, and `model`, `x` and
+# `y` the things those flags asked to be kept rather than the flags.
+fy_lost_arg_blocklist <- c("formula", "data", "weights", "na.action",
+                           "subset", "model", "x", "y")
+
+fy_bind_lost_args <- function(call, fit, env) {
+  lost <- fy_lost_args(fit, call, env)
+  if (!length(lost)) {
+    return(env)
+  }
+  list2env(
+    stats::setNames(lapply(lost, function(argument) fit[[argument]]),
+                    names(lost)),
+    parent = env
+  )
+}
+
+# Which arguments those are: the symbol each was written with, named, and the
+# element of the fit that holds what it came to. The app writes the same pair
+# out as a line of R, so that a script carrying an update() of such a fit runs
+# where the fit was made.
+fy_lost_args <- function(fit, call = stats::getCall(fit), env = NULL) {
+  # An S4 fit cannot be subsetted, so it has nothing to be asked for.
+  if (isS4(fit) || is.null(call)) {
+    return(character(0))
+  }
+  if (is.null(env)) {
+    env <- environment(stats::formula(fit)) %||% parent.frame()
+  }
+  arguments <- names(call)
+  if (is.null(arguments)) {
+    return(character(0))
+  }
+  found <- character(0)
+  for (i in seq_along(call)[-1L]) {
+    argument <- arguments[[i]]
+    written <- call[[i]]
+    if (!nzchar(argument) || argument %in% fy_lost_arg_blocklist ||
+        !is.name(written)) {
+      next
+    }
+    if (!inherits(try(eval(written, envir = env), silent = TRUE),
+                  "try-error")) {
+      next
+    }
+    if (!is.null(fit[[argument]])) {
+      found[[as.character(written)]] <- argument
+    }
+  }
+  found
 }
 
 # How a variable is written in this model's formula: "rcs(no2, 4)" rather than
