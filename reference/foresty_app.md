@@ -197,21 +197,34 @@ codes typed beside it – `#1B9E77, #D95F02` – which is the same list
 
 **Plot** draws them, each figure carrying the exposure it is of under
 its title, which is a line that can be turned off on its own where the
-title says it already. **Models** writes out, in R, how each figure was
-arrived at: the term added to your model, the linear combination each
-subgroup estimate is, and the test reported beside them. That code is
-meant to be run: it is the call `foresty` made, with the same design
-matrix, the same coefficients and covariance, the same degrees of
-freedom and the same test, so pasting it beside the model reproduces the
-numbers on the figure rather than approximating them. **summary(fit)**
-is the summary of the model you fitted and of every model the app fitted
-from it by adding an interaction term. Both tabs head each block with
-the outcome, the exposure and the effect modifier the figure under it is
-of, since a coefficient table says none of them. **R code** is the code
-twice over. *With foresty* is the code that drew what is beside it,
-deparsed rather than reconstructed, so it cannot drift from what you are
-looking at; several pairs are written as a loop over the pairs rather
-than as one call apiece. It names the model with the name you passed to
+title says it already. A row of a forest plot is usually half of a
+comparison, and the columns of counts carry the other half beside it: a
+row of suburban children reads `822 vs 468`, those being the 822 the row
+is of and the 468 rural ones its odds ratio was estimated against. A
+line under the figure says which two groups they are, and for a
+multinomial fit that the estimate did not come out of the two of them
+alone. Nothing is said, and nothing is paired, on a figure whose rows
+compare no two groups of people – a continuous exposure and a binary
+outcome. *Count each row's own group only* goes back to one number a
+row. The line is on the screen rather than in the figure, so what the
+download buttons write is unchanged. See *What the counts beside the
+rows count* in
+[`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md).
+**Models** writes out, in R, how each figure was arrived at: the term
+added to your model, the linear combination each subgroup estimate is,
+and the test reported beside them. That code is meant to be run: it is
+the call `foresty` made, with the same design matrix, the same
+coefficients and covariance, the same degrees of freedom and the same
+test, so pasting it beside the model reproduces the numbers on the
+figure rather than approximating them. **summary(fit)** is the summary
+of the model you fitted and of every model the app fitted from it by
+adding an interaction term. Both tabs head each block with the outcome,
+the exposure and the effect modifier the figure under it is of, since a
+coefficient table says none of them. **R code** is the code twice over.
+*With foresty* is the code that drew what is beside it, deparsed rather
+than reconstructed, so it cannot drift from what you are looking at;
+several pairs are written as a loop over the pairs rather than as one
+call apiece. It names the model with the name you passed to
 `foresty_app()`, so pasting it into a script next to that model works as
 it stands. *How to calculate effect estimates for each subgroup* is
 where those numbers come from, in base R and the `car` package with

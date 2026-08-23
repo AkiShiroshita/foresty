@@ -191,6 +191,69 @@ choose them yourself, as `emphasize = c("Overall", "Pooled")`, and pass
 through `emphasis_shape`, `emphasis_height`, `emphasis_face` and
 `emphasis_gap`.
 
+## What the counts beside the rows count
+
+The table beside the plot reports the number of people behind each row
+and, where the outcome is an event, how many of them had it. Both are
+counted over the rows the model was fitted to and not over the data
+frame it was fitted from, so anyone missing the outcome, the exposure or
+any covariate in the formula is left out of them – which is the same
+complete-case set the estimates come from, and is what makes the two
+agree. A column that is not in the model does not affect them however
+much of it is missing.
+
+A row of a forest plot is usually half of a comparison, so by default
+the other half is beside it: a row of suburban children reads
+`822 vs 468`, those being the 822 the row is of and the 468 rural ones
+its odds ratio was estimated against. `counts = "row"` in
+[`foresty_layout()`](https://akishiroshita.github.io/foresty/reference/foresty_layout.md)
+holds the row's own group alone instead. What the two groups are depends
+on what the row compares:
+
+- A **continuous exposure** compares no two groups of people – its row
+  is a step along a slope – so the count is the one group the row is of:
+  every row of the model's data in a
+  [`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md)
+  figure, everyone in the subgroup in a
+  [`foresty_interaction()`](https://akishiroshita.github.io/foresty/reference/foresty_interaction.md)
+  one.
+
+- A **categorical exposure** compares one of its levels with the level
+  the contrast is from, so a row carries the two: `822 vs 468` people
+  and `125 vs 59` events. The reference row is the group the others are
+  compared with rather than a comparison of its own, so it carries one
+  number.
+
+- A **multinomial fit**
+  ([`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html)) of
+  an exposure with no levels compares two levels of the outcome, and the
+  two numbers are how many people were at each: a "Transient vs None"
+  row of women reads `637 vs 1,050`. That is the only pair of counts
+  such a row has – the events column would repeat it – so it goes under
+  the sizes and the events column is left off. Of a categorical
+  exposure, the row compares the exposure's levels within one comparison
+  of the outcome, so the sizes are the two exposure groups whatever
+  their outcome and the events are the people at the row's outcome level
+  within each.
+
+- An **ordinal fit**
+  ([`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html)) has one set
+  of coefficients for the whole outcome, so its rows carry sizes and no
+  count of events.
+
+A multinomial estimate is worth one caution the counts cannot give: it
+did not come out of the two groups beside it alone. All the equations
+are fitted over the whole outcome at once, so the people at the levels a
+row is not about bear on it too, and a row reading `637 vs 1,050` is not
+the logistic regression of those 1,687.
+
+The figures whose rows compare two groups say what the counts are under
+the plot in
+[`foresty_app()`](https://akishiroshita.github.io/foresty/reference/foresty_app.md)
+and under the table of estimates in
+[`foresty_report()`](https://akishiroshita.github.io/foresty/reference/foresty_report.md);
+the ones that do not say nothing.
+
 ## Adjusting the figure
 
 The result is a `ggplot2` object, so layers, scales and themes are added

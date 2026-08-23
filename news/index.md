@@ -40,6 +40,28 @@ First release.
   one degree of freedom for each coefficient the interaction added.
 - Supports categorical and continuous exposures, including spline terms
   and contrasts between specified exposure values.
+- A row of a forest plot is usually half of a comparison, and the
+  columns of counts now carry the other half beside it: a row of
+  suburban children reads `822 vs 468` people and `125 vs 59` events,
+  those being the groups its odds ratio was estimated from. A
+  multinomial row, which compares two levels of the outcome, reads
+  `637 vs 1,050` under the sizes and drops the events column, which
+  would have repeated the first of them.
+  `foresty_layout(counts = "row")` holds the row’s own group alone, as
+  before. The rows that compare no two groups of people – a step along a
+  continuous exposure, and the reference rows – are unchanged.
+- What the columns of counts are counts of is documented in *What the
+  counts beside the rows count* in
+  [`?foresty_main`](https://akishiroshita.github.io/foresty/reference/foresty_main.md):
+  they are taken over the rows the model was fitted to, so a complete
+  case on the outcome, the exposure and the covariates. The figures
+  whose rows compare two groups say which two under the plot in
+  [`foresty_app()`](https://akishiroshita.github.io/foresty/reference/foresty_app.md)
+  and under the table of estimates in
+  [`foresty_report()`](https://akishiroshita.github.io/foresty/reference/foresty_report.md),
+  and say of a multinomial fit that the estimate did not come out of
+  those two groups alone. The figure itself is unchanged, so the
+  downloads are what they always were.
 - [`summary()`](https://rdrr.io/r/base/summary.html),
   [`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html),
   [`broom::tidy()`](https://generics.r-lib.org/reference/tidy.html),

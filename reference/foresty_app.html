@@ -240,7 +240,17 @@ color per row. Those come from a palette, or from hex codes typed beside it
 
 <p><strong>Plot</strong> draws them, each figure carrying the exposure it is of under its
 title, which is a line that can be turned off on its own where the title
-says it already. <strong>Models</strong> writes out, in R, how each figure was arrived at: the term
+says it already. A row of a forest plot is usually half of a comparison, and
+the columns of counts carry the other half beside it: a row of suburban
+children reads <code>822 vs 468</code>, those being the 822 the row is of and the 468
+rural ones its odds ratio was estimated against. A line under the figure
+says which two groups they are, and for a multinomial fit that the estimate
+did not come out of the two of them alone. Nothing is said, and nothing is
+paired, on a figure whose rows compare no two groups of people – a
+continuous exposure and a binary outcome. <em>Count each row's own group only</em>
+goes back to one number a row. The line is on the screen rather than in the
+figure, so what the download buttons write is unchanged. See <em>What the
+counts beside the rows count</em> in <code><a href="foresty_main.html">foresty_main()</a></code>. <strong>Models</strong> writes out, in R, how each figure was arrived at: the term
 added to your model, the linear combination each subgroup estimate is, and
 the test reported beside them. That code is meant to be run: it is the call
 <code>foresty</code> made, with the same design matrix, the same coefficients and

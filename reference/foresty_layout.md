@@ -45,6 +45,7 @@ foresty_layout(
   ci_separator = NULL,
   ci_brackets = NULL,
   column_gap = NULL,
+  counts = NULL,
   headings = NULL,
   xlim = NULL,
   arrows = NULL,
@@ -245,6 +246,21 @@ foresty_layout(
   about two digits wide. Lower it to draw the numbers tighter and leave
   the plot more of the figure.
 
+- counts:
+
+  What the columns of counts hold on a row that compares two groups of
+  people. `"compared"`, the default, holds both of them, the row's own
+  group and the group its estimate is compared with, written as
+  `822 vs 468`: the odds ratio on that row came out of those 822 and
+  those 468, and a row carrying one of the two numbers leaves the reader
+  to find the other. `"row"` holds the row's own group alone, which is
+  what a figure drawn before this option existed held. The rows that
+  compare no two groups of people are unaffected either way – a step
+  along a continuous exposure, and the reference rows, which are the
+  group the others are compared with rather than a comparison of their
+  own. See *What the counts beside the rows count* in
+  [`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md).
+
 - headings:
 
   Named character vector renaming the column headings, as
@@ -261,7 +277,11 @@ foresty_layout(
   and `"Subgroup"` in
   [`foresty_combine()`](https://akishiroshita.github.io/foresty/reference/foresty_combine.md),
   which leaves it unheaded when the figure carries an overall estimate
-  as well as subgroups.
+  as well as subgroups. What `n` and `events` are counts of, which is
+  not the same thing for every figure, is in *What the counts beside the
+  rows count* in
+  [`foresty_main()`](https://akishiroshita.github.io/foresty/reference/foresty_main.md);
+  rename them to say it where a caption does not.
 
 - xlim:
 

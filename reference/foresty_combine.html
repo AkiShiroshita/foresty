@@ -226,6 +226,51 @@ alike. How they are drawn is set in <code><a href="foresty_layout.html">foresty_
 <code>emphasis_shape</code>, <code>emphasis_height</code>, <code>emphasis_face</code> and <code>emphasis_gap</code>.</p>
     </div>
     <div class="section level2">
+    <h2 id="what-the-counts-beside-the-rows-count">What the counts beside the rows count<a class="anchor" aria-label="anchor" href="#what-the-counts-beside-the-rows-count"></a></h2>
+
+
+
+<p>The table beside the plot reports the number of people behind each row and,
+where the outcome is an event, how many of them had it. Both are counted
+over the rows the model was fitted to and not over the data frame it was
+fitted from, so anyone missing the outcome, the exposure or any covariate in
+the formula is left out of them – which is the same complete-case set the
+estimates come from, and is what makes the two agree. A column that is not
+in the model does not affect them however much of it is missing.</p>
+<p>A row of a forest plot is usually half of a comparison, so by default the
+other half is beside it: a row of suburban children reads <code>822 vs 468</code>,
+those being the 822 the row is of and the 468 rural ones its odds ratio was
+estimated against. <code>counts = "row"</code> in <code><a href="foresty_layout.html">foresty_layout()</a></code> holds the row's
+own group alone instead. What the two groups are depends on what the row
+compares:</p><ul><li><p>A <strong>continuous exposure</strong> compares no two groups of people – its row is a
+step along a slope – so the count is the one group the row is of: every
+row of the model's data in a <code><a href="foresty_main.html">foresty_main()</a></code> figure, everyone in the
+subgroup in a <code><a href="foresty_interaction.html">foresty_interaction()</a></code> one.</p></li>
+<li><p>A <strong>categorical exposure</strong> compares one of its levels with the level the
+contrast is from, so a row carries the two: <code>822 vs 468</code> people and
+<code>125 vs 59</code> events. The reference row is the group the others are compared
+with rather than a comparison of its own, so it carries one number.</p></li>
+<li><p>A <strong>multinomial fit</strong> (<code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>) of an exposure with no levels
+compares two levels of the outcome, and the two numbers are how many
+people were at each: a "Transient vs None" row of women reads
+<code>637 vs 1,050</code>. That is the only pair of counts such a row has – the
+events column would repeat it – so it goes under the sizes and the events
+column is left off. Of a categorical exposure, the row compares the
+exposure's levels within one comparison of the outcome, so the sizes are
+the two exposure groups whatever their outcome and the events are the
+people at the row's outcome level within each.</p></li>
+<li><p>An <strong>ordinal fit</strong> (<code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code>) has one set of coefficients for the
+whole outcome, so its rows carry sizes and no count of events.</p></li>
+</ul><p>A multinomial estimate is worth one caution the counts cannot give: it did
+not come out of the two groups beside it alone. All the equations are fitted
+over the whole outcome at once, so the people at the levels a row is not
+about bear on it too, and a row reading <code>637 vs 1,050</code> is not the logistic
+regression of those 1,687.</p>
+<p>The figures whose rows compare two groups say what the counts are under the
+plot in <code><a href="foresty_app.html">foresty_app()</a></code> and under the table of estimates in
+<code><a href="foresty_report.html">foresty_report()</a></code>; the ones that do not say nothing.</p>
+    </div>
+    <div class="section level2">
     <h2 id="adjusting-the-figure">Adjusting the figure<a class="anchor" aria-label="anchor" href="#adjusting-the-figure"></a></h2>
 
 
