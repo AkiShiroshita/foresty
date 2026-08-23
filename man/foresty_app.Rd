@@ -179,7 +179,17 @@ color per row. Those come from a palette, or from hex codes typed beside it
 
 \strong{Plot} draws them, each figure carrying the exposure it is of under its
 title, which is a line that can be turned off on its own where the title
-says it already. \strong{Models} writes out, in R, how each figure was arrived at: the term
+says it already. A row of a forest plot is usually half of a comparison, and
+the columns of counts carry the other half beside it: a row of suburban
+children reads \verb{822 vs 468}, those being the 822 the row is of and the 468
+rural ones its odds ratio was estimated against. A line under the figure
+says which two groups they are, and for a multinomial fit that the estimate
+did not come out of the two of them alone. Nothing is said, and nothing is
+paired, on a figure whose rows compare no two groups of people -- a
+continuous exposure and a binary outcome. \emph{Count each row's own group only}
+goes back to one number a row. The line is on the screen rather than in the
+figure, so what the download buttons write is unchanged. See \emph{What the
+counts beside the rows count} in \code{\link[=foresty_main]{foresty_main()}}. \strong{Models} writes out, in R, how each figure was arrived at: the term
 added to your model, the linear combination each subgroup estimate is, and
 the test reported beside them. That code is meant to be run: it is the call
 \code{foresty} made, with the same design matrix, the same coefficients and

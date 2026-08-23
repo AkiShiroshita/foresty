@@ -88,6 +88,7 @@
 #' For a linear model the likelihood ratio test is the chi-square form rather
 #' than the exact F test, which is what the Wald test gives there.
 #'
+#' @inheritSection foresty_main What the counts beside the rows count
 #' @inheritSection foresty_main Adjusting the figure
 #'
 #' @inheritParams foresty_main
@@ -294,7 +295,11 @@ foresty_interaction <- function(fit,
   estimates$modifier <- interaction
   # The blocks of this figure are the subgroups of the modifier, so a
   # multinomial fit names its comparisons between outcome levels on the rows
-  # inside each block rather than taking blocks of its own.
+  # inside each block rather than taking blocks of its own. What the rows were
+  # before they were folded together is what the note under the figure is
+  # about, so it is taken while the two are still apart.
+  by_outcome <- any(!is.na(estimates$outcome_label))
+  by_level <- any(!is.na(estimates$level))
   estimates <- fy_fold_outcome_into_level(estimates)
   estimates <- fy_finish_estimates(estimates, labels)
   estimates$modifier_label <- factor(
@@ -357,6 +362,11 @@ foresty_interaction <- function(fit,
     estimates = estimates,
     infos = list(info),
     exposure = exposure,
+    counts_note = fy_counts_note(estimates, by_level = by_level,
+                                 by_outcome = by_outcome, table = table,
+                                 columns = columns, counts = layout$counts),
+    counts_reading = c(by_level = by_level, by_outcome = by_outcome),
+    counts_mode = layout$counts,
     modifier = interaction,
     modifier_display = modifier_label,
     reference_cell = reference_cell,

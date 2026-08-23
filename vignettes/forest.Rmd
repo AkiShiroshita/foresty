@@ -179,10 +179,16 @@ foresty_main(list(fit_phenotype), exposure = "no2", contrast = 10,
 `outcome_reference_row` draws that level as a row of its own so that the
 figure states the reference rather than leaving it to the row labels.
 
-In the table beside such a figure, **N** is the number of observations the
-model was fitted on, the same on every row, and **Events** is the number of
-observations at the level that row is about -- not the number in the two
-levels the row compares.
+In the table beside such a figure, each row compares two levels of the
+outcome, so **N** holds how many observations were at each of them --
+`637 vs 1,050` -- and there is no **Events** column, which would repeat the
+first of the two. The estimate did not come out of those two groups alone:
+all the equations are fitted over the whole outcome at once, so the
+observations at the levels a row is not about bear on it too.
+`foresty_layout(counts = "row")` holds the row's own group alone instead,
+which is the number of observations the model was fitted on. What the counts
+hold for every kind of figure is in *What the counts beside the rows count*
+in `?foresty_main`.
 
 An interaction is tested jointly across the equations, so its p-value spends
 one degree of freedom for each coefficient the interaction added:

@@ -109,7 +109,7 @@ foresty_report <- function(x, file, title = NULL, model = NULL, width = 10,
                                    fy_interaction_html(x, result)),
     fy_section(
       if (is_interaction) "Subgroup-specific estimates" else "Estimates",
-      fy_estimates_table(x, result)
+      paste0(fy_estimates_table(x, result), fy_counts_note_html(result))
     ),
     fy_section("Forest plot", fy_plot_html(x, width = width, height = height)),
     vapply(chosen, function(i) {
@@ -324,9 +324,13 @@ fy_estimates_table <- function(x, result) {
            fy_format_number(est$conf.high), ")")
   )
   out[["p-value"]] <- fy_format_p(est$p.value)
-  out[["N"]] <- fy_format_count(est$n)
-  if (!all(is.na(est$events))) {
-    out[["Events"]] <- fy_format_count(est$events)
+  # The same two counts the figure carries, held the way the figure held them:
+  # a page reporting one thing and a figure beside it reporting another is
+  # worse than either.
+  pairs <- fy_count_pairs(est, result$counts_mode %||% "compared")
+  out[["N"]] <- fy_format_pair(pairs$n)
+  if (!all(is.na(est$events)) && !is.null(pairs$events)) {
+    out[["Events"]] <- fy_format_pair(pairs$events)
   }
   if (!all(is.na(est$person_time))) {
     out[[fy_person_time_heading("Person-time", result$person_time, sep = " ")]] <-
@@ -341,6 +345,30 @@ fy_estimates_table <- function(x, result) {
     out[["p for interaction (LR)"]] <- fy_format_p(est$interaction_p_lrt)
   }
   fy_gt(out)
+}
+
+# What the N and Events columns of that table are counts of, for the tables
+# where that is not what a reader takes them to be.
+#
+# The note is written from the figure's own reading of its rows rather than
+# from the sentences the figure carries: the table on this page holds N and
+# Events whatever the figure was drawn with, so a figure drawn with `table =
+# FALSE` still has a table here to explain.
+fy_counts_note_html <- function(result) {
+  reading <- result$counts_reading
+  if (is.null(reading)) {
+    return("")
+  }
+  note <- fy_counts_note(result$estimates,
+                         by_level = isTRUE(reading[["by_level"]]),
+                         by_outcome = isTRUE(reading[["by_outcome"]]),
+                         counts = result$counts_mode %||% "compared")
+  if (!length(note)) {
+    return("")
+  }
+  paste0("
+<p class=\"note\">", fy_escape(paste(note, collapse = " ")),
+         "</p>")
 }
 
 fy_coefficient_table <- function(info, result) {
@@ -466,7 +494,7 @@ fy_report_css <- function() {
     "section{background:#fff;border:1px solid #e3e6ea;border-radius:8px;",
     "padding:1.25rem 1.5rem;margin-bottom:1.25rem;overflow-x:auto}",
     "p.lead{margin:0 0 1rem}",
-    "p.note{margin:0;color:#6b7280;font-style:italic}",
+    "p.note{margin:10px 0 0;color:#6b7280;font-style:italic;max-width:46em}",
     "img{max-width:100%;height:auto;display:block}"
   )
 }

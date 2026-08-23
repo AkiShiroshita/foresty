@@ -42,6 +42,15 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
     # of the scale -- 1 for a ratio, 0 for the scale the model was fitted on --
     # and carries no interval, no statistic and no p-value.
     is_definition <- isTRUE(v$reference) || isTRUE(cmp$is_reference)
+
+    # And the people the row's estimate is compared with, so that the figure
+    # can put the two side by side rather than leaving the reader to find the
+    # other half of the comparison on another row.
+    compared <- fy_compared_counts(
+      info, exposure, v, cmp, modifier = modifier,
+      modifier_level = modifier_level, reference_cell = reference_cell,
+      is_definition = is_definition
+    )
     if (is_definition) {
       out <- data.frame(
         estimate = null_value, se = NA_real_,
@@ -70,6 +79,16 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
       n = counts$n,
       events = counts$events,
       person_time = counts$person_time,
+      # The same two counts for the group the row is compared with, and what
+      # that group is: `"exposure"` where the row is one level of a categorical
+      # exposure against another, `"outcome"` where it is one level of a
+      # multinomial outcome against another, and NA where the row is compared
+      # with nothing that is a group of people -- a step along a continuous
+      # exposure, and the reference rows, which are the comparison rather than
+      # a side of it.
+      n_compared = compared$n,
+      events_compared = compared$events,
+      counts_pair = compared$pair,
       # Which two levels of the outcome the row compares, and how a figure
       # says it. All three are NA for a fit of one equation, whose rows are of
       # the outcome as a whole.
@@ -113,6 +132,69 @@ fy_exposure_estimates <- function(info, exposure, values, ci_level = 0.95,
 
   rownames(out) <- NULL
   out
+}
+
+# The people a row's estimate is compared with, and which of the two axes of
+# the figure the comparison runs along.
+#
+# A row of a forest plot is half of a comparison, and the counts beside it have
+# always been of that half alone: a row of 822 suburban children carries an
+# odds ratio estimated from those 822 and the 468 rural ones on the reference
+# row, and the 468 appear nowhere near the estimate they are half of. This is
+# the other half.
+#
+# Which group that is follows what the row compares:
+#
+# * A categorical exposure compares one of its levels with the level the
+#   contrast is from, within the same subgroup: Urban against Rural.
+# * `reference` on foresty_interaction() compares every cell with one named
+#   cell of the two variables, which is a group in another subgroup.
+# * A multinomial fit of an exposure with no levels compares one level of the
+#   outcome with the level the equations were fitted against, over the same
+#   people: Transient against None.
+#
+# Nothing else has a second group to report. A step along a continuous exposure
+# is not two groups of people, and neither is a contrast between two values of
+# one; the reference rows are the group everything else is compared with rather
+# than a row with a comparison of its own.
+fy_compared_counts <- function(info, exposure, v, cmp, modifier = NULL,
+                               modifier_level = NULL, reference_cell = NULL,
+                               is_definition = FALSE) {
+  none <- list(n = NA_integer_, events = NA_integer_, pair = NA_character_)
+  if (isTRUE(is_definition)) {
+    return(none)
+  }
+
+  along_exposure <- function(level, subgroup) {
+    counts <- fy_counts(
+      info,
+      fy_rows_at(info, exposure, level, modifier, subgroup),
+      outcome_level = cmp$level
+    )
+    list(n = counts$n, events = counts$events, pair = "exposure")
+  }
+
+  if (!is.null(reference_cell)) {
+    return(along_exposure(reference_cell$exposure_level,
+                          reference_cell$modifier_level))
+  }
+
+  x <- info$mf[[exposure]]
+  if (!is.null(x) && fy_is_categorical(x) && !is.na(v$level)) {
+    return(along_exposure(v$from, modifier_level))
+  }
+
+  if (!is.null(cmp) && !is.null(cmp$reference)) {
+    counts <- fy_counts(
+      info,
+      fy_estimate_rows(info, exposure, v, modifier = modifier,
+                       modifier_level = modifier_level),
+      outcome_level = cmp$reference
+    )
+    return(list(n = counts$n, events = counts$events, pair = "outcome"))
+  }
+
+  none
 }
 
 # The comparison between outcome levels written into the column of levels, for

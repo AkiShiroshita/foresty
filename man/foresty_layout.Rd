@@ -37,6 +37,7 @@ foresty_layout(
   ci_separator = NULL,
   ci_brackets = NULL,
   column_gap = NULL,
+  counts = NULL,
   headings = NULL,
   xlim = NULL,
   arrows = NULL,
@@ -182,6 +183,18 @@ one is not, a hyphen between negative numbers being unreadable.}
 an em being about two digits wide. Lower it to draw the numbers tighter
 and leave the plot more of the figure.}
 
+\item{counts}{What the columns of counts hold on a row that compares two
+groups of people. \code{"compared"}, the default, holds both of them, the row's
+own group and the group its estimate is compared with, written as
+\verb{822 vs 468}: the odds ratio on that row came out of those 822 and those
+468, and a row carrying one of the two numbers leaves the reader to find
+the other. \code{"row"} holds the row's own group alone, which is what a figure
+drawn before this option existed held. The rows that compare no two groups
+of people are unaffected either way -- a step along a continuous exposure,
+and the reference rows, which are the group the others are compared with
+rather than a comparison of their own. See \emph{What the counts beside the
+rows count} in \code{\link[=foresty_main]{foresty_main()}}.}
+
 \item{headings}{Named character vector renaming the column headings, as
 \code{c(n = "No. of patients")}. The names are \code{estimate}, \code{label}, \code{p}, \code{n},
 \code{events}, \code{person_time}, \code{interaction_p}, and \code{interaction_p_wald} and
@@ -192,7 +205,10 @@ outcome is named on the axis under the plot rather than twice over.
 \code{label} heads the column of row labels, and defaults to \code{"Exposure"}
 in \code{\link[=foresty_main]{foresty_main()}}, the modifier's name in \code{\link[=foresty_interaction]{foresty_interaction()}} and
 \code{"Subgroup"} in \code{\link[=foresty_combine]{foresty_combine()}}, which leaves it unheaded when the
-figure carries an overall estimate as well as subgroups.}
+figure carries an overall estimate as well as subgroups. What \code{n} and
+\code{events} are counts of, which is not the same thing for every figure, is
+in \emph{What the counts beside the rows count} in \code{\link[=foresty_main]{foresty_main()}}; rename
+them to say it where a caption does not.}
 
 \item{xlim}{Limits of the plot, as \code{c(0.5, 4)}. Intervals running past them
 are drawn with an arrow at the end, which is what keeps one wide interval

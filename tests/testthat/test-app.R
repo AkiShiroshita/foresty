@@ -14,7 +14,8 @@ fy_app_defaults <- function(...) {
     list(exposure = "no2", modifier = character(0), overall = TRUE,
          combine = TRUE, style = "classic", table = TRUE,
          color_by = "none", palette = "Dark2", colors_hex = "",
-         columns = character(0), test = "lrt", scale = "ratio",
+         columns = character(0), counts_row = FALSE, test = "lrt",
+         scale = "ratio",
          ci_level = 0.95, digits = 2, use_xlim = FALSE, xlim_low = 0.5,
          xlim_high = 2, title = "", no_title = FALSE, no_subtitle = FALSE,
          width = 10, height = 6, dpi = 300),
@@ -1682,5 +1683,48 @@ test_that("the plain script follows the scale and the test that were chosen", {
     expect_equal(env$p_interaction_1,
                  fy_result(figure()$value)$interaction_test$p.value,
                  tolerance = 1e-8)
+  })
+})
+
+test_that("the Plot tab says what the counts are counts of, when it needs to", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  d <- foresty_cohort
+  fit <- glm(asthma ~ urbanicity + no2 + sex, family = binomial, data = d)
+  app <- foresty_app(fit, launch = FALSE)
+
+  drawn <- function(output) paste(as.character(output$plots), collapse = "")
+
+  shiny::testServer(app, {
+    # A categorical exposure compares one of its levels with another, so its
+    # rows carry both groups and a line under the figure says which two.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "urbanicity", modifier = "sex",
+                            overall = FALSE, combine = FALSE))
+    expect_match(drawn(output), "fy-caption", fixed = TRUE)
+    expect_match(drawn(output), "the group its estimate is compared with")
+
+    # A continuous exposure and a binary outcome are read the way a reader
+    # reads them, and nothing is said.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "no2", modifier = "sex",
+                            overall = FALSE, combine = FALSE))
+    expect_false(grepl("fy-caption", drawn(output), fixed = TRUE))
+
+    # The line goes with the columns it is about: turning the table off takes
+    # it away with them.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "urbanicity", modifier = "sex",
+                            overall = FALSE, combine = FALSE, table = FALSE))
+    expect_false(grepl("fy-caption", drawn(output), fixed = TRUE))
+
+    # Asking for the row's own group alone writes the option that says so and
+    # changes what the line under the figure says.
+    do.call(session$setInputs,
+            fy_app_defaults(exposure = "urbanicity", modifier = "sex",
+                            overall = FALSE, combine = FALSE,
+                            counts_row = TRUE))
+    expect_match(output$code, "counts = \"row\"", fixed = TRUE)
+    expect_match(drawn(output), "no row carries the total behind its own")
   })
 })

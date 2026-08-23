@@ -130,7 +130,17 @@
 #'
 #' **Plot** draws them, each figure carrying the exposure it is of under its
 #' title, which is a line that can be turned off on its own where the title
-#' says it already. **Models** writes out, in R, how each figure was arrived at: the term
+#' says it already. A row of a forest plot is usually half of a comparison, and
+#' the columns of counts carry the other half beside it: a row of suburban
+#' children reads `822 vs 468`, those being the 822 the row is of and the 468
+#' rural ones its odds ratio was estimated against. A line under the figure
+#' says which two groups they are, and for a multinomial fit that the estimate
+#' did not come out of the two of them alone. Nothing is said, and nothing is
+#' paired, on a figure whose rows compare no two groups of people -- a
+#' continuous exposure and a binary outcome. *Count each row's own group only*
+#' goes back to one number a row. The line is on the screen rather than in the
+#' figure, so what the download buttons write is unchanged. See *What the
+#' counts beside the rows count* in [foresty_main()]. **Models** writes out, in R, how each figure was arrived at: the term
 #' added to your model, the linear combination each subgroup estimate is, and
 #' the test reported beside them. That code is meant to be run: it is the call
 #' `foresty` made, with the same design matrix, the same coefficients and
@@ -425,6 +435,7 @@ fy_app_css <- function() {
     # page scrolls rather than squeezing the plot between fixed-width columns.
     ".fy-figure{margin-bottom:24px;overflow-x:auto}",
     ".fy-figure h4{font-weight:600;margin:4px 0 6px 0}",
+    ".fy-caption{color:#5b6570;font-size:90%;margin:2px 0 0 0;max-width:46em}",
     ".fy-buttons .btn{margin:0 6px 6px 0}",
     ".fy-note{color:#5b6570;font-size:90%;margin:-4px 0 10px 0}",
     ".fy-heading{font-weight:600;margin:6px 0 2px 0}",
@@ -589,6 +600,17 @@ fy_app_ui <- function(info, variables, fit_name) {
             "columns", "Columns of that table (empty for the style's default)",
             choices = fy_app_column_choices(info), multiple = TRUE
           ),
+          shiny::checkboxInput(
+            "counts_row",
+            "Count each row's own group only, not the group it is compared with",
+            value = FALSE
+          ),
+          shiny::div(class = "fy-note", paste0(
+            "A row of a forest plot is half of a comparison. By default the ",
+            "other half is beside it -- 822 vs 468 -- so the odds ratio on ",
+            "that row can be read against the numbers it came out of. Tick ",
+            "this to write the row's own group alone."
+          )),
           shiny::numericInput(
             "digits",
             paste0("Decimal places for the ", tolower(info$measure_name),
@@ -1341,7 +1363,8 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
         shiny::div(
           class = "fy-figure",
           if (!is.null(headings)) shiny::h4(headings[i]) else NULL,
-          shiny::plotOutput(paste0("plot_", i), width = width, height = height)
+          shiny::plotOutput(paste0("plot_", i), width = width, height = height),
+          fy_app_caption(figs[[i]])
         )
       })
       if (hidden > 0L) {
@@ -1991,6 +2014,9 @@ fy_app_layout_call <- function(input, color = NULL) {
   if (!is.null(color) && nzchar(color)) args$color <- color
   args <- c(args, fy_app_color_by_args(input))
   if (!fy_app_same(input$digits, 2)) args$digits <- input$digits
+  # The counts hold both sides of a comparison unless the box says otherwise,
+  # so only the box being ticked writes anything.
+  if (isTRUE(input$counts_row)) args$counts <- "row"
   if (isTRUE(input$use_xlim)) {
     args$xlim <- call("c", input$xlim_low, input$xlim_high)
   }
@@ -3259,6 +3285,26 @@ fy_app_plain_columns <- function(state, exposure, modifier) {
 # A string as the script has to write it, quotes and backslashes escaped.
 fy_app_quote <- function(x) {
   paste0("\"", gsub("\"", "\\\\\"", gsub("\\\\", "\\\\\\\\", x)), "\"")
+}
+
+# What the counts beside the rows are counts of, written under the figure.
+#
+# A figure of a continuous exposure and a binary outcome needs nothing said
+# about them, and nothing is said: the note is drawn only for the figures whose
+# columns of counts do not mean what a reader takes them to mean, which is a
+# categorical exposure, whose rows count one level apiece, and a multinomial
+# fit, whose rows count everyone whatever their outcome and whose events column
+# is of the level the row is of rather than of the level it is compared with.
+#
+# It goes under the plot on the screen rather than into the plot, so that what
+# the buttons write is the figure a paper takes and not a figure carrying a
+# note to its reader about how to read a screen.
+fy_app_caption <- function(figure) {
+  note <- fy_result(figure)$counts_note
+  if (!length(note)) {
+    return(NULL)
+  }
+  shiny::div(class = "fy-caption", paste(note, collapse = " "))
 }
 
 # Drawing --------------------------------------------------------------------

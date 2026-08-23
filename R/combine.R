@@ -68,6 +68,7 @@
 #' alike. How they are drawn is set in [foresty_layout()], through
 #' `emphasis_shape`, `emphasis_height`, `emphasis_face` and `emphasis_gap`.
 #'
+#' @inheritSection foresty_main What the counts beside the rows count
 #' @inheritSection foresty_main Adjusting the figure
 #'
 #' @param ... Figures returned by [foresty_main()] or [foresty_interaction()],
@@ -229,6 +230,12 @@ foresty_combine <- function(...,
     ci_level = results[[1L]]$ci_level,
     adjusted = all(vapply(results, function(r) isTRUE(r$adjusted), logical(1))),
     robust = any(vapply(results, function(r) isTRUE(r$robust), logical(1))),
+    # How the rows of the figures being combined read, so that the combined
+    # figure can say the same about its counts as they did. The sentences
+    # themselves are written again from this figure's own rows and layout
+    # rather than carried over, since it may draw different columns or hold
+    # the counts differently from any of them.
+    counts_reading = fy_combined_counts_reading(results),
     table = table,
     columns = columns,
     person_time = person_time,
@@ -275,7 +282,9 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
                               overall_blocks, measure, measure_label,
                               exponentiate, ci_level, adjusted, robust,
                               table, columns, person_time, layout, title,
-                              subtitle, xlab) {
+                              subtitle, xlab,
+                              counts_reading = c(by_level = FALSE,
+                                                 by_outcome = FALSE)) {
   estimates$block_label <- factor(estimates$block,
                                   levels = blocks[blocks %in% estimates$block])
   estimates$variable_label <- factor(
@@ -334,6 +343,14 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
     infos = infos,
     exposure = exposure,
     blocks = levels(estimates$block_label),
+    counts_note = fy_counts_note(
+      estimates,
+      by_level = isTRUE(counts_reading[["by_level"]]),
+      by_outcome = isTRUE(counts_reading[["by_outcome"]]),
+      table = table, columns = columns, counts = layout$counts
+    ),
+    counts_reading = counts_reading,
+    counts_mode = layout$counts,
     measure = measure,
     measure_label = measure_label,
     exponentiate = exponentiate,
@@ -342,6 +359,25 @@ fy_combine_figure <- function(estimates, exposure, infos, blocks,
     robust = robust,
     person_time = person_time
   )
+}
+
+# Whether the rows of the figures being combined read the way a categorical
+# exposure's rows do, or the way a multinomial fit's do, so that a report of
+# the combined figure can say the same about its counts as a report of any of
+# them would have.
+fy_combined_counts_reading <- function(results) {
+  flags <- c(by_level = FALSE, by_outcome = FALSE)
+  for (result in results) {
+    reading <- result$counts_reading
+    if (is.null(reading)) {
+      next
+    }
+    flags <- flags | reading[names(flags)]
+  }
+  # `|` over a vector carrying an NA -- a figure drawn by foresty_data(), which
+  # has no reading of its own to report -- would spread it.
+  flags[is.na(flags)] <- FALSE
+  flags
 }
 
 # The unit the figures being combined were drawn in, or NULL where none of them
@@ -506,6 +542,12 @@ fy_combined_estimates <- function(results, blocks) {
       n = est$n,
       events = as.numeric(est$events),
       person_time = as.numeric(est$person_time),
+      # The group each row is compared with travels with the row, so that a
+      # combined figure puts the two counts side by side where the figures it
+      # was made from did.
+      n_compared = as.numeric(est$n_compared %||% NA_real_),
+      events_compared = as.numeric(est$events_compared %||% NA_real_),
+      counts_pair = as.character(est$counts_pair %||% NA_character_),
       interaction_p = est$interaction_p %||% NA_real_,
       interaction_p_lrt = est$interaction_p_lrt %||% NA_real_,
       stringsAsFactors = FALSE

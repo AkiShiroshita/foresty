@@ -1080,16 +1080,18 @@ fy_table_columns <- function(estimates, estimate_header,
     )
     keys <- c(keys, "p")
   }
-  if (!all(is.na(estimates$n))) {
-    out[[layout$headings$n]] <- fy_format_count(estimates$n)
+  available <- fy_available_counts(estimates)
+  pairs <- fy_count_pairs(estimates, layout$counts)
+  if (available[["n"]]) {
+    out[[layout$headings$n]] <- fy_format_pair(pairs$n)
     keys <- c(keys, "n")
   }
 
-  if (!all(is.na(estimates$events))) {
-    out[[layout$headings$events]] <- fy_format_count(estimates$events)
+  if (available[["events"]] && !is.null(pairs$events)) {
+    out[[layout$headings$events]] <- fy_format_pair(pairs$events)
     keys <- c(keys, "events")
   }
-  if (!all(is.na(estimates$person_time))) {
+  if (available[["person_time"]]) {
     heading <- fy_person_time_heading(layout$headings$person_time, person_time)
     out[[heading]] <- fy_format_person_time(estimates$person_time, person_time)
     keys <- c(keys, "person_time")
@@ -1129,6 +1131,206 @@ fy_table_columns <- function(estimates, estimate_header,
     keys
   }
   out
+}
+
+# Which of the columns of counts a set of estimates can supply.
+#
+# A column no row supplies says nothing, and an empty column in the table takes
+# width from the plot, so the table leaves it out -- and the note under the
+# figure says nothing about a column that is not there.
+fy_available_counts <- function(estimates) {
+  c(n = !all(is.na(estimates$n)),
+    events = !all(is.na(estimates$events)),
+    person_time = !all(is.na(estimates$person_time)))
+}
+
+# Which of them the figure actually draws, once `table` and `columns` have had
+# their say. `columns` has already been through fy_choose_columns() by the time
+# this is asked, so a name in it is one of the names it is allowed to be.
+fy_drawn_counts <- function(estimates, table = TRUE, columns = NULL) {
+  available <- fy_available_counts(estimates)
+  if (!isTRUE(table)) {
+    return(available & FALSE)
+  }
+  if (is.null(columns)) {
+    return(available)
+  }
+  available & names(available) %in% columns
+}
+
+# Which two numbers the column of sizes and the column of events hold.
+#
+# `counts = "row"`, and every set of estimates drawn before the option existed,
+# holds the row's own group in each and nothing beside it. `"compared"` puts
+# the group the row's estimate is compared with next to it, which is what makes
+# an odds ratio on a row of 822 suburban children readable: it came out of
+# those 822 and the 468 rural ones, and the 468 were on another row.
+#
+# Where a row compares two levels of a multinomial outcome rather than two
+# levels of the exposure, the two groups are the people at those two levels --
+# and that is what the events column already holds, one level to a row. So the
+# pair goes under the column of sizes, where a reader looks for how many people
+# a row is about, and the events column is left off rather than repeating it.
+fy_count_pairs <- function(estimates, counts = "compared") {
+  plain <- list(n = list(a = estimates$n, b = NULL),
+                events = list(a = estimates$events, b = NULL))
+  if (!identical(counts, "compared") || is.null(estimates$counts_pair)) {
+    return(plain)
+  }
+  pair <- as.character(estimates$counts_pair)
+  along <- unique(pair[!is.na(pair)])
+  if (!length(along)) {
+    return(plain)
+  }
+
+  # A figure whose rows compare along the outcome only: the pair of counts it
+  # has is the pair of outcome levels, and it is reported once.
+  if (identical(along, "outcome")) {
+    return(list(
+      n = list(a = estimates$events, b = fy_where(pair, estimates$events_compared)),
+      events = NULL
+    ))
+  }
+  # Otherwise the rows compare along the exposure, and each column carries its
+  # own pair. A multinomial fit of a categorical exposure is here too: its
+  # sizes are the two levels of the exposure and its events the people at the
+  # row's outcome level within each of them, which is the same table a binary
+  # outcome would have drawn.
+  list(
+    n = list(a = estimates$n, b = fy_where(pair, estimates$n_compared)),
+    events = list(a = estimates$events,
+                  b = fy_where(pair, estimates$events_compared))
+  )
+}
+
+# The compared counts, blanked on the rows that compare nothing -- a reference
+# row, or a row of a figure whose other rows pair and this one does not.
+fy_where <- function(pair, values) {
+  ifelse(is.na(pair), NA, values)
+}
+
+# One column of counts: "822 vs 468" where the row has a group to be compared
+# with, and "468" where it is that group.
+fy_format_pair <- function(column) {
+  a <- fy_format_count(column$a)
+  if (is.null(column$b) || all(is.na(column$b))) {
+    return(a)
+  }
+  b <- fy_format_count(column$b)
+  ifelse(is.na(column$b) | !nzchar(b), a, paste0(a, " vs ", b))
+}
+
+# What the counts beside the rows are counts of, as the sentences that say so.
+#
+# A figure of a continuous exposure and a binary outcome needs none of this: a
+# row is a group of people, the number beside it is how many of them there were
+# and the events column is how many had the outcome. The figures that do need
+# it are the ones whose rows are half of a comparison -- a level of a
+# categorical exposure, a level of a multinomial outcome -- and what has to be
+# said about them depends on whether the other half is beside them.
+#
+# Returned as sentences rather than as one string so that foresty_combine() can
+# put the notes of the figures it combines together without repeating the one
+# they share.
+fy_counts_note <- function(estimates, by_level = FALSE, by_outcome = FALSE,
+                           table = TRUE, columns = NULL,
+                           counts = "compared") {
+  drawn <- fy_drawn_counts(estimates, table = table, columns = columns)
+  if (!any(drawn[c("n", "events")])) {
+    return(character(0))
+  }
+  pairs <- fy_count_pairs(estimates, counts)
+  along <- if (identical(counts, "compared") && !is.null(estimates$counts_pair)) {
+    unique(stats::na.omit(as.character(estimates$counts_pair)))
+  } else {
+    character(0)
+  }
+  # Whether the events column is drawn as its own pair of counts, which is what
+  # decides whether there is anything to say about it.
+  events_drawn <- drawn[["events"]] && !is.null(pairs$events)
+
+  said <- if (length(along)) {
+    fy_compared_sentences(along, by_outcome, events_drawn)
+  } else {
+    fy_row_sentences(by_level, by_outcome, drawn[["events"]])
+  }
+  if (!length(said)) {
+    return(character(0))
+  }
+
+  # The rows the counts are over is worth saying wherever they are worth
+  # explaining at all: it is the commonest thing a reader assumes wrongly about
+  # them, and it is what the figure and the model disagree about when a
+  # covariate is missing for some of the cohort.
+  c(paste0(
+    "The counts are over the rows the model was fitted to, so anyone missing ",
+    "the outcome, the exposure or a covariate is left out of them."
+  ), said)
+}
+
+# What to say where each row carries its own group and the group it is compared
+# with. The comparison is on the figure, so what is left to say is which two
+# groups they are -- and, for a multinomial fit, that the estimate did not come
+# out of those two groups alone.
+fy_compared_sentences <- function(along, by_outcome, events_drawn) {
+  said <- character(0)
+  if ("exposure" %in% along) {
+    said <- c(said, paste0(
+      "Each row carries its own group and the group its estimate is compared ",
+      "with, side by side, so the whole comparison is beside the estimate; a ",
+      "reference row is that group and carries one number."
+    ))
+  }
+  if ("outcome" %in% along) {
+    said <- c(said, paste0(
+      "A row compares two levels of the outcome, and the two numbers beside ",
+      "it are how many people were at each of them."
+    ))
+  }
+  if (isTRUE(by_outcome)) {
+    if ("exposure" %in% along && events_drawn) {
+      said <- c(said, paste0(
+        "The sizes are the two groups whatever their outcome, and the events ",
+        "are the people at the level the row is of within each of them."
+      ))
+    }
+    said <- c(said, paste0(
+      "The estimate did not come out of those groups alone: a multinomial ",
+      "model fits every level of the outcome at once, so the people at the ",
+      "levels a row is not about bear on it too."
+    ))
+  }
+  said
+}
+
+# What to say where each row carries its own group and nothing beside it, which
+# is `counts = "row"`. The other half of every comparison is then somewhere
+# else on the figure, or nowhere, and that is the thing to say.
+fy_row_sentences <- function(by_level, by_outcome, events_drawn) {
+  said <- character(0)
+  if (isTRUE(by_outcome)) {
+    said <- c(said, paste0(
+      "Every level of the outcome was fitted at once, so the number of people ",
+      "beside a row is everyone it was taken over whatever their outcome",
+      if (events_drawn) {
+        paste0(
+          ", and the events column counts those at the level the row is of ",
+          "rather than those at the level it is compared with"
+        )
+      } else {
+        ""
+      },
+      "."
+    ))
+  }
+  if (isTRUE(by_level)) {
+    said <- c(said, paste0(
+      "A row counts the people at its own level of the exposure; the level it ",
+      "is compared with is counted on the reference row, so no row carries ",
+      "the total behind its own estimate."
+    ))
+  }
+  said
 }
 
 # The rows one test of an interaction was taken across. A figure of one

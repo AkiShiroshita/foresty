@@ -565,17 +565,30 @@ fy_is_splined <- function(info, exposure) {
 # beside it that its own label does not account for.
 fy_estimate_rows <- function(info, exposure, value, modifier = NULL,
                              modifier_level = NULL, whole_exposure = FALSE) {
-  keep <- rep(TRUE, info$n)
   x <- info$mf[[exposure]]
   # The level counted is the one the comparison is of, which is the value the
   # contrast was taken to -- named by `at` where it was given, and the level of
   # the row otherwise.
-  if (!whole_exposure && !is.null(x) && fy_is_categorical(x)) {
-    keep <- keep & !is.na(x) & as.character(x) == as.character(value$to)
+  level <- if (!whole_exposure && !is.null(x) && fy_is_categorical(x)) {
+    value$to
   }
-  if (!is.null(modifier)) {
+  fy_rows_at(info, exposure, level, modifier, modifier_level)
+}
+
+# The rows of the model frame at one level of the exposure, one level of the
+# modifier, or both. `NULL` for either takes every level of it, so that the
+# people a row is counted over and the people it is compared with are picked
+# out the same way and differ only in which level was asked for.
+fy_rows_at <- function(info, exposure = NULL, exposure_level = NULL,
+                       modifier = NULL, modifier_level = NULL) {
+  keep <- rep(TRUE, info$n)
+  if (!is.null(exposure_level) && !is.null(exposure)) {
+    x <- info$mf[[exposure]]
+    keep <- keep & !is.na(x) & as.character(x) == as.character(exposure_level)
+  }
+  if (!is.null(modifier_level) && !is.null(modifier)) {
     m <- info$mf[[modifier]]
-    keep <- keep & !is.na(m) & as.character(m) == modifier_level
+    keep <- keep & !is.na(m) & as.character(m) == as.character(modifier_level)
   }
   which(keep)
 }
