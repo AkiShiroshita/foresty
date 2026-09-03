@@ -4058,9 +4058,13 @@ fy_app_zip <- function(paths, file) {
       call. = FALSE
     )
   }
-  # utils::zip() names its files relative to the working directory.
-  old <- setwd(dirname(paths[1L]))
-  on.exit(setwd(old), add = TRUE)
+  # utils::zip() names its files relative to the working directory, so the
+  # directory has to be the one the files are in for the length of the call.
+  # It is read and the way back registered before it is changed, so that it is
+  # put back however the call leaves -- including on an error inside it.
+  oldwd <- getwd()
+  on.exit(setwd(oldwd), add = TRUE)
+  setwd(dirname(paths[1L]))
   utils::zip(zipfile = file, files = basename(paths), flags = "-q")
   invisible(file)
 }
