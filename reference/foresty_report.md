@@ -78,12 +78,17 @@ fit <- glm(asthma ~ no2 + sex + maternal_age, family = binomial,
            data = foresty_cohort)
 x <- foresty_interaction(fit, exposure = "no2", interaction = "sex")
 foresty_report(x, file = file.path(tempdir(), "no2_by_sex.html"))
-# }
 
-# The same page as the figure is made, under a name written from the
-# variables it is about -- here no2_sex.html.
-if (FALSE) { # \dontrun{
-foresty_interaction(fit, exposure = "no2", interaction = "sex", html = TRUE)
-foresty_main(list(fit), exposure = "no2", html = TRUE)
-} # }
+# The same page can be asked for as the figure is made. `html = TRUE`
+# writes it under a name taken from the variables it is about -- here
+# no2_sex.html -- into the working directory; a path writes it there
+# instead, which is what these examples do so that nothing is written
+# outside the session's temporary directory.
+foresty_interaction(fit, exposure = "no2", interaction = "sex",
+                    html = file.path(tempdir(), "no2_sex.html"))
+
+foresty_main(list(fit), exposure = "no2",
+             html = file.path(tempdir(), "no2.html"))
+
+# }
 ```

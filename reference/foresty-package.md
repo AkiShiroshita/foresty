@@ -18,7 +18,18 @@ through the 'MASS' package and nominal ones through the 'nnet' package,
 where the figure carries one row per level of the outcome and the
 interaction is tested jointly across the equations. Fits from the 'rms'
 package are refused, naming the function that fits the same model in
-their place.
+their place. The estimation of an exposure effect within a level of a
+modifier, and the test of the difference between such estimates, follow
+Altman and Bland (2003)
+[doi:10.1136/bmj.326.7382.219](https://doi.org/10.1136/bmj.326.7382.219)
+and VanderWeele and Knol (2014)
+[doi:10.1515/em-2013-0005](https://doi.org/10.1515/em-2013-0005) ; the
+reporting of subgroup effects beside the interaction test follows Wang
+et al. (2007)
+[doi:10.1056/NEJMsr077003](https://doi.org/10.1056/NEJMsr077003) , and
+the figure itself the forest plot described by Lewis and Clarke (2001)
+[doi:10.1136/bmj.322.7300.1479](https://doi.org/10.1136/bmj.322.7300.1479)
+.
 
 ## See also
 
