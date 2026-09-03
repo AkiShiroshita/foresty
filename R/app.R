@@ -1387,17 +1387,17 @@ fy_app_server <- function(fit, info, variables, fit_name, measure) {
         output[[paste0("plot_", index)]] <- shiny::renderPlot(res = 96, {
           figs <- display()
           shiny::req(length(figs) >= index)
-          print(figs[[index]])
+          plot(figs[[index]])
         })
       })
     }
 
-    output$models <- shiny::renderPrint({
-      fy_app_model_report(fit, fit_name, figures(), input, ctx)
+    output$models <- shiny::renderText({
+      fy_app_collect(fy_app_model_report(fit, fit_name, figures(), input, ctx))
     })
 
-    output$model <- shiny::renderPrint({
-      fy_app_summaries(fit, fit_name, figures(), input, ctx)
+    output$model <- shiny::renderText({
+      fy_app_collect(fy_app_summaries(fit, fit_name, figures(), input, ctx))
     })
 
     output$code <- shiny::renderText({
@@ -3362,6 +3362,41 @@ fy_app_plain <- function(x) {
   x
 }
 
+# The text a tab comes to, collected rather than written ----------------------
+
+# The Models and summary(fit) tabs are panels of text, and text has to be built
+# somewhere. cat() would build it on the console, which is neither where the
+# app puts it nor somewhere a caller of this package asked for anything to be
+# written. So it is collected instead: each function below adds what it has to
+# say to the buffer fy_app_collect() opened, and fy_app_collect() hands back
+# the one string the panel is given.
+fy_app_text <- new.env(parent = emptyenv())
+
+fy_app_collect <- function(expr) {
+  old <- fy_app_text$lines
+  on.exit(fy_app_text$lines <- old, add = TRUE)
+  fy_app_text$lines <- character(0)
+  force(expr)
+  paste0(fy_app_text$lines, collapse = "")
+}
+
+# cat()'s arguments, into that buffer rather than to the console: each of them
+# as it would be shown, joined by `sep`.
+fy_app_say <- function(..., sep = " ") {
+  pieces <- unlist(lapply(list(...), as.character), use.names = FALSE)
+  fy_app_text$lines <- c(fy_app_text$lines, paste0(pieces, collapse = sep))
+  invisible(NULL)
+}
+
+# An object as its own print method writes it. A summary of a model is worth
+# having on the tab in the form summary() gives it, and capture.output() is how
+# that text is had without any of it being written anywhere.
+fy_app_say_printed <- function(x) {
+  fy_app_say(paste0(utils::capture.output(print(x)), collapse = "\n"), "\n",
+             sep = "")
+}
+
+
 # What was fitted, and how the numbers were arrived at ------------------------
 
 # The summary tab: the model you fitted, and every model the app fitted from it.
@@ -3370,13 +3405,13 @@ fy_app_plain <- function(x) {
 # the others, and the difference between them is the whole of what a subgroup
 # analysis is, so both are here rather than only the one you typed.
 fy_app_summaries <- function(fit, fit_name, states, input = NULL, ctx = NULL) {
-  cat(strrep("=", 72), "\n", sep = "")
-  cat("THE MODEL YOU FITTED -- no interaction term\n")
-  cat("The overall effect, where it is drawn, is drawn from this one.\n")
-  cat(strrep("=", 72), "\n", sep = "")
+  fy_app_say(strrep("=", 72), "\n", sep = "")
+  fy_app_say("THE MODEL YOU FITTED -- no interaction term\n")
+  fy_app_say("The overall effect, where it is drawn, is drawn from this one.\n")
+  fy_app_say(strrep("=", 72), "\n", sep = "")
   fy_app_say_facts(NULL, input, ctx)
-  cat("\n")
-  print(summary(fit))
+  fy_app_say("\n")
+  fy_app_say_printed(summary(fit))
 
   seen <- character(0)
   for (state in states) {
@@ -3388,15 +3423,15 @@ fy_app_summaries <- function(fit, fit_name, states, input = NULL, ctx = NULL) {
       next
     }
     seen <- c(seen, formula)
-    cat("\n\n", strrep("=", 72), "\n", sep = "")
-    cat("WITH THE ", state$pair$exposure, " BY ", state$pair$modifier,
+    fy_app_say("\n\n", strrep("=", 72), "\n", sep = "")
+    fy_app_say("WITH THE ", state$pair$exposure, " BY ", state$pair$modifier,
         " INTERACTION TERM\n", sep = "")
-    cat("The subgroup effects of ", state$pair$exposure,
+    fy_app_say("The subgroup effects of ", state$pair$exposure,
         " are drawn from this one.\n", sep = "")
-    cat(strrep("=", 72), "\n", sep = "")
+    fy_app_say(strrep("=", 72), "\n", sep = "")
     fy_app_say_facts(state, input, ctx)
-    cat("\n")
-    print(summary(fy_infos(state$value)[[1L]]$fit))
+    fy_app_say("\n")
+    fy_app_say_printed(summary(fy_infos(state$value)[[1L]]$fit))
   }
   invisible(NULL)
 }
@@ -3423,16 +3458,16 @@ fy_app_say_facts <- function(state, input, ctx, indent = "  ") {
   } else {
     state$pair$modifier
   }
-  cat(indent, "Outcome:         ", ctx$info$outcome %||% "not named", "\n",
+  fy_app_say(indent, "Outcome:         ", ctx$info$outcome %||% "not named", "\n",
       sep = "")
-  cat(indent, "Exposure:        ", said, "\n", sep = "")
-  cat(indent, "Effect modifier: ", modifier, "\n", sep = "")
+  fy_app_say(indent, "Exposure:        ", said, "\n", sep = "")
+  fy_app_say(indent, "Effect modifier: ", modifier, "\n", sep = "")
   # Which cell the rows are read against, where they are read against one cell
   # rather than each against its own subgroup. A row means a different thing in
   # the two figures, and a tab of coefficients does not say which it is.
   reference <- fy_app_plain_reference(state, input, ctx)
   if (!is.null(reference)) {
-    cat(indent, "Reference group: ", state$pair$exposure, " = ",
+    fy_app_say(indent, "Reference group: ", state$pair$exposure, " = ",
         reference$exposure_level, " and ", state$pair$modifier, " = ",
         reference$modifier_level, "\n", sep = "")
   }
@@ -3449,26 +3484,26 @@ fy_app_say_facts <- function(state, input, ctx, indent = "  ") {
 fy_app_model_report <- function(fit, fit_name, states, input, ctx) {
   base_terms <- fy_app_term_labels(fit)
 
-  cat(strrep("=", 72), "\n", sep = "")
-  cat("THE MODEL YOU FITTED -- no interaction term\n")
-  cat(strrep("=", 72), "\n\n", sep = "")
+  fy_app_say(strrep("=", 72), "\n", sep = "")
+  fy_app_say("THE MODEL YOU FITTED -- no interaction term\n")
+  fy_app_say(strrep("=", 72), "\n\n", sep = "")
   # What the model is, in the words a methods section uses. The classes of the
   # object it is held in -- "glm, lm" -- name the function that fitted it rather
   # than the model, and a reader checking the tab against a paper is looking for
   # "logistic regression".
-  cat("  ", fy_model_name(fit), "\n\n", sep = "")
+  fy_app_say("  ", fy_model_name(fit), "\n\n", sep = "")
   call <- tryCatch(stats::getCall(fit), error = function(e) NULL)
   if (!is.null(call)) {
-    cat("  ", fit_name, " <- ",
+    fy_app_say("  ", fit_name, " <- ",
         paste(deparse(call),
               collapse = paste0("\n", strrep(" ", nchar(fit_name) + 6L))),
         "\n\n", sep = "")
   }
-  cat("  Outcome: ", ctx$info$outcome %||% "not named", "\n", sep = "")
-  cat("  Formula: ", fy_app_formula_text(fit), "\n\n", sep = "")
+  fy_app_say("  Outcome: ", ctx$info$outcome %||% "not named", "\n", sep = "")
+  fy_app_say("  Formula: ", fy_app_formula_text(fit), "\n\n", sep = "")
 
   if (!length(states)) {
-    cat("Choose an exposure to see how its figure would be arrived at.\n")
+    fy_app_say("Choose an exposure to see how its figure would be arrived at.\n")
     return(invisible(NULL))
   }
 
@@ -3481,17 +3516,17 @@ fy_app_model_report <- function(fit, fit_name, states, input, ctx) {
     } else {
       fy_infos(state$value)[[1L]]$fit
     }
-    cat(strrep("-", 72), "\n", sep = "")
-    cat(toupper(state$label), "\n", sep = "")
-    cat(strrep("-", 72), "\n", sep = "")
-    cat("  ", fy_model_name(section_fit), "\n\n", sep = "")
+    fy_app_say(strrep("-", 72), "\n", sep = "")
+    fy_app_say(toupper(state$label), "\n", sep = "")
+    fy_app_say(strrep("-", 72), "\n", sep = "")
+    fy_app_say("  ", fy_model_name(section_fit), "\n\n", sep = "")
     fy_app_say_facts(state, input, ctx)
     # The formula of that model, section by section, since it is the one thing
     # that tells a subgroup section apart from the one above it.
-    cat("  Formula:         ", fy_app_formula_text(section_fit), "\n", sep = "")
-    cat("\n")
+    fy_app_say("  Formula:         ", fy_app_formula_text(section_fit), "\n", sep = "")
+    fy_app_say("\n")
     if (is.null(state$value)) {
-      cat("  Not drawn: ", state$error, "\n\n", sep = "")
+      fy_app_say("  Not drawn: ", state$error, "\n\n", sep = "")
       next
     }
     if (is.null(state$pair$modifier)) {
@@ -3501,23 +3536,23 @@ fy_app_model_report <- function(fit, fit_name, states, input, ctx) {
     }
   }
 
-  cat(strrep("=", 72), "\n", sep = "")
-  cat("A note on the code above\n")
-  cat(strrep("=", 72), "\n\n", sep = "")
-  cat("  It is meant to be run. It is what foresty ran, named for your model\n")
-  cat("  and your variables: the same two rows of data, the same design\n")
-  cat("  matrix, the same coefficients and covariance, the same degrees of\n")
-  cat("  freedom and the same test, so that pasting it beside the model\n")
-  cat("  reproduces the numbers on the figure rather than something close to\n")
-  cat("  them.\n\n")
-  cat("  It calls car::linearHypothesis.default() rather than\n")
-  cat("  car::linearHypothesis(), and passes the hypothesis as a numeric\n")
-  cat("  matrix rather than as a character formula. The method a fit would\n")
-  cat("  dispatch to has its own idea of which coefficients, which covariance\n")
-  cat("  and how many degrees of freedom to use, and would quietly use the\n")
-  cat("  model's own where a robust variance was asked for; and a coefficient\n")
-  cat("  may be named anything a fitting function likes, which car's formula\n")
-  cat("  parser reads only some of.\n")
+  fy_app_say(strrep("=", 72), "\n", sep = "")
+  fy_app_say("A note on the code above\n")
+  fy_app_say(strrep("=", 72), "\n\n", sep = "")
+  fy_app_say("  It is meant to be run. It is what foresty ran, named for your model\n")
+  fy_app_say("  and your variables: the same two rows of data, the same design\n")
+  fy_app_say("  matrix, the same coefficients and covariance, the same degrees of\n")
+  fy_app_say("  freedom and the same test, so that pasting it beside the model\n")
+  fy_app_say("  reproduces the numbers on the figure rather than something close to\n")
+  fy_app_say("  them.\n\n")
+  fy_app_say("  It calls car::linearHypothesis.default() rather than\n")
+  fy_app_say("  car::linearHypothesis(), and passes the hypothesis as a numeric\n")
+  fy_app_say("  matrix rather than as a character formula. The method a fit would\n")
+  fy_app_say("  dispatch to has its own idea of which coefficients, which covariance\n")
+  fy_app_say("  and how many degrees of freedom to use, and would quietly use the\n")
+  fy_app_say("  model's own where a robust variance was asked for; and a coefficient\n")
+  fy_app_say("  may be named anything a fitting function likes, which car's formula\n")
+  fy_app_say("  parser reads only some of.\n")
   invisible(NULL)
 }
 
@@ -3547,24 +3582,24 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
   compared <- fy_app_compared(exposure, input, ctx)
   int_name <- paste0(fit_name, "_int")
 
-  cat("  1. The interaction term\n\n")
+  fy_app_say("  1. The interaction term\n\n")
   lost <- fy_app_lost_arg_lines(info$fit, fit_name)
   if (length(lost)) {
     fy_app_say_code(lost[nzchar(lost)], 7L)
   }
   if (length(added)) {
-    cat("       ", int_name, " <- update(", fit_name, ", . ~ . + ",
+    fy_app_say("       ", int_name, " <- update(", fit_name, ", . ~ . + ",
         paste(added, collapse = " + "), ")\n\n", sep = "")
   } else {
-    cat("       ", int_name, " <- ", fit_name,
+    fy_app_say("       ", int_name, " <- ", fit_name,
         "   # your model carries it already\n\n", sep = "")
   }
 
   reference <- result$reference_cell
   if (is.null(reference)) {
-    cat("  2. One estimate per subgroup, from that one model\n\n")
+    fy_app_say("  2. One estimate per subgroup, from that one model\n\n")
   } else {
-    cat("  2. One estimate per combination of ", exposure, " and ", modifier,
+    fy_app_say("  2. One estimate per combination of ", exposure, " and ", modifier,
         ", each\n     against the reference group, from that one model\n\n",
         sep = "")
   }
@@ -3577,7 +3612,7 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
     7L
   )
 
-  cat("  3. The p-value for the interaction\n\n")
+  fy_app_say("  3. The p-value for the interaction\n\n")
   columns <- tryCatch(
     fy_modifier_interaction_columns(info, exposure, modifier),
     error = function(e) character(0)
@@ -3592,16 +3627,16 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
     fy_app_say_code(fy_app_joint_code(info, int_name, columns), 7L)
   }
   if (length(columns)) {
-    cat("     Coefficients tested: ", paste(columns, collapse = ", "), "\n",
+    fy_app_say("     Coefficients tested: ", paste(columns, collapse = ", "), "\n",
         sep = "")
   }
   for (test in tests) {
     if (is.null(test)) next
-    cat("     Reported here:       ", test$test, " = ",
+    fy_app_say("     Reported here:       ", test$test, " = ",
         fy_format_number(test$statistic), " on ", test$df, " df, p = ",
         fy_format_p(test$p.value), "\n", sep = "")
   }
-  cat("\n")
+  fy_app_say("\n")
 }
 
 # The code behind an estimate ------------------------------------------------
@@ -3624,7 +3659,7 @@ fy_app_report_interaction <- function(state, fit, fit_name, base_terms, input,
 # some of those.
 fy_app_say_code <- function(lines, indent) {
   pad <- strrep(" ", indent)
-  cat(paste0(ifelse(nzchar(lines), paste0(pad, lines), ""), collapse = "\n"),
+  fy_app_say(paste0(ifelse(nzchar(lines), paste0(pad, lines), ""), collapse = "\n"),
       "\n\n", sep = "")
   invisible(NULL)
 }
@@ -3950,7 +3985,7 @@ fy_app_save <- function(figures, file, format, input) {
   # figure is printed as itself, which is what applies the floor; several are
   # each given it here, because stacking them hands patchwork the class and the
   # estimates of whichever it took them from.
-  print(if (length(figures) == 1L) {
+  plot(if (length(figures) == 1L) {
     figures[[1L]]
   } else {
     patchwork::wrap_plots(
