@@ -34,7 +34,7 @@ right.](man/figures/ui.png)
 Installation:
 
 ``` r
-# install.packages("devtools")
+# install.packages("remotes")
 remotes::install_github("AkiShiroshita/foresty")
 ```
 
@@ -177,6 +177,11 @@ foresty_data(
 <img src="man/figures/README-foresty-data-example-1.png"
 style="width:100.0%"
 alt="Forest plot built from a prepared data frame, showing odds ratios for the overall population and for subgroups defined by sex and maternal age, with interaction p-values." />
+
+Add a column of colors — `"red"` and `"#B24745"`, or the names of
+categories to draw from the layout’s palette — and name it with `color =`
+to say which row is drawn in which color:
+`foresty_data(subgroups, color = "color_group", ...)`.
 
 ## Acknowledgements
 
