@@ -98,7 +98,10 @@ foresty_layout(
   categorical exposure is drawn hollow either way, being a definition
   rather than an estimate. No legend is drawn: every row is labelled
   already, and a legend repeating the labels is a second copy of them to
-  keep in step.
+  keep in step. A figure drawn from a table of estimates can say which
+  row is which color instead of leaving it to a rule, by carrying a
+  column of them: see `color` in
+  [`foresty_data()`](https://akishiroshita.github.io/foresty/reference/foresty_data.md).
 
 - colors:
 

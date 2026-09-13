@@ -199,6 +199,11 @@ the overall population and for subgroups defined by sex and maternal
 age, with interaction
 p-values.](reference/figures/README-foresty-data-example-1.png)
 
+Add a column of colors — `"red"` and `"#B24745"`, or the names of
+categories to draw from the layout’s palette — and name it with
+`color =` to say which row is drawn in which color:
+`foresty_data(subgroups, color = "color_group", ...)`.
+
 ## Acknowledgements
 
 - Claude Code (Anthropic’s Claude Opus 5) assisted with adding notes,
