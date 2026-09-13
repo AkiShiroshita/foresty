@@ -13,6 +13,7 @@ status](https://www.r-pkg.org/badges/version/foresty)](https://CRAN.R-project.or
 coverage](https://codecov.io/gh/AkiShiroshita/foresty/branch/main/graph/badge.svg)](https://app.codecov.io/gh/AkiShiroshita/foresty?branch=main)
 [![foresty
 downloads](https://cranlogs.r-pkg.org/badges/foresty)](https://CRAN.R-project.org/package=foresty)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22735615.svg)](https://doi.org/10.5281/zenodo.22735615)
 <!-- badges: end -->
 
 Visualize interaction effects with publication-ready forest plots.

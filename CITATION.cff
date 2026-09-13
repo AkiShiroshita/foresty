@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: "If you use foresty, please cite it as below."
 title: "foresty: Forest Plots and Subgroup Effects from Fitted Regression Models"
 version: 0.1.0
+doi: 10.5281/zenodo.22735615
 date-released: 2026-09-12
 
 authors:
