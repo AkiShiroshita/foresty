@@ -30,11 +30,18 @@ right.](reference/figures/ui.png)
 Screenshot of the foresty Shiny app, with the subgroup settings panel on
 the left and the resulting forest plot on the right.
 
-Installation:
+Installation from CRAN:
 
 ``` r
 
-# install.packages("devtools")
+install.packages("foresty")
+```
+
+The development version from GitHub:
+
+``` r
+
+# install.packages("remotes")
 remotes::install_github("AkiShiroshita/foresty")
 ```
 

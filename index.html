@@ -78,12 +78,15 @@
 <div class="float">
 <img src="reference/figures/ui.png" alt="Screenshot of the foresty Shiny app, with the subgroup settings panel on the left and the resulting forest plot on the right."><div class="figcaption">Screenshot of the foresty Shiny app, with the subgroup settings panel on the left and the resulting forest plot on the right.</div>
 </div>
-<p>Installation:</p>
+<p>Installation from CRAN:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"foresty"</span><span class="op">)</span></span></code></pre></div>
+<p>The development version from GitHub:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"AkiShiroshita/foresty"</span><span class="op">)</span></span></code></pre></div>
 <p>Start with a model <strong>without an interaction term</strong> and let <code>foresty</code> explore possible exposure–modifier interactions:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/AkiShiroshita/foresty" class="external-link">foresty</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span><span class="op">(</span></span>
@@ -211,7 +214,7 @@
 <h2 id="more-flexible-way">More flexible way<a class="anchor" aria-label="anchor" href="#more-flexible-way"></a>
 </h2>
 <p>Do you want to adjust for multiplicity (e.g., using the false discovery rate)? Do you want to perform multiple imputation and present pooled, subgroup-specific estimates? Of course, you can! Prepare the data you want to present and use <code><a href="reference/foresty_data.html">foresty_data()</a></code>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">subgroups</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  subgroup  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Overall"</span>, <span class="st">"Female"</span>, <span class="st">"Male"</span>, <span class="st">"Under 35"</span>, <span class="st">"35 and over"</span><span class="op">)</span>,</span>
 <span>  block     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Overall"</span>, <span class="st">"Sex"</span>, <span class="st">"Sex"</span>, <span class="st">"Maternal age"</span>, <span class="st">"Maternal age"</span><span class="op">)</span>,</span>
@@ -285,6 +288,10 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://CRAN.R-project.org/package=foresty" class="external-link"><img src="https://www.r-pkg.org/badges/version/foresty" alt="CRAN status"></a></li>
+<li><a href="https://app.codecov.io/gh/AkiShiroshita/foresty?branch=main" class="external-link"><img src="https://codecov.io/gh/AkiShiroshita/foresty/branch/main/graph/badge.svg" alt="Codecov test coverage"></a></li>
+<li><a href="https://CRAN.R-project.org/package=foresty" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/foresty" alt="foresty downloads"></a></li>
+<li><a href="https://doi.org/10.5281/zenodo.22735615" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22735615.svg" alt="DOI"></a></li>
 </ul>
 </div>
 
