@@ -1,6 +1,10 @@
+# foresty (development version)
+
+* `foresty_data(color = )` names a column of the data saying what color each row is drawn in, which is how a figure drawn from a table colors the rows it chooses rather than the ones a rule would have chosen. `color_by` in `foresty_layout()` works the color out from the labels, which it can do for a figure that came off a model and its levels; a table of estimates carries whatever the author put in it, so it says instead. The column holds either the colors themselves -- `"red"`, `"#B24745"` -- or the names of categories, drawn in the layout's `colors` one color per name; which of the two it is, is read off the values rather than asked for again, and a column holding some of each is refused where it was named. The mark, its interval and the summary diamond are all drawn in it, the reference level of a categorical exposure stays hollow, and no legend is drawn, every row being labelled already.
+
 # foresty 0.1.0
 
-First release.
+First release. Published on CRAN on 2026-09-12.
 
 ## Features
 

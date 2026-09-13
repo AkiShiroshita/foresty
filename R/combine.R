@@ -550,6 +550,10 @@ fy_combined_estimates <- function(results, blocks) {
       counts_pair = as.character(est$counts_pair %||% NA_character_),
       interaction_p = est$interaction_p %||% NA_real_,
       interaction_p_lrt = est$interaction_p_lrt %||% NA_real_,
+      # A color a row was given travels with the row, so that a figure drawn
+      # from a table of colored rows is still colored once it is combined with
+      # another.
+      color_group = as.character(est$color_group %||% NA_character_),
       stringsAsFactors = FALSE
     )
   }, results, blocks)
@@ -567,6 +571,11 @@ fy_combined_estimates <- function(results, blocks) {
   }
   if (all(is.na(out$interaction_p_lrt))) {
     out$interaction_p_lrt <- NULL
+  }
+  # A column of colors no figure supplied would tip the combined figure into
+  # drawing every row from a column holding nothing.
+  if (all(is.na(out$color_group))) {
+    out$color_group <- NULL
   }
   if (all(is.na(out$modifier_level))) {
     out$modifier_level <- NULL
