@@ -9,6 +9,8 @@
 [![R-CMD-check](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/foresty)](https://CRAN.R-project.org/package=foresty)
+[![Codecov test
+coverage](https://codecov.io/gh/AkiShiroshita/foresty/branch/main/graph/badge.svg)](https://app.codecov.io/gh/AkiShiroshita/foresty?branch=main)
 [![foresty
 downloads](https://cranlogs.r-pkg.org/badges/foresty)](https://CRAN.R-project.org/package=foresty)
 <!-- badges: end -->
