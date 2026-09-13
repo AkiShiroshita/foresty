@@ -7,6 +7,10 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AkiShiroshita/foresty/actions/workflows/R-CMD-check.yaml)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/foresty)](https://CRAN.R-project.org/package=foresty)
+[![foresty
+downloads](https://cranlogs.r-pkg.org/badges/foresty)](https://CRAN.R-project.org/package=foresty)
 <!-- badges: end -->
 
 Visualize interaction effects with publication-ready forest plots.
@@ -31,10 +35,16 @@ p-values.](man/figures/demo.png)
 on the left and the resulting forest plot on the
 right.](man/figures/ui.png)
 
-Installation:
+Installation from CRAN:
 
 ``` r
-# install.packages("devtools")
+install.packages("foresty")
+```
+
+The development version from GitHub:
+
+``` r
+# install.packages("remotes")
 remotes::install_github("AkiShiroshita/foresty")
 ```
 

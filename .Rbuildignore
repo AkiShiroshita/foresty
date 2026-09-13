@@ -21,4 +21,7 @@
 ^CRAN-SUBMISSION$
 ^revdep$
 ^pkgdown$
+# GitHub/Zenodo citation metadata: R reads inst/CITATION, and --as-cran flags
+# a top-level CITATION.cff as a non-standard file.
+^CITATION\.cff$
 ^[^/]*\.csv$

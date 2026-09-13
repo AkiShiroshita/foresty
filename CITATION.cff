@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use foresty, please cite it as below."
+title: "foresty: Forest Plots and Subgroup Effects from Fitted Regression Models"
+version: 0.1.0
+date-released: 2026-09-12
+
+authors:
+  - family-names: "Shiroshita"
+    given-names: "Akihiro"
+    email: "akihirokun8@gmail.com"
+    orcid: "https://orcid.org/0000-0003-0262-459X"
+  - family-names: "Kataoka"
+    given-names: "Yuki"
+    email: "youkiti@gmail.com"
+    orcid: "https://orcid.org/0000-0001-7982-5213"
+
+repository-code: "https://github.com/AkiShiroshita/foresty"
+url: "https://CRAN.R-project.org/package=foresty"
+license: "GPL-3.0-only"
+
+abstract: >
+  An R package that draws forest plots of exposure effects from fitted
+  regression models, estimating the effect within each level of an effect
+  modifier and reporting the joint interaction test beside those estimates.
