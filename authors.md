@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/AkiShiroshita/foresty/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/AkiShiroshita/foresty/blob/v0.1.0/inst/CITATION)
 
 Shiroshita A, Kataoka Y (2026). *foresty: Forest Plots and Subgroup
 Effects from Fitted Regression Models*. R package version 0.1.0,
