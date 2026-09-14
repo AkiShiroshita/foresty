@@ -175,6 +175,27 @@ test_that("the likelihood ratio test is the default, and falls back to Wald", {
   )
   expect_named(fy_result(fallback)$interaction_tests, "wald")
 
+  # So is a fit whose likelihood turns out to be missing only once the test is
+  # taken over it. The reason is passed on without its closing advice to use
+  # the Wald test, which is what has just been done.
+  no_aic <- fit
+  no_aic$aic <- NA_real_
+  said <- tryCatch(
+    foresty_interaction(no_aic, exposure = "no2", interaction = "sex"),
+    message = conditionMessage
+  )
+  expect_match(said, "could not be taken over this model.*reports no likelihood")
+  expect_no_match(said, "test = \"wald\"", fixed = TRUE)
+  lost <- suppressMessages(
+    foresty_interaction(no_aic, exposure = "no2", interaction = "sex")
+  )
+  expect_named(fy_result(lost)$interaction_tests, "wald")
+  expect_error(
+    foresty_interaction(no_aic, exposure = "no2", interaction = "sex",
+                        test = "lrt"),
+    "reports no likelihood"
+  )
+
   # Robust standard errors are no part of a likelihood, so the default is the
   # test that does answer to them.
   skip_if_not_installed("sandwich")

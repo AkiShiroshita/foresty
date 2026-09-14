@@ -1024,13 +1024,6 @@ fy_has_no_likelihood <- function(fit) {
   if (fy_is_gee(fit)) {
     return(TRUE)
   }
-  # A survey-weighted fit maximizes a pseudo-likelihood weighted by the
-  # design, and logLik() of one is not a likelihood of the data. Its test is
-  # the Rao-Scott working likelihood ratio test, taken elsewhere; this is the
-  # guard against the ordinary one being computed from it.
-  if (inherits(fit, "svyglm")) {
-    return(TRUE)
-  }
   fam <- try(stats::family(fit), silent = TRUE)
   if (inherits(fam, "try-error") || is.null(fam$family) || is.na(fam$family)) {
     return(FALSE)
@@ -1041,13 +1034,6 @@ fy_has_no_likelihood <- function(fit) {
 # What to call the thing that has no likelihood, so that the sentence saying
 # the Wald test was reported instead says why.
 fy_no_likelihood_reason <- function(fit) {
-  if (inherits(fit, "svyglm")) {
-    return(paste0(
-      "a survey-weighted fit maximizes a pseudo-likelihood weighted by the ",
-      "design rather than a likelihood of the data, so the ordinary ",
-      "likelihood ratio test does not apply to it"
-    ))
-  }
   if (fy_is_gee(fit)) {
     return(paste0(
       "a GEE estimates its coefficients from estimating equations rather than ",
