@@ -109,6 +109,7 @@ covariance matrix, and a model frame. Tested model classes include:
 | base R | `glm()`, `lm()` |
 | `survival` | `coxph()`, `survreg()` |
 | `lme4` | `lmer()`, `glmer()` |
+| `survey` | `svyglm()` |
 | other | `MASS::polr()` (logistic), `nnet::multinom()`, `geepack::geeglm()` |
 
 The effect measure is inferred from the model where possible, including
@@ -116,7 +117,10 @@ odds ratios, hazard ratios, risk ratios, incidence rate ratios, and mean
 differences.
 
 Robust and cluster-robust standard errors are also supported where
-applicable.
+applicable. A `survey::svyglm()` fit keeps the design-based variance it
+was fitted with, and is referred to a t and an F on the degrees of
+freedom of its design, as `survey` itself does; the interaction is
+tested by the Rao-Scott working likelihood ratio test.
 
 `rms` fits – `lrm()`, `ols()`, `cph()`, `psm()`, `Glm()`, `orm()` – are
 **not** supported. A variable *transformed* by `rms` is a different
