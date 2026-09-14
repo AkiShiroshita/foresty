@@ -907,6 +907,23 @@ test_that("a survey-weighted fit is read as survey reports it", {
   expect_output(print(s), "design-based standard errors")
 })
 
+test_that("a design with no degrees of freedom left is refused", {
+  skip_if_not_installed("survey")
+  # Three primary sampling units cannot support four coefficients: survey
+  # leaves the fit a negative number of degrees of freedom, and no interval
+  # can be drawn on it.
+  d <- foresty_cohort
+  set.seed(1)
+  d$psu <- sample(seq_len(3), nrow(d), replace = TRUE)
+  d$w <- 1
+  design <- survey::svydesign(ids = ~psu, weights = ~w, data = d)
+  fit <- survey::svyglm(asthma ~ no2 + sex + maternal_age, design = design,
+                        family = quasibinomial())
+  expect_lte(fit$df.residual, 0)
+  expect_error(foresty_main(list(fit), exposure = "no2"),
+               "no design degrees of freedom")
+})
+
 test_that("a survey-weighted fit counts the people the design gave weight to", {
   skip_if_not_installed("survey")
   design <- fy_test_design()
