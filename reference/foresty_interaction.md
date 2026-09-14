@@ -208,7 +208,11 @@ foresty_interaction(
   (`HC1`), and `"HC0"` to `"HC4"` name one exactly; both come from the
   `sandwich` package. A function is called on the fit, and a matrix is
   used as it stands. For a Cox model refit with `robust = TRUE`; a fit
-  that is already robust is used as it is.
+  that is already robust is used as it is. A
+  [`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) fit
+  refuses both `vcov` and `cluster`: its variance is the design-based
+  one already, and the clustering is part of the design it was fitted
+  to.
 
 - cluster:
 
@@ -398,6 +402,18 @@ report the Wald test and say that they did.
 
 For a linear model the likelihood ratio test is the chi-square form
 rather than the exact F test, which is what the Wald test gives there.
+
+A [`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) fit
+maximizes a pseudo-likelihood weighted by the design, so the ordinary
+likelihood ratio test does not apply to it. In its place `test = "lrt"`
+takes the Rao-Scott working likelihood ratio test that `survey` reports
+for two nested fits, through
+[`survey::anova.svyglm()`](https://rdrr.io/pkg/survey/man/anova.svyglm.html),
+and `test = "wald"` the F test on the degrees of freedom of the design,
+which is what
+[`survey::regTermTest()`](https://rdrr.io/pkg/survey/man/regTermTest.html)
+reports. Both are design-based from the start, so neither is affected by
+the caveat above.
 
 ## What the counts beside the rows count
 

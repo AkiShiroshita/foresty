@@ -248,7 +248,9 @@ own. <code>"robust"</code> gives the heteroskedasticity-consistent sandwich esti
 (<code>HC1</code>), and <code>"HC0"</code> to <code>"HC4"</code> name one exactly; both come from the
 <code>sandwich</code> package. A function is called on the fit, and a matrix is used
 as it stands. For a Cox model refit with <code>robust = TRUE</code>; a fit that is
-already robust is used as it is.</p></dd>
+already robust is used as it is. A <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> fit refuses both
+<code>vcov</code> and <code>cluster</code>: its variance is the design-based one already, and
+the clustering is part of the design it was fitted to.</p></dd>
 
 
 <dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
@@ -423,6 +425,13 @@ than a number that would look like a likelihood ratio test and not be one;
 the default and <code>test = "both"</code> report the Wald test and say that they did.</p>
 <p>For a linear model the likelihood ratio test is the chi-square form rather
 than the exact F test, which is what the Wald test gives there.</p>
+<p>A <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> fit maximizes a pseudo-likelihood weighted by the
+design, so the ordinary likelihood ratio test does not apply to it. In its
+place <code>test = "lrt"</code> takes the Rao-Scott working likelihood ratio test that
+<code>survey</code> reports for two nested fits, through <code><a href="https://rdrr.io/pkg/survey/man/anova.svyglm.html" class="external-link">survey::anova.svyglm()</a></code>, and
+<code>test = "wald"</code> the F test on the degrees of freedom of the design, which is
+what <code><a href="https://rdrr.io/pkg/survey/man/regTermTest.html" class="external-link">survey::regTermTest()</a></code> reports. Both are design-based from the start,
+so neither is affected by the caveat above.</p>
     </div>
     <div class="section level2">
     <h2 id="what-the-counts-beside-the-rows-count">What the counts beside the rows count<a class="anchor" aria-label="anchor" href="#what-the-counts-beside-the-rows-count"></a></h2>

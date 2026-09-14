@@ -82,8 +82,13 @@ anything; use <code><a href="foresty_interaction.html">foresty_interaction()</a>
 
 <dl><dt id="arg-fits">fits<a class="anchor" aria-label="anchor" href="#arg-fits"></a></dt>
 <dd><p>A list of fitted models. Models fitted by <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>,
-<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">stats::lm()</a></code> and the <code>survival</code> package are supported,
-as is any fit supplying <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code> and a model frame.</p></dd>
+<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">stats::lm()</a></code>, the <code>survival</code> package and <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> are
+supported, as is any fit supplying <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code> and a model frame.
+A survey-weighted fit keeps the design-based variance it was fitted with
+and is referred to a t and an F on the degrees of freedom of its design,
+as <code>survey</code> itself does; the counts beside its rows are the unweighted
+numbers of people in the sample, taken over the rows the fit gave weight
+to, so a design that was <code><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset()</a></code> counts the subset.</p></dd>
 
 
 <dt id="arg-exposure">exposure<a class="anchor" aria-label="anchor" href="#arg-exposure"></a></dt>
@@ -211,7 +216,9 @@ own. <code>"robust"</code> gives the heteroskedasticity-consistent sandwich esti
 (<code>HC1</code>), and <code>"HC0"</code> to <code>"HC4"</code> name one exactly; both come from the
 <code>sandwich</code> package. A function is called on the fit, and a matrix is used
 as it stands. For a Cox model refit with <code>robust = TRUE</code>; a fit that is
-already robust is used as it is.</p></dd>
+already robust is used as it is. A <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> fit refuses both
+<code>vcov</code> and <code>cluster</code>: its variance is the design-based one already, and
+the clustering is part of the design it was fitted to.</p></dd>
 
 
 <dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
