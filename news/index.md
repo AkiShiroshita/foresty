@@ -1,6 +1,6 @@
 # Changelog
 
-## foresty (development version)
+## foresty 0.2.0
 
 - Models fitted to a complex survey design with
   [`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) are
