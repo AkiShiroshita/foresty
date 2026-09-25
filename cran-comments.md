@@ -26,6 +26,8 @@ The update also adds:
 
 * Local: Windows 11 x64 (build 26200), R 4.6.0 (2026-04-24 ucrt) --
   `R CMD build` followed by `R CMD check --as-cran`.
+* win-builder, R Under development (unstable) (2026-09-21 r90579 ucrt),
+  Windows Server 2022 x64 (build 20348).
 * win-builder, R 4.6.1 (2026-06-24 ucrt), Windows Server 2022 x64
   (build 20348).
 * GitHub Actions, `R CMD check --as-cran` on each of:
@@ -37,9 +39,9 @@ The update also adds:
 
 ## R CMD check results
 
-Locally: 0 errors | 0 warnings | 0 notes.
+Locally and on win-builder R-devel: 0 errors | 0 warnings | 0 notes.
 
-On win-builder: 0 errors | 0 warnings | 1 note, the incoming-feasibility one:
+On win-builder R release: 0 errors | 0 warnings | 1 note, the incoming-feasibility one:
 
 ```
 * checking CRAN incoming feasibility ... NOTE
