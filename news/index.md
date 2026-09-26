@@ -2,6 +2,8 @@
 
 ## foresty 0.2.0
 
+CRAN release: 2026-09-25
+
 - Models fitted to a complex survey design with
   [`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) are
   supported. Declare the design, fit the model to it and pass the fit:
