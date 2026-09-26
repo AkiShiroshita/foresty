@@ -1,5 +1,7 @@
 # Changelog
 
+## foresty (development version)
+
 ## foresty 0.2.0
 
 CRAN release: 2026-09-25

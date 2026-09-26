@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   forest: forest.html
-last_built: 2026-09-26T02:07Z
+last_built: 2026-09-26T02:18Z
 urls:
   reference: https://akishiroshita.github.io/foresty/reference
   article: https://akishiroshita.github.io/foresty/articles
